@@ -213,7 +213,7 @@ export default function CourseResult({ slug }: Props) {
   if (loading) {
     return (
       <>
-        <WeekendHeader locationName="" />
+        <WeekendHeader locationName="코스 보기" />
         <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-4 border-orange-200" />
@@ -231,7 +231,7 @@ export default function CourseResult({ slug }: Props) {
   if (!data) {
     return (
       <>
-        <WeekendHeader locationName="" />
+        <WeekendHeader locationName="코스 보기" />
         <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20 px-6">
           <span className="text-5xl mb-4">😢</span>
           <h2 className="text-lg font-black text-slate-800" style={{ fontFamily: "'CookieRun', sans-serif" }}>
@@ -254,10 +254,25 @@ export default function CourseResult({ slug }: Props) {
 
   const { course, kakaoNaviUrl } = data;
 
-  // 카카오맵 웹 URL 직접 생성 (kakaoNaviUrl이 딥링크일 수 있으므로)
-  const kakaoMapWebUrl = course.stops.length > 0
-    ? `https://map.kakao.com/link/map/${course.stops.map(s => `${encodeURIComponent(s.title)},${s.latitude},${s.longitude}`).join('/')}`
-    : '';
+  // 코스 제목을 헤더에 표시
+  const locationName = course.title || '코스 보기';
+
+  // 카카오맵 웹 URL: 멀티마커가 아닌 개별 장소 마커 URL 사용
+  const buildKakaoMapUrl = () => {
+    if (course.stops.length === 0) return '';
+    if (course.stops.length === 1) {
+      const s = course.stops[0];
+      return `https://map.kakao.com/link/map/${encodeURIComponent(s.title)},${s.latitude},${s.longitude}`;
+    }
+    // 다중 마커: link/map/title,lat,lng 형식은 단일만 지원 → roadview 대신 to 형태 사용
+    // 카카오맵 멀티마커: https://map.kakao.com/link/map/title1,lat1,lng1/title2,lat2,lng2 는 미지원
+    // 대안: 첫 장소를 출발, 마지막 장소를 도착으로 길찾기 URL 생성
+    const origin = course.stops[0];
+    const dest = course.stops[course.stops.length - 1];
+    return `https://map.kakao.com/link/from/${encodeURIComponent(origin.title)},${origin.latitude},${origin.longitude}/to/${encodeURIComponent(dest.title)},${dest.latitude},${dest.longitude}`;
+  };
+
+  const kakaoMapWebUrl = buildKakaoMapUrl();
 
   const handleKakaoMap = () => {
     // 모바일이면 카카오맵 앱 딥링크 시도, 실패 시 웹으로 폴백
@@ -267,7 +282,7 @@ export default function CourseResult({ slug }: Props) {
       const origin = course.stops[0];
       const dest = course.stops[course.stops.length - 1];
       const vias = course.stops.slice(1, -1);
-      let deeplink = `kakaomap://route?sp=${origin.latitude},${origin.longitude}&ep=${dest.latitude},${dest.longitude}`;
+      let deeplink = `kakaomap://route?sp=${origin.latitude},${origin.longitude}&ep=${dest.latitude},${dest.longitude}&by=CAR`;
       vias.forEach((v, i) => { deeplink += `&via${i + 1}=${v.latitude},${v.longitude}`; });
 
       // 앱 열기 시도 → 1.5초 후 웹으로 폴백
@@ -285,7 +300,7 @@ export default function CourseResult({ slug }: Props) {
 
   return (
     <>
-      <WeekendHeader locationName="" />
+      <WeekendHeader locationName={locationName ?? '코스 보기'} />
 
       <div className="max-w-lg mx-auto px-5 pt-16 pb-28">
         {/* 헤더 영역 */}

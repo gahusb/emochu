@@ -56,7 +56,7 @@ export default function BottomTabBar() {
       <div className="flex items-center justify-around max-w-lg mx-auto h-16">
         {TABS.map((tab) => {
           const isActive =
-            tab.href === '/weekend'
+            tab.href === '/'
               ? pathname === '/'
               : pathname.startsWith(tab.href);
 

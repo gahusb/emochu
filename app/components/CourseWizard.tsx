@@ -453,7 +453,7 @@ export default function CourseWizard() {
               </button>
             ) : (
               <Link
-                href="/weekend"
+                href="/"
                 className="flex-shrink-0 px-5 py-3.5 rounded-2xl bg-white border border-orange-100 text-slate-500 hover:text-slate-700 hover:border-orange-200 transition-all text-sm font-bold shadow-sm"
               >
                 취소
