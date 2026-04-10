@@ -23,6 +23,7 @@ import {
   generateShareSlug,
   buildKakaoNaviUrl,
   haversineKm,
+  generateCourseFortuneMessage,
   type ScoredSpot,
   type FestivalCandidate,
   type StayCandidate,
@@ -543,6 +544,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 4.5. 이동 정보 계산 (stops 사이 거리/시간)
+    for (let i = 1; i < course.stops.length; i++) {
+      const prev = course.stops[i - 1];
+      const curr = course.stops[i];
+      const R = 6371;
+      const dLat = (curr.latitude - prev.latitude) * Math.PI / 180;
+      const dLon = (curr.longitude - prev.longitude) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(prev.latitude*Math.PI/180) * Math.cos(curr.latitude*Math.PI/180) * Math.sin(dLon/2)**2;
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const mins = Math.round(dist * 1.5 * 2);
+      if (mins > 0) {
+        curr.transitInfo = `차로 ${mins}분 (${dist.toFixed(1)}km)`;
+      }
+    }
+
+    // 4.6. 나들이 운세 메시지 생성
+    let fortuneMessage = '';
+    try {
+      fortuneMessage = await generateCourseFortuneMessage(
+        course.title,
+        req.feeling,
+        undefined // weather summary if available
+      );
+    } catch { /* ignore */ }
+
     // 5. Supabase 저장 (실패해도 코스는 반환)
     const shareSlug = generateShareSlug();
     let courseId = shareSlug;
@@ -580,6 +606,7 @@ export async function POST(request: NextRequest) {
       shareUrl: `/weekend/course/${shareSlug}`,
       course,
       kakaoNaviUrl: buildKakaoNaviUrl(course.stops),
+      fortuneMessage,
     };
 
     return NextResponse.json(response);
