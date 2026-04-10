@@ -904,6 +904,75 @@ function generateFallbackCourse(
   };
 }
 
+// ─── AI 요약 유틸 (gemini-2.5-flash-lite) ───
+
+async function callGeminiLite(prompt: string, maxTokens = 100): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return '';
+
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  const models = ['gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+  for (const modelName of models) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: { maxOutputTokens: maxTokens, temperature: 0.8 },
+      });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      if (text) return text;
+    } catch {
+      continue;
+    }
+  }
+  return '';
+}
+
+export async function generateFestivalSummary(
+  title: string,
+  overview: string | undefined
+): Promise<string> {
+  if (!overview || overview.length < 20) return '';
+  const prompt = `한국 축제 정보를 한 줄(30자 이내)로 요약해주세요. "왜 지금 가야 하는지"를 담아주세요.
+축제명: ${title}
+설명: ${overview.slice(0, 300)}
+응답은 요약 문장만 출력하세요. 따옴표나 설명 없이.`;
+  return callGeminiLite(prompt, 60);
+}
+
+export async function generateSpotWhyNow(
+  title: string,
+  cat2: string,
+  overview: string | undefined,
+  weather: { sky: string; tempMax: number } | undefined,
+  month: number
+): Promise<string> {
+  const seasonContext = SEASON_NAME[month] || '봄';
+  const weatherContext = weather ? `날씨: ${weather.sky}, 최고 ${weather.tempMax}°C` : '';
+  const prompt = `한국 관광지를 한 줄(30자 이내)로 "지금 가면 좋은 이유"를 써주세요.
+장소: ${title} (${cat2})
+계절: ${seasonContext}
+${weatherContext}
+${overview ? `설명: ${overview.slice(0, 200)}` : ''}
+응답은 문장만 출력하세요. 따옴표나 설명 없이. ~요체.`;
+  return callGeminiLite(prompt, 60);
+}
+
+export async function generateCourseFortuneMessage(
+  courseTitle: string,
+  feeling: string | undefined,
+  weatherSummary: string | undefined
+): Promise<string> {
+  const prompt = `주말 나들이 코스를 시작하는 사용자에게 "오늘의 나들이 운세" 감성 한마디(50자 이내)를 써주세요.
+코스: ${courseTitle}
+${feeling ? `기분: ${feeling}` : ''}
+${weatherSummary ? `날씨: ${weatherSummary}` : ''}
+재미있고 긍정적인 톤으로. 이모지 1개 포함. 응답은 문장만 출력하세요.`;
+  return callGeminiLite(prompt, 80);
+}
+
 // ─── 메인 생성 함수 ───
 
 export async function generateCourse(input: CourseGenerationInput): Promise<CourseData> {
