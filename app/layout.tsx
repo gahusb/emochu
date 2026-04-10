@@ -19,9 +19,14 @@ export const metadata: Metadata = {
     '관광지 추천',
     '이모추',
   ],
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
+    url: 'https://emochu.vercel.app',
     title: '이모추! — 이번 주에 모하지 추천',
     description: '3번의 선택 → AI가 10초 만에 주말 나들이 코스 완성!',
     siteName: '이모추!',

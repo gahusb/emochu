@@ -180,6 +180,16 @@ export interface CourseRequest {
   mood?: MoodType;
 }
 
+// ─── 편의시설 정보 ───
+
+export interface FacilityInfo {
+  parking?: boolean;
+  babyCarriage?: boolean;
+  kidsFacility?: boolean;
+  pet?: boolean;
+  operatingHours?: string;
+}
+
 export interface CourseStop {
   order: number;
   contentId: string;
@@ -194,6 +204,9 @@ export interface CourseStop {
   isFestival: boolean;
   isStay?: boolean;         // 숙박 장소 여부
   day?: number;             // 1박2일 시 1일차/2일차 (1 or 2)
+  images?: string[];
+  facilities?: FacilityInfo;
+  transitInfo?: string;         // "차로 15분 (4.2km)"
 }
 
 export interface CourseData {
@@ -209,6 +222,7 @@ export interface CourseResponse {
   shareUrl: string;
   course: CourseData;
   kakaoNaviUrl: string;
+  fortuneMessage?: string;
 }
 
 // ─── 홈 화면 ───
@@ -221,6 +235,9 @@ export interface SpotCard {
   cat2: string;
   reason: string;          // AI 생성 추천 이유
   distanceKm?: number;
+  whyNow?: string;              // AI "지금 가면 좋은 이유"
+  facilities?: FacilityInfo;
+  images?: string[];
 }
 
 export interface FestivalCard {
@@ -233,6 +250,9 @@ export interface FestivalCard {
   aiSummary?: string;
   urgencyTag?: string;     // "올 주말 마지막!", "오늘 시작!"
   distanceKm?: number;
+  facilities?: FacilityInfo;
+  images?: string[];
+  dDay?: number;
 }
 
 export interface HomeData {
@@ -285,3 +305,8 @@ export const PREFERENCE_ICONS: Record<Preference, string> = {
   activity: '🏄',
   photo: '📸',
 };
+
+export interface SubCategorySelection {
+  preference: Preference;
+  subLabels: string[];
+}
