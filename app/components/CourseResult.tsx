@@ -7,6 +7,8 @@ import WeekendHeader from './WeekendHeader';
 import BottomTabBar from './BottomTabBar';
 import CourseMap from './CourseMap';
 import SpotDetailModal from './SpotDetailModal';
+import ImageGallery from './ImageGallery';
+import FacilityBadges from './FacilityBadges';
 
 // ─── 카테고리별 그라데이션 색상 ───
 
@@ -305,6 +307,12 @@ export default function CourseResult({ slug }: Props) {
       <div className="max-w-lg mx-auto px-5 pt-16 pb-28">
         {/* 헤더 영역 */}
         <div className="mt-4 mb-6 animate-[fadeSlide_0.5s_ease-out]">
+          {data.fortuneMessage && (
+            <div className="mb-4 p-4 bg-gradient-to-r from-orange-50 via-pink-50 to-violet-50 rounded-2xl border border-orange-100/50">
+              <p className="text-xs font-bold text-orange-400 mb-1">✨ 오늘의 나들이 운세</p>
+              <p className="text-sm text-slate-700 font-bold break-keep">{data.fortuneMessage}</p>
+            </div>
+          )}
           <div className="flex items-center gap-2 mb-3">
             <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-orange-400 to-pink-400 text-white uppercase tracking-wider">
               AI 추천 코스
@@ -403,30 +411,110 @@ export default function CourseResult({ slug }: Props) {
 
         {/* 타임라인 코스 */}
         <div className="animate-[fadeSlide_0.5s_ease-out_0.3s_both]">
-          {course.stops.map((stop, i) => {
-            const prevDay = i > 0 ? course.stops[i - 1].day : undefined;
-            const showDayDivider = stop.day && stop.day !== prevDay && stop.day > 1;
+          <div className="relative">
+            {/* 세로 연속선 */}
+            <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-orange-300 via-pink-300 to-violet-300" />
 
-            return (
-              <div key={stop.contentId}>
-                {showDayDivider && (
-                  <div className="flex items-center gap-3 my-5">
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-orange-300 to-transparent" />
-                    <span className="text-xs font-black text-orange-500 bg-orange-50 px-3 py-1 rounded-full">
-                      {stop.day}일차
-                    </span>
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-orange-300 to-transparent" />
-                  </div>
-                )}
-                <StopCard
-                  stop={stop}
-                  index={i}
-                  isLast={i === course.stops.length - 1}
-                  onTap={() => setSelectedSpotId(stop.contentId)}
-                />
+            {/* 첫째 날 헤더 */}
+            {course.stops[0]?.day === 1 && (
+              <div className="relative flex items-center gap-3 mb-4 ml-10 pl-3">
+                <span className="text-xs font-black text-orange-500 bg-orange-50 px-3 py-1 rounded-full">🌅 첫째 날</span>
               </div>
-            );
-          })}
+            )}
+
+            {course.stops.map((stop, i) => {
+              const color = getStopColor(i);
+              const prevDay = i > 0 ? course.stops[i - 1].day : undefined;
+              const showDayDivider = stop.day && stop.day !== prevDay && stop.day > 1;
+              const showTransit = i > 0 && stop.transitInfo;
+
+              return (
+                <div key={stop.contentId}>
+                  {/* 둘째 날 구분선 */}
+                  {showDayDivider && (
+                    <div className="relative flex items-center gap-3 my-5 ml-10 pl-3">
+                      <span className="text-xs font-black text-violet-500 bg-violet-50 px-3 py-1 rounded-full">🌄 둘째 날</span>
+                    </div>
+                  )}
+
+                  {/* 이동 정보 */}
+                  {showTransit && (
+                    <div className="relative flex items-center gap-2 py-2 ml-10 pl-3">
+                      <span className="text-[11px] text-slate-400">🚗 {stop.transitInfo}</span>
+                    </div>
+                  )}
+
+                  {/* 장소 카드 */}
+                  <div className="relative flex gap-4 mb-4">
+                    {/* 원형 마커 */}
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br ${color} flex items-center justify-center text-white text-xs font-black shadow-md z-10`}>
+                      {stop.order}
+                    </div>
+
+                    {/* 카드 */}
+                    <div
+                      onClick={() => setSelectedSpotId(stop.contentId)}
+                      className="flex-1 bg-white rounded-3xl shadow-sm border border-orange-50 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all active:scale-[0.98]"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    >
+                      {/* 이미지 갤러리 */}
+                      <ImageGallery
+                        images={stop.images?.length ? stop.images : (stop.imageUrl ? [stop.imageUrl] : [])}
+                        alt={stop.title}
+                        height="h-36"
+                      />
+
+                      <div className="p-4">
+                        {/* 시간 + 뱃지 */}
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r ${color} text-white`}>
+                            {formatTime(stop.timeStart, stop.durationMin)}
+                          </span>
+                          <span className="text-[10px] text-slate-400">{stop.durationMin}분</span>
+                          {(stop.isFestival || stop.isStay) && (
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${stop.isStay ? 'bg-indigo-100 text-indigo-600' : 'bg-red-100 text-red-600'}`}>
+                              {stop.isStay ? '🏨 숙박' : '🎪 축제'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 제목 */}
+                        <h3 className="text-base font-black text-slate-800 break-keep">{stop.title}</h3>
+
+                        {/* 설명 */}
+                        <p className="text-sm text-slate-600 mt-1 break-keep leading-relaxed">
+                          {stop.description}
+                        </p>
+
+                        {/* 편의시설 뱃지 */}
+                        {stop.facilities && (
+                          <div className="mt-2">
+                            <FacilityBadges facilities={stop.facilities} compact />
+                          </div>
+                        )}
+
+                        {/* 꿀팁 */}
+                        {stop.tip && (
+                          <div className="mt-3 flex gap-2 items-start bg-orange-50 rounded-xl px-3 py-2">
+                            <span className="text-sm flex-shrink-0">💡</span>
+                            <p className="text-xs text-orange-700 font-medium break-keep">{stop.tip}</p>
+                          </div>
+                        )}
+
+                        {/* 상세보기 힌트 */}
+                        <div className="mt-3 flex items-center gap-1 text-[11px] text-slate-400">
+                          <span>탭하면 상세정보 보기</span>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* 하단 CTA */}
@@ -438,7 +526,7 @@ export default function CourseResult({ slug }: Props) {
             다른 코스 만들기
           </Link>
           <Link
-            href="/weekend"
+            href="/"
             className="w-full py-3.5 rounded-2xl bg-white border border-orange-100 text-slate-500 text-sm font-bold text-center shadow-sm hover:shadow-md transition-all"
           >
             홈으로 돌아가기
