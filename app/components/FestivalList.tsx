@@ -162,6 +162,18 @@ export default function FestivalList() {
     return list;
   }, [festivals, searchQuery, statusFilter, regionFilter, sortKey, weekendDates]);
 
+  // IntersectionObserver for fade-in animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('visible');
+      }),
+      { threshold: 0.1 }
+    );
+    document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [filteredFestivals]);
+
   const activeFilterCount = [
     statusFilter !== 'all',
     regionFilter !== 'all',
@@ -366,68 +378,66 @@ export default function FestivalList() {
                 : <>총 <span className="font-bold text-orange-500">{filteredFestivals.length}</span>개 축제</>
               }
             </p>
-            <div className="flex flex-col gap-3">
-              {filteredFestivals.map((f, i) => {
-                const idx = parseInt(f.contentId, 10) % 5;
-                return (
-                  <div
-                    key={f.contentId}
-                    onClick={() => setSelectedSpotId(f.contentId)}
-                    className="bg-white rounded-2xl overflow-hidden shadow-sm border border-orange-50 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer active:scale-[0.98]"
-                    style={{ animationDelay: `${i * 60}ms` }}
-                  >
-                    <div className="flex">
-                      {/* 이미지 */}
-                      <div className={`relative w-28 h-28 flex-shrink-0 bg-gradient-to-br ${PLACEHOLDER_COLORS[idx]}`}>
-                        {f.firstImage ? (
-                          <img
-                            src={f.firstImage}
-                            alt={f.title}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-4xl opacity-60">{PLACEHOLDER_EMOJIS[idx]}</span>
-                          </div>
-                        )}
-                        {f.urgencyTag && (
-                          <span className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg">
-                            {f.urgencyTag}
-                          </span>
-                        )}
+            <div className="grid grid-cols-1 gap-3">
+              {filteredFestivals.map((f, i) => (
+                <div
+                  key={f.contentId}
+                  onClick={() => setSelectedSpotId(f.contentId)}
+                  className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 fade-in-up cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98]"
+                  style={{ animationDelay: `${i * 0.05}s` }}
+                >
+                  <div className="relative h-40 overflow-hidden">
+                    {f.firstImage ? (
+                      <img src={f.firstImage} alt={f.title} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className={`h-full bg-gradient-to-br ${PLACEHOLDER_COLORS[parseInt(f.contentId, 10) % 5]} flex items-center justify-center`}>
+                        <span className="text-5xl opacity-40">{PLACEHOLDER_EMOJIS[parseInt(f.contentId, 10) % 5]}</span>
                       </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
-                      {/* 정보 */}
-                      <div className="flex-1 p-3.5 flex flex-col justify-between min-w-0">
-                        <div>
-                          <h3 className="text-sm font-bold text-slate-800 truncate break-keep">
-                            {f.title}
-                          </h3>
-                          <p className="text-[11px] text-slate-400 mt-1 truncate flex items-center gap-1">
-                            <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                            </svg>
-                            {f.addr1}
-                          </p>
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-[10px] text-slate-400">
-                            {formatDate(f.eventStart)} ~ {formatDate(f.eventEnd)}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {f.distanceKm !== undefined && (
-                              <span className="text-[10px] text-orange-400 font-semibold">
-                                {f.distanceKm}km
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                    {f.dDay !== undefined && f.dDay <= 7 && (
+                      <span className={`absolute top-2 right-2 px-2 py-0.5 text-white text-[10px] font-black rounded-full ${
+                        f.dDay <= 0 ? 'bg-red-500 badge-pulse' : f.dDay <= 3 ? 'bg-red-500' : 'bg-orange-500'
+                      }`}>
+                        {f.dDay <= 0 ? '오늘 마감!' : `D-${f.dDay}`}
+                      </span>
+                    )}
+
+                    {f.urgencyTag && (
+                      <span className="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-black rounded-full">
+                        {f.urgencyTag}
+                      </span>
+                    )}
+
+                    <div className="absolute bottom-2 left-3 right-3">
+                      <h3 className="text-base font-black text-white drop-shadow-md break-keep line-clamp-1">{f.title}</h3>
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="p-3.5">
+                    {f.aiSummary && (
+                      <p className="text-[12px] text-orange-600 font-bold mb-1.5 line-clamp-1">✨ {f.aiSummary}</p>
+                    )}
+                    <p className="text-[11px] text-slate-400 truncate flex items-center gap-1">
+                      <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                      </svg>
+                      {f.addr1}
+                    </p>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-[10px] text-slate-400">
+                        {formatDate(f.eventStart)} ~ {formatDate(f.eventEnd)}
+                      </span>
+                      {f.distanceKm !== undefined && (
+                        <span className="text-[10px] text-orange-400 font-bold">
+                          {f.distanceKm.toFixed(1)}km
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}
