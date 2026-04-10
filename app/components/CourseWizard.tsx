@@ -380,26 +380,33 @@ export default function CourseWizard() {
 
             {/* Step 2: 시간 */}
             {step === 2 && (
-              <div className="grid grid-cols-1 gap-3 mt-6 animate-[fadeSlide_0.4s_ease-out_0.1s_both]">
-                {DURATIONS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setDuration(d)}
-                    className={`flex items-center gap-4 text-left px-5 py-4 rounded-2xl border-2 transition-all duration-300 ${
-                      duration === d
-                        ? 'bg-orange-50 border-orange-400 shadow-sm shadow-orange-100'
-                        : 'bg-white border-transparent hover:border-orange-200 shadow-sm'
-                    }`}
-                  >
-                    <span className="text-2xl">{DURATION_EMOJIS[d]}</span>
-                    <span className="text-sm font-bold text-slate-700">{DURATION_LABELS[d]}</span>
-                    {duration === d && (
-                      <svg className="w-5 h-5 text-orange-500 ml-auto" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                      </svg>
-                    )}
-                  </button>
-                ))}
+              <div className="mt-6 animate-[fadeSlide_0.4s_ease-out_0.1s_both]">
+                <div className="grid grid-cols-1 gap-3">
+                  {DURATIONS.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDuration(d)}
+                      className={`flex items-center gap-4 text-left px-5 py-4 rounded-2xl border-2 transition-all duration-300 ${
+                        duration === d
+                          ? 'bg-orange-50 border-orange-400 shadow-sm shadow-orange-100'
+                          : 'bg-white border-transparent hover:border-orange-200 shadow-sm'
+                      }`}
+                    >
+                      <span className="text-2xl">{DURATION_EMOJIS[d]}</span>
+                      <span className="text-sm font-bold text-slate-700">{DURATION_LABELS[d]}</span>
+                      {duration === d && (
+                        <svg className="w-5 h-5 text-orange-500 ml-auto" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {duration === 'overnight' && (
+                  <p className="text-xs text-orange-500 font-bold mt-3 px-2 animate-[fadeSlide_0.3s_ease-out]">
+                    🏨 AI가 숙소도 함께 추천해드려요! 1박 2일 풀코스를 만들어볼게요.
+                  </p>
+                )}
               </div>
             )}
 
@@ -425,21 +432,51 @@ export default function CourseWizard() {
 
             {/* Step 4: 취향 */}
             {step === 4 && (
-              <div className="grid grid-cols-2 gap-3 mt-6 animate-[fadeSlide_0.4s_ease-out_0.1s_both]">
-                {PREFERENCES.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => togglePreference(p)}
-                    className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 transition-all duration-300 ${
-                      preferences.includes(p)
-                        ? 'bg-orange-50 border-orange-400 shadow-sm shadow-orange-100'
-                        : 'bg-white border-transparent hover:border-orange-200 shadow-sm'
-                    }`}
-                  >
-                    <span className="text-xl">{PREFERENCE_ICONS[p]}</span>
-                    <span className="text-sm font-bold text-slate-700">{PREFERENCE_LABELS[p]}</span>
-                  </button>
-                ))}
+              <div className="mt-6 animate-[fadeSlide_0.4s_ease-out_0.1s_both]">
+                <div className="grid grid-cols-2 gap-3">
+                  {PREFERENCES.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => togglePreference(p)}
+                      className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 transition-all duration-300 ${
+                        preferences.includes(p)
+                          ? 'bg-orange-50 border-orange-400 shadow-sm shadow-orange-100'
+                          : 'bg-white border-transparent hover:border-orange-200 shadow-sm'
+                      }`}
+                    >
+                      <span className="text-xl">{PREFERENCE_ICONS[p]}</span>
+                      <span className="text-sm font-bold text-slate-700">{PREFERENCE_LABELS[p]}</span>
+                    </button>
+                  ))}
+                </div>
+                {preferences.length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    {preferences.map(pref => {
+                      const subs = PREFERENCE_SUB_CATEGORIES[pref];
+                      if (!subs) return null;
+                      return (
+                        <div key={pref} className="animate-[fadeSlide_0.3s_ease-out]">
+                          <p className="text-xs text-slate-400 mb-1.5">{PREFERENCE_LABELS[pref]} 세부 (선택)</p>
+                          <div className="flex flex-wrap gap-2">
+                            {subs.map(sub => (
+                              <button
+                                key={sub.label}
+                                onClick={() => toggleSubCategory(pref, sub.label)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                  isSubSelected(pref, sub.label)
+                                    ? 'bg-orange-400 text-white shadow-sm'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-200'
+                                }`}
+                              >
+                                {sub.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </>

@@ -376,6 +376,35 @@ export function getNextWeekend(): { saturday: Date; sunday: Date } {
   return { saturday: sat, sunday: sun };
 }
 
+// ─── 취향별 세부 카테고리 ───
+
+export const PREFERENCE_SUB_CATEGORIES: Record<string, { label: string; cat2?: string; cat3?: string }[]> = {
+  nature: [
+    { label: '산/산책로', cat2: 'A0101' },
+    { label: '해변/바다', cat2: 'A0101', cat3: 'A01011200' },
+    { label: '공원/정원', cat2: 'A0102' },
+    { label: '호수/계곡', cat2: 'A0101', cat3: 'A01011100' },
+  ],
+  food: [
+    { label: '한식', cat2: 'A0502', cat3: 'A05020100' },
+    { label: '양식', cat2: 'A0502', cat3: 'A05020200' },
+    { label: '일식', cat2: 'A0502', cat3: 'A05020300' },
+    { label: '분식/야시장', cat2: 'A0502', cat3: 'A05020700' },
+  ],
+  culture: [
+    { label: '박물관', cat2: 'A0201' },
+    { label: '미술관', cat2: 'A0205' },
+    { label: '공연장', cat2: 'A0206' },
+    { label: '역사유적', cat2: 'A0201' },
+  ],
+  activity: [
+    { label: '수상레포츠', cat2: 'A0302' },
+    { label: '등산/트레킹', cat2: 'A0301' },
+    { label: '테마파크', cat2: 'A0202' },
+    { label: '체험활동', cat2: 'A0303' },
+  ],
+};
+
 // ─── 편의시설 파싱 유틸 ───
 
 export function parseFacilities(introData: Record<string, unknown> | null): {
