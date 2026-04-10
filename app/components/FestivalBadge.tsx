@@ -42,8 +42,15 @@ export default function FestivalBadge({ festival }: Props) {
 
         {/* 긴급성 태그 */}
         {festival.urgencyTag && (
-          <span className="absolute top-2.5 left-2.5 bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg shadow-red-200">
+          <span className="absolute top-2.5 left-2.5 bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg shadow-red-200 badge-pulse">
             {festival.urgencyTag}
+          </span>
+        )}
+
+        {/* D-day 뱃지 */}
+        {festival.dDay !== undefined && festival.dDay <= 7 && !festival.urgencyTag && (
+          <span className="absolute top-2.5 left-2.5 bg-orange-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg shadow-orange-200 badge-pulse">
+            {festival.dDay === 0 ? 'D-DAY' : `D-${festival.dDay}`}
           </span>
         )}
       </div>

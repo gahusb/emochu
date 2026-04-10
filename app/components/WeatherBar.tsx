@@ -14,12 +14,19 @@ function getSkyVisual(day: DayWeather): { emoji: string; bg: string } {
   return { emoji: '☁️', bg: 'from-slate-200 to-slate-100' };
 }
 
+function getWeatherAnimation(sky: string, precip: string): string {
+  if (precip === 'rain' || precip === 'mixed' || precip === 'snow') return 'weather-rain';
+  if (sky === 'clear') return 'weather-sun';
+  return 'weather-cloud';
+}
+
 function DayCard({ label, day }: { label: string; day: DayWeather }) {
   const { emoji, bg } = getSkyVisual(day);
+  const animClass = getWeatherAnimation(day.sky, day.precipitation);
 
   return (
     <div className={`flex-1 bg-gradient-to-br ${bg} rounded-2xl p-3.5 relative overflow-hidden`}>
-      <span className="text-3xl absolute -right-1 -top-1 opacity-40 rotate-12">{emoji}</span>
+      <span className={`text-3xl absolute -right-1 -top-1 opacity-40 rotate-12 ${animClass}`}>{emoji}</span>
       <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{label}</p>
       <p className="text-2xl font-black text-slate-700 mt-0.5">{day.tempMax}°</p>
       <p className="text-xs text-slate-500 mt-0.5">

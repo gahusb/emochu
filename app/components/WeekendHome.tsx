@@ -9,6 +9,7 @@ import WeatherBar from './WeatherBar';
 import FestivalBadge from './FestivalBadge';
 import SpotCard from './SpotCard';
 import SpotDetailModal from './SpotDetailModal';
+import SearchBar from './SearchBar';
 
 // ─── 데모 데이터 (API 키 미설정 시 폴백) ───
 
@@ -26,6 +27,7 @@ export default function WeekendHome() {
   const [spots, setSpots] = useState<SpotCardType[]>([]);
   const [weather, setWeather] = useState<WeekendWeather>(DEMO_WEATHER);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
 
@@ -54,6 +56,7 @@ export default function WeekendHome() {
   useEffect(() => {
     if (!userLoc) return;
 
+    setLoading(true);
     fetch(`/api/home?lat=${userLoc.lat}&lng=${userLoc.lng}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
@@ -62,8 +65,21 @@ export default function WeekendHome() {
         if (data.festivals?.length > 0) setFestivals(data.festivals);
         if (data.recommended?.length > 0) setSpots(data.recommended);
       })
-      .catch(() => { /* 데모 데이터 유지 */ });
+      .catch(() => { /* 데모 데이터 유지 */ })
+      .finally(() => setLoading(false));
   }, [userLoc]);
+
+  // IntersectionObserver for scroll fade-in
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('visible');
+      }),
+      { threshold: 0.1 }
+    );
+    document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [loading, festivals, spots]);
 
   // 이번 주말 날짜
   const now = new Date();
@@ -90,8 +106,15 @@ export default function WeekendHome() {
             이번 주말,<br />뭐하지?
           </h1>
           <p className="text-sm text-slate-500 mt-2 leading-relaxed break-keep">
-            근처 축제부터 AI 맞춤 코스까지 한 눈에 확인하세요
+            {weather.recommendation !== DEMO_WEATHER.recommendation
+              ? weather.recommendation
+              : '근처 축제부터 AI 맞춤 코스까지 한 눈에 확인하세요'}
           </p>
+        </section>
+
+        {/* ─── 검색 ─── */}
+        <section className="mb-4">
+          <SearchBar onSelectSpot={(id) => setSelectedContentId(id)} />
         </section>
 
         {/* ─── 날씨 ─── */}
@@ -129,7 +152,7 @@ export default function WeekendHome() {
         </section>
 
         {/* ─── 축제 ─── */}
-        <section className={`mt-8 transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <section className="fade-in-up mt-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-black text-slate-800 flex items-center gap-1.5">
               🎉 이번 주말 근처 축제
@@ -141,27 +164,56 @@ export default function WeekendHome() {
               더보기 →
             </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-3 -mx-5 px-5 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-            {festivals.map((f) => (
-              <div key={f.contentId} className="snap-start" onClick={() => setSelectedContentId(f.contentId)}>
-                <FestivalBadge festival={f} />
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex gap-3 -mx-5 px-5">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex-shrink-0 w-44">
+                  <div className="skeleton h-28 rounded-t-3xl" />
+                  <div className="bg-white rounded-b-3xl p-3.5 space-y-2 border border-orange-50">
+                    <div className="skeleton h-4 w-3/4" />
+                    <div className="skeleton h-3 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-3 -mx-5 px-5 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+              {festivals.map((f, i) => (
+                <div key={f.contentId} className="snap-start stagger-item" style={{ animationDelay: `${i * 80}ms` }} onClick={() => setSelectedContentId(f.contentId)}>
+                  <FestivalBadge festival={f} />
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ─── 추천 관광지 ─── */}
-        <section className={`mt-6 transition-all duration-700 delay-[400ms] ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <section className="fade-in-up mt-6">
           <h2 className="text-base font-black text-slate-800 mb-3 flex items-center gap-1.5">
             🌿 지금 가면 좋은 곳
           </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {spots.map((s) => (
-              <div key={s.contentId} onClick={() => setSelectedContentId(s.contentId)}>
-                <SpotCard spot={s} />
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i}>
+                  <div className="skeleton h-32 rounded-t-3xl" />
+                  <div className="bg-white rounded-b-3xl p-3 space-y-2 border border-orange-50">
+                    <div className="skeleton h-4 w-3/4" />
+                    <div className="skeleton h-3 w-full" />
+                    <div className="skeleton h-3 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {spots.map((s, i) => (
+                <div key={s.contentId} className="stagger-item" style={{ animationDelay: `${i * 100}ms` }} onClick={() => setSelectedContentId(s.contentId)}>
+                  <SpotCard spot={s} />
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ─── 서비스 소개 ─── */}

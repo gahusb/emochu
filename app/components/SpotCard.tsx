@@ -1,6 +1,7 @@
 'use client';
 
 import type { SpotCard as SpotCardType } from '@/lib/weekend-types';
+import FacilityBadges from './FacilityBadges';
 
 interface Props {
   spot: SpotCardType;
@@ -66,9 +67,19 @@ export default function SpotCard({ spot }: Props) {
         <h3 className="text-sm font-bold text-slate-800 leading-snug truncate">
           {spot.title}
         </h3>
+        {spot.whyNow && (
+          <p className="text-[11px] text-violet-500 font-semibold mt-1 truncate">
+            ✨ {spot.whyNow}
+          </p>
+        )}
         <p className="text-[11px] text-orange-500 font-medium mt-1 line-clamp-2 leading-relaxed break-keep">
           {spot.reason}
         </p>
+        {spot.facilities && (
+          <div className="mt-1.5">
+            <FacilityBadges facilities={spot.facilities} compact />
+          </div>
+        )}
         <p className="text-[10px] text-slate-400 mt-1 truncate">
           {spot.addr1}
         </p>
