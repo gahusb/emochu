@@ -22,6 +22,7 @@ import {
 } from '@/lib/weekend-types';
 import WeekendHeader from './WeekendHeader';
 import BottomTabBar from './BottomTabBar';
+import { PREFERENCE_SUB_CATEGORIES } from '@/lib/tour-api';
 
 const DURATIONS: Duration[] = ['half_day', 'full_day', 'leisurely', 'overnight'];
 const COMPANIONS: Companion[] = ['solo', 'couple', 'family', 'friends'];
@@ -35,6 +36,15 @@ const DURATION_EMOJIS: Record<Duration, string> = {
 };
 
 const TOTAL_STEPS = 5;
+
+const LOADING_STEPS = [
+  { emoji: '🔍', text: '주변 관광지 검색 중...' },
+  { emoji: '🍽️', text: '맛집 찾는 중...' },
+  { emoji: '☕', text: '카페도 빠질 수 없죠...' },
+  { emoji: '🎪', text: '근처 축제 확인 중...' },
+  { emoji: '🤖', text: 'AI가 최적 코스 설계 중...' },
+  { emoji: '✨', text: '거의 다 됐어요!' },
+];
 
 const STEP_TITLES = [
   { q: '어디로 떠나볼까요?', sub: '목적지를 정하면 딱 맞는 코스를 찾아드릴게요' },
@@ -60,8 +70,10 @@ export default function CourseWizard() {
   const [duration, setDuration] = useState<Duration | null>(null);
   const [companion, setCompanion] = useState<Companion | null>(null);
   const [preferences, setPreferences] = useState<Preference[]>([]);
+  const [subCategories, setSubCategories] = useState<{preference: string; subLabels: string[]}[]>([]);
 
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -95,11 +107,36 @@ export default function CourseWizard() {
     }
   }, [destinationType]);
 
+  // AI 생성 중 로딩 메시지 순환
+  useEffect(() => {
+    if (!loading) { setLoadingStep(0); return; }
+    const interval = setInterval(() => {
+      setLoadingStep(s => (s + 1) % LOADING_STEPS.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [loading]);
+
   const togglePreference = (p: Preference) => {
     setPreferences((prev) =>
       prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
     );
   };
+
+  const toggleSubCategory = (pref: string, label: string) => {
+    setSubCategories(prev => {
+      const existing = prev.find(s => s.preference === pref);
+      if (!existing) return [...prev, { preference: pref, subLabels: [label] }];
+      const has = existing.subLabels.includes(label);
+      const newLabels = has
+        ? existing.subLabels.filter(l => l !== label)
+        : [...existing.subLabels, label];
+      if (newLabels.length === 0) return prev.filter(s => s.preference !== pref);
+      return prev.map(s => s.preference === pref ? { ...s, subLabels: newLabels } : s);
+    });
+  };
+
+  const isSubSelected = (pref: string, label: string) =>
+    subCategories.find(s => s.preference === pref)?.subLabels.includes(label) ?? false;
 
   // Step 0 완료 조건
   const step0Complete =
@@ -183,7 +220,7 @@ export default function CourseWizard() {
 
       <div className="max-w-lg mx-auto px-5 pt-20 pb-24">
         {/* 진행바 */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="progress-glow flex items-center gap-2 mb-6">
           {Array.from({ length: TOTAL_STEPS }, (_, i) => (
             <div key={i} className="flex-1 h-1.5 rounded-full overflow-hidden bg-orange-100">
               <div
@@ -410,24 +447,15 @@ export default function CourseWizard() {
 
         {/* 로딩 */}
         {loading && (
-          <div className="flex flex-col items-center justify-center py-20 animate-[fadeSlide_0.4s_ease-out]">
-            <div className="relative w-20 h-20">
-              <div className="absolute inset-0 rounded-full border-4 border-orange-200" />
-              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-orange-500 animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center text-3xl animate-bounce">
-                🧳
-              </div>
+          <div className="flex flex-col items-center justify-center min-h-[50dvh]">
+            <span className="text-5xl animate-bounce">{LOADING_STEPS[loadingStep].emoji}</span>
+            <p className="text-slate-600 text-sm font-bold mt-4">{LOADING_STEPS[loadingStep].text}</p>
+            <div className="w-48 h-1.5 bg-orange-100 rounded-full mt-6 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-orange-400 to-pink-400 rounded-full transition-all duration-[2000ms] ease-linear"
+                style={{ width: `${Math.min(((loadingStep + 1) / LOADING_STEPS.length) * 100, 95)}%` }}
+              />
             </div>
-            <p className="text-slate-800 font-black text-lg mt-6" style={{ fontFamily: "'CookieRun', sans-serif" }}>
-              코스를 만들고 있어요!
-            </p>
-            <p className="text-slate-500 text-sm mt-2 text-center break-keep">
-              {destinationType === 'city' && selectedCity
-                ? `${selectedCity.name}의 매력을 담은 코스를 만들고 있어요`
-                : destinationType === 'mood'
-                ? '분위기에 딱 맞는 코스를 찾고 있어요'
-                : '축제 + 날씨 + 취향을 골고루 섞어서\n딱 맞는 코스를 만들어 드릴게요'}
-            </p>
           </div>
         )}
 
