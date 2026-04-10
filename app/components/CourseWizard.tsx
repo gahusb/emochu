@@ -38,12 +38,16 @@ const DURATION_EMOJIS: Record<Duration, string> = {
 const TOTAL_STEPS = 5;
 
 const LOADING_STEPS = [
-  { emoji: '🔍', text: '주변 관광지 검색 중...' },
-  { emoji: '🍽️', text: '맛집 찾는 중...' },
-  { emoji: '☕', text: '카페도 빠질 수 없죠...' },
-  { emoji: '🎪', text: '근처 축제 확인 중...' },
-  { emoji: '🤖', text: 'AI가 최적 코스 설계 중...' },
-  { emoji: '✨', text: '거의 다 됐어요!' },
+  { emoji: '🔍', text: '주변 관광지 검색 중...', pct: 10 },
+  { emoji: '🍽️', text: '근처 맛집도 찾아볼게요', pct: 20 },
+  { emoji: '☕', text: '카페도 빠질 수 없죠!', pct: 30 },
+  { emoji: '🎪', text: '혹시 축제도 있을까...?', pct: 40 },
+  { emoji: '🤖', text: 'AI가 최적 코스를 설계하고 있어요', pct: 52 },
+  { emoji: '🧠', text: '동선을 꼼꼼히 계산하는 중이에요', pct: 60 },
+  { emoji: '📝', text: '꿀팁도 정리하고 있어요', pct: 68 },
+  { emoji: '🎨', text: '거의 완성됐어요! 조금만 기다려주세요', pct: 75 },
+  { emoji: '✨', text: '마지막 마무리 중... 두근두근!', pct: 82 },
+  { emoji: '🎉', text: '곧 멋진 코스가 나와요!', pct: 88 },
 ];
 
 const STEP_TITLES = [
@@ -74,6 +78,7 @@ export default function CourseWizard() {
 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [loadingDone, setLoadingDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -107,12 +112,12 @@ export default function CourseWizard() {
     }
   }, [destinationType]);
 
-  // AI 생성 중 로딩 메시지 순환
+  // AI 생성 중 로딩 메시지 (순차 진행, 마지막에서 멈춤)
   useEffect(() => {
     if (!loading) { setLoadingStep(0); return; }
     const interval = setInterval(() => {
-      setLoadingStep(s => (s + 1) % LOADING_STEPS.length);
-    }, 2000);
+      setLoadingStep(s => Math.min(s + 1, LOADING_STEPS.length - 1));
+    }, 3000);
     return () => clearInterval(interval);
   }, [loading]);
 
@@ -205,10 +210,14 @@ export default function CourseWizard() {
       }
 
       sessionStorage.setItem('weekendCourse', JSON.stringify(data));
+      setLoadingDone(true);
+      // 100% 애니메이션을 잠깐 보여준 뒤 이동
+      await new Promise(r => setTimeout(r, 600));
       router.push(`/course/${data.shareUrl.split('/').pop()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '코스 생성 중 문제가 생겼어요.');
       setLoading(false);
+      setLoadingDone(false);
     }
   };
 
@@ -485,14 +494,21 @@ export default function CourseWizard() {
         {/* 로딩 */}
         {loading && (
           <div className="flex flex-col items-center justify-center min-h-[50dvh]">
-            <span className="text-5xl animate-bounce">{LOADING_STEPS[loadingStep].emoji}</span>
-            <p className="text-slate-600 text-sm font-bold mt-4">{LOADING_STEPS[loadingStep].text}</p>
+            <span className="text-5xl animate-bounce">
+              {loadingDone ? '🎉' : LOADING_STEPS[loadingStep].emoji}
+            </span>
+            <p className="text-slate-600 text-sm font-bold mt-4">
+              {loadingDone ? '완성! 코스를 보여드릴게요' : LOADING_STEPS[loadingStep].text}
+            </p>
             <div className="w-48 h-1.5 bg-orange-100 rounded-full mt-6 overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-orange-400 to-pink-400 rounded-full transition-all duration-[2000ms] ease-linear"
-                style={{ width: `${Math.min(((loadingStep + 1) / LOADING_STEPS.length) * 100, 95)}%` }}
+                className="h-full bg-gradient-to-r from-orange-400 to-pink-400 rounded-full transition-all duration-[2500ms] ease-out"
+                style={{ width: loadingDone ? '100%' : `${LOADING_STEPS[loadingStep].pct}%` }}
               />
             </div>
+            <p className="text-[11px] text-slate-400 mt-3">
+              {loadingDone ? '100%' : `${LOADING_STEPS[loadingStep].pct}%`}
+            </p>
           </div>
         )}
 
