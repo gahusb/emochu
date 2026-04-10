@@ -8,7 +8,7 @@ import {
   formatDateYMD,
   getNextWeekend,
 } from '@/lib/tour-api';
-import { haversineKm } from '@/lib/weekend-ai';
+import { haversineKm, generateFestivalSummary } from '@/lib/weekend-ai';
 import type { FestivalCard } from '@/lib/weekend-types';
 
 export const runtime = 'nodejs';
@@ -62,6 +62,30 @@ export async function GET(request: NextRequest) {
       };
     })
     .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+
+  // D-day calculation (days until event ends)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (const f of festivals) {
+    if (f.eventEnd) {
+      const y = Number(f.eventEnd.slice(0, 4));
+      const m = Number(f.eventEnd.slice(4, 6)) - 1;
+      const d = Number(f.eventEnd.slice(6, 8));
+      const endDate = new Date(y, m, d);
+      f.dDay = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    }
+  }
+
+  // AI summary for top 10 festivals (to save tokens)
+  await Promise.allSettled(
+    festivals.slice(0, 10).map(async (f) => {
+      if (!f.aiSummary) {
+        try {
+          f.aiSummary = await generateFestivalSummary(f.title, undefined);
+        } catch { /* ignore */ }
+      }
+    })
+  );
 
   return NextResponse.json(
     { festivals, weekendDates: { saturday: satStr, sunday: sunStr } },
