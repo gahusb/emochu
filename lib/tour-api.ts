@@ -375,3 +375,35 @@ export function getNextWeekend(): { saturday: Date; sunday: Date } {
 
   return { saturday: sat, sunday: sun };
 }
+
+// ─── 편의시설 파싱 유틸 ───
+
+export function parseFacilities(introData: Record<string, unknown> | null): {
+  parking: boolean;
+  babyCarriage: boolean;
+  kidsFacility: boolean;
+  pet: boolean;
+  operatingHours: string;
+} {
+  if (!introData) {
+    return { parking: false, babyCarriage: false, kidsFacility: false, pet: false, operatingHours: '' };
+  }
+
+  const hasValue = (val: unknown): boolean => {
+    if (!val) return false;
+    const s = String(val).trim().toLowerCase();
+    return s !== '' && s !== '불가' && s !== '불가능' && s !== '없음' && s !== 'n';
+  };
+
+  const parking = hasValue(introData.parking) || hasValue(introData.parkingfood);
+  const babyCarriage = hasValue(introData.chkbabycarriage) || hasValue(introData.chkbabycarriageculture);
+  const kidsFacility = hasValue(introData.kidsfacility);
+  const pet = hasValue(introData.chkpet) || hasValue(introData.chkpetculture);
+
+  // 운영시간 추출
+  const timeField = introData.usetime || introData.usetimeculture ||
+    introData.usetimefestival || introData.opentimefood || introData.playtime || '';
+  const operatingHours = String(timeField).replace(/<[^>]*>/g, '').trim().slice(0, 50);
+
+  return { parking, babyCarriage, kidsFacility, pet, operatingHours };
+}
