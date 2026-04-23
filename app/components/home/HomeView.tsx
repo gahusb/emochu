@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocation } from '../nav/LocationContext';
 import { useHomeData } from '@/lib/use-home-data';
 import HomeHero from './HomeHero';
@@ -22,7 +22,13 @@ export default function HomeView() {
   const { location, openModal } = useLocation();
   const { weather, festivals, spots, loading } = useHomeData(location);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
+
+  const handleCloseModal = () => {
+    setSelectedContentId(null);
+    if (searchParams.get('spot')) router.replace('/', { scroll: false });
+  };
 
   useEffect(() => {
     const spotParam = searchParams.get('spot');
@@ -189,7 +195,7 @@ export default function HomeView() {
 
       <SpotDetailModal
         contentId={selectedContentId}
-        onClose={() => setSelectedContentId(null)}
+        onClose={handleCloseModal}
       />
     </>
   );

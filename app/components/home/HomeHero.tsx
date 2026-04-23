@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import type { SpotCard, WeekendWeather } from '@/lib/weekend-types';
 import { getHeroCopy, getWeekendLabel } from '@/lib/hero-copy';
@@ -26,7 +25,12 @@ export default function HomeHero({ weather, spots }: Props) {
     } else {
       setImgSrc(getCuratedHeroImage(weather));
     }
-  }, [spots, weather, tried]);
+    // Intentionally exclude `tried` from deps: it's only consulted to skip
+    // already-failed URLs when spots/weather change. handleError already
+    // updates imgSrc directly, so re-running the effect on `tried` change
+    // would just re-set the same value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spots, weather]);
 
   const handleError = () => {
     setTried((prev) => new Set(prev).add(imgSrc));
@@ -39,13 +43,12 @@ export default function HomeHero({ weather, spots }: Props) {
 
   return (
     <section className="relative w-full h-[50vh] lg:h-[60vh] min-h-[420px] overflow-hidden">
-      <Image
+      {/* Always-on gradient base — visible if all image fallbacks fail */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#3D2914] via-[#5C3D2A] to-[#7A5642]" aria-hidden="true" />
+      <img
         src={imgSrc}
         alt="이번 주말의 풍경"
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover"
+        className="absolute inset-0 w-full h-full object-cover"
         onError={handleError}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-ink-1/70 via-ink-1/20 to-transparent" />

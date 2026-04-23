@@ -9,16 +9,44 @@ interface Props {
   spot: SpotCardType;
 }
 
-const CATEGORY_VARIANT: Record<string, 'brand' | 'mocha' | 'success' | 'warning' | 'outline'> = {
-  '자연관광': 'success',
-  '인문관광': 'mocha',
-  '레포츠': 'brand',
-  '음식': 'warning',
-  '문화시설': 'mocha',
+type BadgeVariant = 'brand' | 'mocha' | 'success' | 'warning' | 'outline';
+
+interface CategoryMeta {
+  label: string;
+  variant: BadgeVariant;
+}
+
+// TourAPI cat2 코드를 한글 라벨 + 토큰 variant로 매핑
+const CAT2_META: Record<string, CategoryMeta> = {
+  // 자연 (A01)
+  A0101: { label: '자연', variant: 'success' },
+  A0102: { label: '관광지', variant: 'success' },
+  // 인문 (A02)
+  A0201: { label: '역사', variant: 'mocha' },
+  A0202: { label: '체험', variant: 'mocha' },
+  A0203: { label: '체험', variant: 'mocha' },
+  A0204: { label: '산업', variant: 'mocha' },
+  A0205: { label: '문화', variant: 'mocha' },
+  A0206: { label: '공연', variant: 'mocha' },
+  A0207: { label: '축제', variant: 'brand' },
+  A0208: { label: '행사', variant: 'brand' },
+  // 레포츠 (A03)
+  A0301: { label: '육상레포츠', variant: 'brand' },
+  A0302: { label: '수상레포츠', variant: 'brand' },
+  A0303: { label: '항공레포츠', variant: 'brand' },
+  A0304: { label: '복합레포츠', variant: 'brand' },
+  // 쇼핑 (A04)
+  A0401: { label: '쇼핑', variant: 'mocha' },
+  // 음식 (A05)
+  A0502: { label: '맛집', variant: 'warning' },
 };
 
+function getCategoryMeta(cat2: string): CategoryMeta {
+  return CAT2_META[cat2] ?? { label: '관광', variant: 'outline' };
+}
+
 export default function SpotCard({ spot }: Props) {
-  const variant = CATEGORY_VARIANT[spot.cat2] ?? 'outline';
+  const meta = getCategoryMeta(spot.cat2);
 
   return (
     <article className="group bg-surface-elevated rounded-xl border border-line overflow-hidden hover:shadow-[var(--shadow-raised)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
@@ -37,7 +65,7 @@ export default function SpotCard({ spot }: Props) {
         )}
 
         <div className="absolute top-3 left-3">
-          <Badge variant={variant} size="sm">{spot.cat2}</Badge>
+          <Badge variant={meta.variant} size="sm">{meta.label}</Badge>
         </div>
 
         {spot.distanceKm !== undefined && (
