@@ -1,37 +1,28 @@
 'use client';
 
+import { MapPin } from 'lucide-react';
 import type { SpotCard as SpotCardType } from '@/lib/weekend-types';
 import FacilityBadges from './FacilityBadges';
+import Badge from './ui/Badge';
 
 interface Props {
   spot: SpotCardType;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  '자연관광': 'bg-emerald-100 text-emerald-600',
-  '인문관광': 'bg-violet-100 text-violet-600',
-  '레포츠': 'bg-sky-100 text-sky-600',
-  '음식': 'bg-orange-100 text-orange-600',
-  '문화시설': 'bg-pink-100 text-pink-600',
+const CATEGORY_VARIANT: Record<string, 'brand' | 'mocha' | 'success' | 'warning' | 'outline'> = {
+  '자연관광': 'success',
+  '인문관광': 'mocha',
+  '레포츠': 'brand',
+  '음식': 'warning',
+  '문화시설': 'mocha',
 };
 
-const PLACEHOLDER_GRADIENTS = [
-  'from-emerald-200 via-teal-100 to-cyan-100',
-  'from-violet-200 via-purple-100 to-pink-100',
-  'from-amber-200 via-yellow-100 to-orange-100',
-  'from-sky-200 via-blue-100 to-indigo-100',
-];
-
-const PLACEHOLDER_ICONS = ['🌳', '🏛', '⛰️', '🌊'];
-
 export default function SpotCard({ spot }: Props) {
-  const idx = parseInt(spot.contentId, 10) % 4;
-  const catStyle = CATEGORY_COLORS[spot.cat2] ?? 'bg-slate-100 text-slate-600';
+  const variant = CATEGORY_VARIANT[spot.cat2] ?? 'outline';
 
   return (
-    <div className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-orange-50/80 hover:-translate-y-1 transition-all duration-300 cursor-pointer group">
-      {/* 이미지 */}
-      <div className={`relative h-32 bg-gradient-to-br ${PLACEHOLDER_GRADIENTS[idx]} overflow-hidden`}>
+    <article className="group bg-surface-elevated rounded-xl border border-line overflow-hidden hover:shadow-[var(--shadow-raised)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
+      <div className="relative aspect-[4/3] bg-surface-sunken overflow-hidden">
         {spot.firstImage ? (
           <img
             src={spot.firstImage}
@@ -40,50 +31,45 @@ export default function SpotCard({ spot }: Props) {
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-4xl opacity-50 group-hover:scale-110 transition-transform duration-500">
-              {PLACEHOLDER_ICONS[idx]}
-            </span>
+          <div className="w-full h-full flex items-center justify-center text-ink-4">
+            <MapPin size={32} strokeWidth={1.4} />
           </div>
         )}
 
-        {/* 카테고리 뱃지 */}
-        <span className={`absolute top-2.5 left-2.5 ${catStyle} text-[10px] font-bold px-2 py-0.5 rounded-full`}>
-          {spot.cat2}
-        </span>
+        <div className="absolute top-3 left-3">
+          <Badge variant={variant} size="sm">{spot.cat2}</Badge>
+        </div>
 
-        {/* 거리 */}
         {spot.distanceKm !== undefined && (
-          <span className="absolute bottom-2 right-2 bg-white/90 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+          <div className="absolute bottom-3 right-3 bg-surface-elevated/95 backdrop-blur text-ink-2 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-line">
             {spot.distanceKm < 1
               ? `${Math.round(spot.distanceKm * 1000)}m`
               : `${spot.distanceKm.toFixed(1)}km`}
-          </span>
+          </div>
         )}
       </div>
 
-      {/* 텍스트 */}
-      <div className="p-3">
-        <h3 className="text-sm font-bold text-slate-800 leading-snug truncate">
+      <div className="p-4">
+        <h3 className="text-base font-semibold text-ink-1 leading-snug line-clamp-1">
           {spot.title}
         </h3>
         {spot.whyNow && (
-          <p className="text-[11px] text-violet-500 font-semibold mt-1 truncate">
-            ✨ {spot.whyNow}
+          <p className="text-xs text-brand font-semibold mt-1 line-clamp-1">
+            {spot.whyNow}
           </p>
         )}
-        <p className="text-[11px] text-orange-500 font-medium mt-1 line-clamp-2 leading-relaxed break-keep">
+        <p className="text-sm text-ink-3 mt-1.5 line-clamp-2 leading-relaxed break-keep">
           {spot.reason}
         </p>
         {spot.facilities && (
-          <div className="mt-1.5">
+          <div className="mt-2">
             <FacilityBadges facilities={spot.facilities} compact />
           </div>
         )}
-        <p className="text-[10px] text-slate-400 mt-1 truncate">
+        <p className="text-xs text-ink-4 mt-2 truncate">
           {spot.addr1}
         </p>
       </div>
-    </div>
+    </article>
   );
 }

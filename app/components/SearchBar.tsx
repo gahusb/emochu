@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { Search, X, MapPin } from 'lucide-react';
 
 interface SearchResult {
   contentId: string;
@@ -16,6 +17,10 @@ interface Props {
 }
 
 const POPULAR_KEYWORDS = ['벚꽃', '야경', '맛집', '카페', '전시', '바다'];
+
+const CONTENT_TYPE_LABELS: Record<number, string> = {
+  12: '관광지', 14: '문화시설', 15: '축제', 28: '레포츠', 32: '숙박', 39: '음식점',
+};
 
 export default function SearchBar({ onSelectSpot }: Props) {
   const [query, setQuery] = useState('');
@@ -54,41 +59,36 @@ export default function SearchBar({ onSelectSpot }: Props) {
     doSearch(keyword);
   };
 
-  const CONTENT_TYPE_LABELS: Record<number, string> = {
-    12: '관광지', 14: '문화시설', 15: '축제', 28: '레포츠', 32: '숙박', 39: '음식점',
-  };
-
   return (
     <div className="relative">
-      {/* 검색 입력 */}
       <div className="relative">
-        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
         <input
           type="text"
           value={query}
-          onChange={e => handleInput(e.target.value)}
+          onChange={(e) => handleInput(e.target.value)}
           onFocus={() => results.length > 0 && setShowResults(true)}
-          placeholder="장소나 키워드로 검색해보세요"
-          className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border border-orange-100 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 shadow-sm transition-all"
+          placeholder="장소·축제 검색"
+          className="w-full pl-10 pr-10 h-12 rounded-lg bg-surface-elevated border border-line text-sm text-ink-1 placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors"
         />
         {query && (
           <button
             onClick={() => { setQuery(''); setResults([]); setShowResults(false); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 text-sm"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-4 hover:text-ink-1 transition-colors"
+            aria-label="지우기"
           >
-            ✕
+            <X size={16} />
           </button>
         )}
       </div>
 
-      {/* 인기 키워드 태그 */}
       {!showResults && (
         <div className="flex flex-wrap gap-2 mt-3">
-          {POPULAR_KEYWORDS.map(kw => (
+          {POPULAR_KEYWORDS.map((kw) => (
             <button
               key={kw}
               onClick={() => handleTagClick(kw)}
-              className="px-3 py-1.5 bg-white border border-orange-100 rounded-full text-xs font-bold text-slate-600 hover:bg-orange-50 hover:border-orange-200 transition-all shadow-sm"
+              className="px-3 h-8 rounded-md bg-surface-elevated border border-line text-xs font-semibold text-ink-2 hover:border-brand hover:text-brand transition-colors"
             >
               {kw}
             </button>
@@ -96,34 +96,35 @@ export default function SearchBar({ onSelectSpot }: Props) {
         </div>
       )}
 
-      {/* 검색 결과 드롭다운 */}
       {showResults && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-orange-100 shadow-lg max-h-80 overflow-y-auto z-50">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-surface-elevated rounded-lg border border-line shadow-[var(--shadow-raised)] max-h-80 overflow-y-auto z-50">
           {loading && (
-            <div className="p-4 text-center text-sm text-slate-400">검색 중...</div>
+            <div className="p-4 text-center text-sm text-ink-3">검색 중...</div>
           )}
           {!loading && results.length === 0 && query && (
-            <div className="p-4 text-center text-sm text-slate-400">
-              검색 결과가 없어요 😅
+            <div className="p-4 text-center text-sm text-ink-3">
+              검색 결과가 없어요
             </div>
           )}
-          {!loading && results.map(r => (
+          {!loading && results.map((r) => (
             <button
               key={r.contentId}
               onClick={() => {
                 onSelectSpot?.(r.contentId);
                 setShowResults(false);
               }}
-              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-orange-50 transition-colors border-b border-slate-50 last:border-0"
+              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-surface-sunken transition-colors border-b border-line last:border-0"
             >
               {r.firstImage ? (
-                <img src={r.firstImage} alt={r.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                <img src={r.firstImage} alt={r.title} className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
               ) : (
-                <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0 text-xs">📍</div>
+                <div className="w-10 h-10 rounded-md bg-surface-sunken flex items-center justify-center flex-shrink-0">
+                  <MapPin size={14} className="text-ink-4" />
+                </div>
               )}
               <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-700 truncate">{r.title}</p>
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-sm font-semibold text-ink-1 truncate">{r.title}</p>
+                <p className="text-xs text-ink-3 truncate">
                   {CONTENT_TYPE_LABELS[r.contentTypeId] ?? ''} · {r.addr1}
                 </p>
               </div>

@@ -1,30 +1,26 @@
 'use client';
 
+import { MapPin } from 'lucide-react';
 import type { FestivalCard } from '@/lib/weekend-types';
+import Badge from './ui/Badge';
 
 interface Props {
   festival: FestivalCard;
 }
 
-const PLACEHOLDER_COLORS = [
-  'from-pink-200 to-rose-100',
-  'from-violet-200 to-purple-100',
-  'from-sky-200 to-blue-100',
-  'from-emerald-200 to-teal-100',
-  'from-amber-200 to-yellow-100',
-];
-
-const PLACEHOLDER_EMOJIS = ['🎪', '🎭', '🎵', '🎨', '🎉'];
-
 export default function FestivalBadge({ festival }: Props) {
-  const idx = parseInt(festival.contentId, 10) % 5;
-  const gradientClass = PLACEHOLDER_COLORS[idx];
-  const placeholderEmoji = PLACEHOLDER_EMOJIS[idx];
+  const dDayBadge = festival.urgencyTag
+    ? { variant: 'brand' as const, label: festival.urgencyTag }
+    : festival.dDay !== undefined && festival.dDay <= 7
+      ? {
+          variant: 'warning' as const,
+          label: festival.dDay === 0 ? 'D-DAY' : `D-${festival.dDay}`,
+        }
+      : null;
 
   return (
-    <div className="flex-shrink-0 w-44 bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-orange-50 hover:-translate-y-1 transition-all duration-300 cursor-pointer group">
-      {/* 이미지 / 플레이스홀더 */}
-      <div className={`relative h-28 bg-gradient-to-br ${gradientClass} overflow-hidden`}>
+    <article className="group flex-shrink-0 w-64 lg:w-72 bg-surface-elevated rounded-xl border border-line overflow-hidden hover:shadow-[var(--shadow-raised)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
+      <div className="relative aspect-[16/10] bg-surface-sunken overflow-hidden">
         {festival.firstImage ? (
           <img
             src={festival.firstImage}
@@ -33,45 +29,33 @@ export default function FestivalBadge({ festival }: Props) {
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-5xl opacity-60 group-hover:scale-110 transition-transform duration-500">
-              {placeholderEmoji}
-            </span>
+          <div className="w-full h-full flex items-center justify-center text-ink-4">
+            <MapPin size={32} strokeWidth={1.4} />
           </div>
         )}
-
-        {/* 긴급성 태그 */}
-        {festival.urgencyTag && (
-          <span className="absolute top-2.5 left-2.5 bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg shadow-red-200 badge-pulse">
-            {festival.urgencyTag}
-          </span>
-        )}
-
-        {/* D-day 뱃지 */}
-        {festival.dDay !== undefined && festival.dDay <= 7 && !festival.urgencyTag && (
-          <span className="absolute top-2.5 left-2.5 bg-orange-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg shadow-orange-200 badge-pulse">
-            {festival.dDay === 0 ? 'D-DAY' : `D-${festival.dDay}`}
-          </span>
+        {dDayBadge && (
+          <div className="absolute top-3 left-3">
+            <Badge variant={dDayBadge.variant} size="md">
+              {dDayBadge.label}
+            </Badge>
+          </div>
         )}
       </div>
 
-      {/* 텍스트 */}
-      <div className="p-3.5">
-        <h3 className="text-sm font-bold text-slate-800 truncate leading-snug break-keep">
+      <div className="p-4">
+        <h3 className="text-base font-semibold text-ink-1 line-clamp-1 leading-snug break-keep">
           {festival.title}
         </h3>
         {festival.aiSummary && (
-          <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed break-keep">
+          <p className="text-sm text-ink-3 mt-1.5 line-clamp-2 leading-relaxed break-keep">
             {festival.aiSummary}
           </p>
         )}
-        <p className="text-[10px] text-slate-400 mt-1.5 truncate flex items-center gap-1">
-          <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-          </svg>
+        <p className="text-xs text-ink-4 mt-3 flex items-center gap-1 truncate">
+          <MapPin size={12} className="flex-shrink-0" />
           {festival.addr1}
         </p>
       </div>
-    </div>
+    </article>
   );
 }
