@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search, Crosshair, X } from 'lucide-react';
 import { CITY_OPTIONS } from '@/lib/weekend-types';
 import { useLocation, type UserLocation } from './LocationContext';
@@ -8,6 +8,7 @@ import { useLocation, type UserLocation } from './LocationContext';
 export default function LocationModal() {
   const { isModalOpen, closeModal, setLocation, recentLocations, requestGPS } = useLocation();
   const [query, setQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isModalOpen) return;
@@ -16,6 +17,8 @@ export default function LocationModal() {
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
+    // autofocus search input on open (defer to next tick so modal is mounted)
+    requestAnimationFrame(() => searchInputRef.current?.focus());
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
@@ -35,16 +38,19 @@ export default function LocationModal() {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="loc-modal-title"
       className="fixed inset-0 z-50 bg-ink-1/40 backdrop-blur-sm flex items-end lg:items-center justify-center"
-      onClick={closeModal}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) closeModal(); }}
     >
       <div
         className="w-full lg:max-w-md bg-surface-elevated rounded-t-2xl lg:rounded-xl border border-line shadow-[var(--shadow-raised)] max-h-[80vh] lg:max-h-[70vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-line">
           <h2
+            id="loc-modal-title"
             className="text-lg font-bold text-ink-1"
             style={{ fontFamily: "var(--font-display)" }}
           >
@@ -64,6 +70,7 @@ export default function LocationModal() {
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
             <input
+              ref={searchInputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}

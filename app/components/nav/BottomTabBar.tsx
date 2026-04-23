@@ -14,7 +14,7 @@ export default function BottomTabBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-surface-base/95 backdrop-blur border-t border-line">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-surface-base/95 backdrop-blur border-t border-line pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-around max-w-lg mx-auto h-16">
         {TABS.map((tab) => {
           const active = tab.match(pathname);

@@ -57,7 +57,7 @@ export default function RootLayout({
         <LocationProvider>
           <div className="min-h-[100dvh] bg-surface-base text-ink-2 flex flex-col">
             <GlobalHeader />
-            <main className="flex-1 pb-16 lg:pb-0">{children}</main>
+            <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
             <BottomTabBar />
             <LocationModal />
             <KakaoSDK />
