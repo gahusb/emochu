@@ -44,7 +44,7 @@ export default function HomeHero({ weather, spots }: Props) {
   return (
     <section className="relative w-full h-[50vh] lg:h-[60vh] min-h-[420px] overflow-hidden">
       {/* Always-on gradient base — visible if all image fallbacks fail */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#3D2914] via-[#5C3D2A] to-[#7A5642]" aria-hidden="true" />
+      <div className="absolute inset-0 bg-gradient-to-br from-hero-fallback-start via-hero-fallback-mid to-hero-fallback-end" aria-hidden="true" />
       <img
         src={imgSrc}
         alt="이번 주말의 풍경"

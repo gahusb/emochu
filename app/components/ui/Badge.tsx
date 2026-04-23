@@ -12,9 +12,9 @@ interface Props {
 
 const VARIANT_CLASSES: Record<Variant, string> = {
   brand: 'bg-brand-soft text-brand',
-  mocha: 'bg-[#F0E5DA] text-mocha',
-  success: 'bg-[#E5EBDF] text-success',
-  warning: 'bg-[#F5EAD0] text-warning',
+  mocha: 'bg-mocha-soft text-mocha',
+  success: 'bg-success-soft text-success',
+  warning: 'bg-warning-soft text-warning',
   outline: 'bg-transparent text-ink-2 border border-line',
 };
 

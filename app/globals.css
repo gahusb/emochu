@@ -57,9 +57,17 @@
 
   /* Functional */
   --color-mocha: #8B5E3C;
+  --color-mocha-soft: #F0E5DA;
   --color-success: #5A7A4F;
+  --color-success-soft: #E5EBDF;
   --color-warning: #B8860B;
+  --color-warning-soft: #F5EAD0;
   --color-info: #4A6B8A;
+
+  /* Hero fallback gradient — 사진 로드 실패 시 에디토리얼 질감 유지 */
+  --color-hero-fallback-start: #3D2914;
+  --color-hero-fallback-mid: #5C3D2A;
+  --color-hero-fallback-end: #7A5642;
 
   /* Typography */
   --font-sans: 'Pretendard', -apple-system, system-ui, sans-serif;
