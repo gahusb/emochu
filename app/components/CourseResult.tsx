@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { CourseResponse, CourseStop } from '@/lib/weekend-types';
-import WeekendHeader from './WeekendHeader';
-import BottomTabBar from './BottomTabBar';
 import CourseMap from './CourseMap';
 import SpotDetailModal from './SpotDetailModal';
 import ImageGallery from './ImageGallery';
@@ -215,7 +213,6 @@ export default function CourseResult({ slug }: Props) {
   if (loading) {
     return (
       <>
-        <WeekendHeader locationName="코스 보기" />
         <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-4 border-orange-200" />
@@ -224,7 +221,6 @@ export default function CourseResult({ slug }: Props) {
           </div>
           <p className="text-slate-500 text-sm mt-4">코스를 불러오는 중...</p>
         </div>
-        <BottomTabBar />
       </>
     );
   }
@@ -233,7 +229,6 @@ export default function CourseResult({ slug }: Props) {
   if (!data) {
     return (
       <>
-        <WeekendHeader locationName="코스 보기" />
         <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20 px-6">
           <span className="text-5xl mb-4">😢</span>
           <h2 className="text-lg font-black text-slate-800" style={{ fontFamily: "'CookieRun', sans-serif" }}>
@@ -249,7 +244,6 @@ export default function CourseResult({ slug }: Props) {
             새 코스 만들기
           </Link>
         </div>
-        <BottomTabBar />
       </>
     );
   }
@@ -302,9 +296,7 @@ export default function CourseResult({ slug }: Props) {
 
   return (
     <>
-      <WeekendHeader locationName={locationName ?? '코스 보기'} />
-
-      <div className="max-w-lg mx-auto px-5 pt-16 pb-28">
+      <div className="max-w-lg mx-auto px-5 py-4">
         {/* 헤더 영역 */}
         <div className="mt-4 mb-6 animate-[fadeSlide_0.5s_ease-out]">
           {data.fortuneMessage && (
@@ -533,8 +525,6 @@ export default function CourseResult({ slug }: Props) {
           </Link>
         </div>
       </div>
-
-      <BottomTabBar />
 
       {/* 장소 상세 모달 */}
       <SpotDetailModal

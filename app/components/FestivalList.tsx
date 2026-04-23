@@ -3,8 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { FestivalCard } from '@/lib/weekend-types';
-import WeekendHeader from './WeekendHeader';
-import BottomTabBar from './BottomTabBar';
 import SpotDetailModal from './SpotDetailModal';
 
 const RADIUS_OPTIONS = [30, 50, 100, 200];
@@ -182,9 +180,7 @@ export default function FestivalList() {
 
   return (
     <>
-      <WeekendHeader locationName={locationName} />
-
-      <div className="max-w-lg mx-auto px-5 pt-16 pb-24">
+      <div className="max-w-lg mx-auto px-5 py-4">
         {/* 헤더 */}
         <section className={`pt-5 pb-2 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <p className="text-sm font-semibold text-orange-400">{weekendLabel} {locationName}</p>
@@ -451,8 +447,6 @@ export default function FestivalList() {
           </div>
         </section>
       </div>
-
-      <BottomTabBar />
 
       {/* 장소 상세 모달 */}
       <SpotDetailModal

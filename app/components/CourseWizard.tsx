@@ -20,8 +20,6 @@ import {
   MOOD_OPTIONS,
   FEELING_OPTIONS,
 } from '@/lib/weekend-types';
-import WeekendHeader from './WeekendHeader';
-import BottomTabBar from './BottomTabBar';
 import { PREFERENCE_SUB_CATEGORIES } from '@/lib/tour-api';
 
 const DURATIONS: Duration[] = ['half_day', 'full_day', 'leisurely', 'overnight'];
@@ -225,9 +223,7 @@ export default function CourseWizard() {
 
   return (
     <>
-      <WeekendHeader locationName="서울 강남" />
-
-      <div className="max-w-lg mx-auto px-5 pt-20 pb-24">
+      <div className="max-w-lg mx-auto px-5 py-4">
         {/* 진행바 */}
         <div className="progress-glow flex items-center gap-2 mb-6">
           {Array.from({ length: TOTAL_STEPS }, (_, i) => (
@@ -554,8 +550,6 @@ export default function CourseWizard() {
           </div>
         )}
       </div>
-
-      <BottomTabBar />
 
       <style jsx global>{`
         @keyframes fadeSlide {

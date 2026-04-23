@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import KakaoSDK from './components/KakaoSDK';
+import GlobalHeader from './components/nav/GlobalHeader';
+import BottomTabBar from './components/nav/BottomTabBar';
+import LocationModal from './components/nav/LocationModal';
+import { LocationProvider } from './components/nav/LocationContext';
 
 export const metadata: Metadata = {
   title: {
@@ -35,7 +39,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#FFF8F0',
+  themeColor: '#FAF7F2',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -50,13 +54,15 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased">
-        <div
-          className="min-h-[100dvh] bg-[#FFF8F0] text-slate-800 flex flex-col"
-          style={{ fontFamily: "'Pretendard', 'CookieRun', system-ui, sans-serif" }}
-        >
-          <main className="flex-1 overflow-y-auto">{children}</main>
-          <KakaoSDK />
-        </div>
+        <LocationProvider>
+          <div className="min-h-[100dvh] bg-surface-base text-ink-2 flex flex-col">
+            <GlobalHeader />
+            <main className="flex-1 pb-16 lg:pb-0">{children}</main>
+            <BottomTabBar />
+            <LocationModal />
+            <KakaoSDK />
+          </div>
+        </LocationProvider>
       </body>
     </html>
   );

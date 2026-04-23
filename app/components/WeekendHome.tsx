@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { FestivalCard, SpotCard as SpotCardType, WeekendWeather } from '@/lib/weekend-types';
-import WeekendHeader from './WeekendHeader';
-import BottomTabBar from './BottomTabBar';
 import WeatherBar from './WeatherBar';
 import FestivalBadge from './FestivalBadge';
 import SpotCard from './SpotCard';
@@ -93,12 +91,7 @@ export default function WeekendHome() {
 
   return (
     <>
-      <WeekendHeader
-        locationName={locationName}
-        onLocationClick={() => {/* TODO: 위치 설정 모달 */}}
-      />
-
-      <div className="max-w-lg mx-auto px-5 pt-16 pb-24">
+      <div className="max-w-lg mx-auto px-5 py-4">
         {/* ─── Hero ─── */}
         <section className={`pt-5 pb-2 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <p className="text-sm font-semibold text-orange-400">{weekendLabel} {locationName}</p>
@@ -230,8 +223,6 @@ export default function WeekendHome() {
           </div>
         </section>
       </div>
-
-      <BottomTabBar />
 
       <SpotDetailModal
         contentId={selectedContentId}
