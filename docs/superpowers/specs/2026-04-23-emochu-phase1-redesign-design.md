@@ -421,3 +421,19 @@ app/components/nav/
 ### 다음 Phase
 - **Phase 2**: 코스 플로우 재디자인 (CourseWizard / CourseResult / CourseMap)
 - **Phase 3**: 보조 페이지 + 컴포넌트 정리 (FestivalList / SpotDetailModal / 공통 컴포넌트)
+
+### Phase 1 리뷰 이관 (2026-04-24)
+code-reviewer 리뷰에서 발견, Critical 2건은 즉시 수정. 나머지는 아래에 이관.
+
+**Important** (Phase 2 착수 시 우선 처리)
+- `Button` 프리미티브 실제 적용 — HomeHero AI CTA, HomeView AI 코스 카드, LocationModal 버튼 등 `h-12 px-5 rounded-lg bg-brand ...` 중복 구현 6+곳을 `<Button />`으로 교체. 토큰화의 실제 이익 확보.
+- 클릭 가능한 카드의 키보드 접근성 — `HomeView.tsx:67,139`의 `<div onClick>`을 `<button>` 또는 `role="button" tabIndex={0} onKeyDown` 래퍼로 교체. SpotCard/FestivalBadge 클릭 영역 전체.
+- `aria-current="page"` — `GlobalHeader` 메뉴, `BottomTabBar` 탭 active 상태에 추가.
+- `LocationSelector` 접근성 — `aria-label`, `aria-haspopup="dialog"`, `aria-expanded={isModalOpen}` 추가.
+- raw `<img>` → `next/image` 복원 — `next.config.ts`에 `images.remotePatterns: [{ protocol: 'http', hostname: 'tong.visitkorea.or.kr' }]` 추가 후 HomeHero·HomeView·SpotCard·FestivalBadge 복원. LCP priority/sizes 튜닝은 공모전 "기술성" 점수에 유효.
+- 불필요한 `'use client'` 제거 — `WeatherCard`, `FestivalSideList`. RSC 전환으로 JS 번들 축소.
+
+**Nice-to-have**
+- `LocationModal` 포커스 트랩 — 마지막 요소 Tab 시 첫 요소로 순환. 경량 구현 또는 `focus-trap-react` 도입.
+- `focus-visible:ring-2 focus-visible:ring-brand-soft` — GlobalSearchBar / SearchBar / LocationModal input의 보조 포커스 효과.
+- `useHomeData` loading 무한 루프 방지 — `loc === null`일 때 `setLoading(false)` 또는 SEOUL 기본값으로 즉시 전환. GPS 해결 전까지 스켈레톤 고정 시간 단축.

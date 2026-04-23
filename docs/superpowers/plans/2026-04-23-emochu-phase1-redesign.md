@@ -2520,40 +2520,6 @@ EOF
 
 ---
 
-## Task 6: /codex:reviewer 전체 리뷰
-
-Phase 1 구현이 모두 완료되고 시각 검증을 통과한 후, 사용자가 명시적으로 요청한 코드 리뷰 단계.
-
-### Step 6.1: codex 리뷰 요청
-
-- [ ] **codex 리뷰어 스킬 호출**
-
-`Skill` 도구로 `codex:rescue` 또는 적절한 codex 리뷰어 슬래시 커맨드를 사용한다.
-사용자가 명시한 슬래시 커맨드는 `/codex:reviewer`이다. 이 커맨드는 다음 범위로 리뷰를 요청한다:
-
-- 리뷰 범위: Phase 1 redesign으로 추가/수정된 모든 파일 (Task 1~5 커밋 범위)
-- 검토 항목:
-  1. 디자인 시스템 토큰 일관성 (임의 컬러 직접 사용 0건)
-  2. 반응형 레이아웃 정합성 (브레이크포인트 일관성)
-  3. 접근성 (키보드 네비, focus 표시, alt/aria)
-  4. 성능 (불필요한 client component, useEffect 누락 의존성)
-  5. 옛 페이지(course/festival)와 새 컴포넌트의 호환성
-  6. 데드 코드 / 사용 안 되는 import
-
-### Step 6.2: 리뷰 결과 반영
-
-- [ ] **이슈 발견 시 재수정 → 빌드 → 커밋**
-
-Codex 리뷰가 발견한 이슈마다:
-1. 우선순위 분류 (Critical / Important / Nice-to-have)
-2. Critical/Important만 즉시 수정
-3. 수정 후 `npm run build` + 시각 회귀 재확인
-4. 별도 커밋: "fix(review): [이슈 요약]"
-
-Nice-to-have는 Phase 2/3 backlog로 spec 문서에 추가.
-
----
-
 ## Self-Review Checklist (이 plan 작성자가 수행)
 
 ### Spec coverage
@@ -2578,7 +2544,6 @@ Nice-to-have는 Phase 2/3 backlog로 spec 문서에 추가.
 - [x] §9 검증 전략 → 각 task 마지막 단계
 - [x] §10 위험 완화 → next/image error fallback (Task 4.4), font-display swap (Task 1.2), sticky max-height (Task 4.7), 모달 키보드 처리 (Task 3.3)
 - [x] §11 Backlog → spec에 이미 명시 (이 plan에서 다시 다룰 필요 없음)
-- [x] 사용자 추가 요청: /codex:reviewer 단계 → Task 6
 
 ### Placeholder scan
 - [ ] "TBD/TODO" 0건 확인 → 0건 (사용자 액션 표시는 USER ACTION REQUIRED로 명시)
