@@ -1,39 +1,55 @@
-'use client';
-
+import { ParkingSquare, Baby, ToyBrick, Dog, Clock } from 'lucide-react';
+import type { ComponentType } from 'react';
 import type { FacilityInfo } from '@/lib/weekend-types';
+
+type Size = 'sm' | 'md';
 
 interface Props {
   facilities: FacilityInfo;
-  compact?: boolean;  // true: 아이콘만, false: 아이콘+텍스트
+  size?: Size;
 }
 
-const BADGES: { key: keyof FacilityInfo; icon: string; label: string }[] = [
-  { key: 'parking',       icon: '🅿️', label: '주차' },
-  { key: 'babyCarriage',  icon: '👶', label: '유모차' },
-  { key: 'kidsFacility',  icon: '🧒', label: '키즈' },
-  { key: 'pet',           icon: '🐾', label: '반려동물' },
+interface BadgeDef {
+  key: keyof FacilityInfo;
+  Icon: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  label: string;
+}
+
+const BADGES: BadgeDef[] = [
+  { key: 'parking', Icon: ParkingSquare, label: '주차' },
+  { key: 'babyCarriage', Icon: Baby, label: '유모차' },
+  { key: 'kidsFacility', Icon: ToyBrick, label: '키즈' },
+  { key: 'pet', Icon: Dog, label: '반려동물' },
 ];
 
-export default function FacilityBadges({ facilities, compact = false }: Props) {
-  const activeBadges = BADGES.filter(b => facilities[b.key] === true);
+const SIZE_CLASSES: Record<Size, { chip: string; icon: number }> = {
+  sm: { chip: 'text-[11px] px-2 py-0.5 gap-1', icon: 12 },
+  md: { chip: 'text-xs px-2.5 py-1 gap-1.5', icon: 14 },
+};
 
-  if (activeBadges.length === 0 && !facilities.operatingHours) return null;
+export default function FacilityBadges({ facilities, size = 'sm' }: Props) {
+  const activeBadges = BADGES.filter((b) => facilities[b.key] === true);
+  const hasHours = Boolean(facilities.operatingHours);
+
+  if (activeBadges.length === 0 && !hasHours) return null;
+
+  const sz = SIZE_CLASSES[size];
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {activeBadges.map(b => (
+      {activeBadges.map(({ key, Icon, label }) => (
         <span
-          key={b.key}
-          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-50 text-orange-700 rounded-full text-[10px] font-bold"
-          title={b.label}
+          key={key}
+          className={`inline-flex items-center font-semibold rounded-md bg-brand-soft text-brand ${sz.chip}`}
+          title={label}
         >
-          <span>{b.icon}</span>
-          {!compact && <span>{b.label}</span>}
+          <Icon size={sz.icon} strokeWidth={1.75} aria-hidden="true" />
+          {size === 'md' && <span>{label}</span>}
         </span>
       ))}
-      {facilities.operatingHours && !compact && (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold">
-          <span>⏰</span>
+      {hasHours && size === 'md' && (
+        <span className={`inline-flex items-center font-semibold rounded-md bg-surface-sunken text-ink-2 ${sz.chip}`}>
+          <Clock size={sz.icon} strokeWidth={1.75} aria-hidden="true" />
           <span>{facilities.operatingHours}</span>
         </span>
       )}

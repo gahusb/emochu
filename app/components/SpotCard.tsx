@@ -94,7 +94,7 @@ export default function SpotCard({ spot }: Props) {
         </p>
         {spot.facilities && (
           <div className="mt-2">
-            <FacilityBadges facilities={spot.facilities} compact />
+            <FacilityBadges facilities={spot.facilities} />
           </div>
         )}
         <p className="text-xs text-ink-4 mt-2 truncate">
