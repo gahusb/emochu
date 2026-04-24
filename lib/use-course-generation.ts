@@ -65,6 +65,9 @@ export function useCourseGeneration() {
       }
       sessionStorage.setItem('weekendCourse', JSON.stringify(data));
       const slug = data.shareUrl.split('/').pop();
+      if (!slug) {
+        throw new Error('코스 공유 URL이 올바르지 않아요.');
+      }
       router.replace(`/course/${slug}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '코스 생성 중 문제가 생겼어요.');
