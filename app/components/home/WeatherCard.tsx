@@ -1,5 +1,3 @@
-'use client';
-
 import { Sun, Cloud, CloudRain, CloudSnow, Droplets } from 'lucide-react';
 import type { DayWeather, WeekendWeather } from '@/lib/weekend-types';
 import Card from '../ui/Card';

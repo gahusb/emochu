@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { MapPin } from 'lucide-react';
 import type { FestivalCard } from '@/lib/weekend-types';
 import Badge from './ui/Badge';
@@ -22,11 +23,13 @@ export default function FestivalBadge({ festival }: Props) {
     <article className="group flex-shrink-0 w-64 lg:w-72 bg-surface-elevated rounded-xl border border-line overflow-hidden hover:shadow-[var(--shadow-raised)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
       <div className="relative aspect-[16/10] bg-surface-sunken overflow-hidden">
         {festival.firstImage ? (
-          <img
+          <Image
             src={festival.firstImage}
             alt={festival.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
+            fill
+            sizes="(max-width: 1024px) 256px, 288px"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            unoptimized={festival.firstImage.startsWith('http://')}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-ink-4">

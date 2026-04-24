@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { Search, X } from 'lucide-react';
 import Link from 'next/link';
 
@@ -106,7 +107,16 @@ export default function GlobalSearchBar() {
               className="flex items-center gap-3 px-4 py-3 hover:bg-surface-sunken transition-colors border-b border-line last:border-0"
             >
               {r.firstImage ? (
-                <img src={r.firstImage} alt={r.title} className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
+                <div className="relative w-10 h-10 rounded-md overflow-hidden flex-shrink-0">
+                  <Image
+                    src={r.firstImage}
+                    alt={r.title}
+                    fill
+                    sizes="40px"
+                    className="object-cover"
+                    unoptimized={r.firstImage.startsWith('http://')}
+                  />
+                </div>
               ) : (
                 <div className="w-10 h-10 rounded-md bg-surface-sunken flex-shrink-0" />
               )}

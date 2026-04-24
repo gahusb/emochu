@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -64,9 +65,15 @@ export default function HomeView() {
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {spots.slice(0, 6).map((s) => (
-              <div key={s.contentId} onClick={() => setSelectedContentId(s.contentId)}>
+              <button
+                key={s.contentId}
+                type="button"
+                onClick={() => setSelectedContentId(s.contentId)}
+                className="text-left w-full block"
+                aria-label={`${s.title} 상세 보기`}
+              >
                 <SpotCard spot={s} />
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -97,10 +104,12 @@ export default function HomeView() {
               </Link>
             </div>
             <div className="relative aspect-[16/10] lg:aspect-auto bg-surface-sunken">
-              <img
+              <Image
                 src="/hero/autumn-clear.jpg"
                 alt=""
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
               />
             </div>
           </div>
@@ -136,13 +145,15 @@ export default function HomeView() {
             style={{ scrollbarWidth: 'none' }}
           >
             {festivals.map((f) => (
-              <div
+              <button
                 key={f.contentId}
-                className="snap-start"
+                type="button"
                 onClick={() => setSelectedContentId(f.contentId)}
+                className="snap-start text-left block"
+                aria-label={`${f.title} 상세 보기`}
               >
                 <FestivalBadge festival={f} />
-              </div>
+              </button>
             ))}
           </div>
         )}

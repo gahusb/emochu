@@ -48,6 +48,7 @@ export default function GlobalHeader() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? 'page' : undefined}
                 className={`relative px-3 py-2 text-sm font-semibold transition-colors ${
                   active ? 'text-ink-1' : 'text-ink-3 hover:text-ink-1'
                 }`}

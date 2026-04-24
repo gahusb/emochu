@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import type { SpotCard, WeekendWeather } from '@/lib/weekend-types';
@@ -45,11 +46,15 @@ export default function HomeHero({ weather, spots }: Props) {
     <section className="relative w-full h-[50vh] lg:h-[60vh] min-h-[420px] overflow-hidden">
       {/* Always-on gradient base — visible if all image fallbacks fail */}
       <div className="absolute inset-0 bg-gradient-to-br from-hero-fallback-start via-hero-fallback-mid to-hero-fallback-end" aria-hidden="true" />
-      <img
+      <Image
         src={imgSrc}
         alt="이번 주말의 풍경"
-        className="absolute inset-0 w-full h-full object-cover"
+        fill
+        sizes="100vw"
+        priority
+        className="object-cover"
         onError={handleError}
+        unoptimized={imgSrc.startsWith('http://')}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-ink-1/70 via-ink-1/20 to-transparent" />
 

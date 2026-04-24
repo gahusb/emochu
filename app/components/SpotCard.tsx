@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { MapPin } from 'lucide-react';
 import type { SpotCard as SpotCardType } from '@/lib/weekend-types';
 import FacilityBadges from './FacilityBadges';
@@ -52,11 +53,13 @@ export default function SpotCard({ spot }: Props) {
     <article className="group bg-surface-elevated rounded-xl border border-line overflow-hidden hover:shadow-[var(--shadow-raised)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
       <div className="relative aspect-[4/3] bg-surface-sunken overflow-hidden">
         {spot.firstImage ? (
-          <img
+          <Image
             src={spot.firstImage}
             alt={spot.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
+            fill
+            sizes="(max-width: 1024px) 50vw, 33vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            unoptimized={spot.firstImage.startsWith('http://')}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-ink-4">
