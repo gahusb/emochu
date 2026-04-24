@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import FestivalList from '@/app/components/FestivalList';
+import FestivalPageShell from '@/app/components/festival/FestivalPageShell';
 
 export const metadata: Metadata = {
   title: '이번 주말 축제 | 이모추!',
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function FestivalPage() {
-  return <FestivalList />;
+  return <FestivalPageShell />;
 }
