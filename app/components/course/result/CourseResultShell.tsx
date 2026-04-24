@@ -56,8 +56,8 @@ export default function CourseResultShell({ slug }: Props) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20">
         <div className="relative w-16 h-16">
-          <div className="absolute inset-0 rounded-full border-4 border-orange-200" />
-          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-orange-500 animate-spin" />
+          <div className="absolute inset-0 rounded-full border-4 border-brand-soft" />
+          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-brand animate-spin" />
         </div>
         <p className="text-ink-3 text-sm mt-4">코스를 불러오는 중...</p>
       </div>
