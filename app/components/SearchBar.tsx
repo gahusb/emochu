@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, X, MapPin } from 'lucide-react';
 
 interface SearchResult {
@@ -12,17 +13,14 @@ interface SearchResult {
   cat2: string;
 }
 
-interface Props {
-  onSelectSpot?: (contentId: string) => void;
-}
-
 const POPULAR_KEYWORDS = ['벚꽃', '야경', '맛집', '카페', '전시', '바다'];
 
 const CONTENT_TYPE_LABELS: Record<number, string> = {
   12: '관광지', 14: '문화시설', 15: '축제', 28: '레포츠', 32: '숙박', 39: '음식점',
 };
 
-export default function SearchBar({ onSelectSpot }: Props) {
+export default function SearchBar() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,7 +108,7 @@ export default function SearchBar({ onSelectSpot }: Props) {
             <button
               key={r.contentId}
               onClick={() => {
-                onSelectSpot?.(r.contentId);
+                router.push(`/spot/${r.contentId}`);
                 setShowResults(false);
               }}
               className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-surface-sunken transition-colors border-b border-line last:border-0"

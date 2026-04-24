@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Lightbulb, Route } from 'lucide-react';
 import type { CourseStop } from '@/lib/weekend-types';
 import { getRoleInfo } from '@/lib/course-role';
@@ -11,10 +12,10 @@ interface Props {
   isLast: boolean;
   isActive: boolean;
   onActivate: () => void;
-  onOpenDetail: () => void;
 }
 
-export default function StopCard({ stop, isLast, isActive, onActivate, onOpenDetail }: Props) {
+export default function StopCard({ stop, isLast, isActive, onActivate }: Props) {
+  const router = useRouter();
   const { colorHex, label } = getRoleInfo(stop);
   const timeRange = formatTimeRange(stop.timeStart, stop.durationMin);
 
@@ -33,7 +34,7 @@ export default function StopCard({ stop, isLast, isActive, onActivate, onOpenDet
 
       <button
         type="button"
-        onClick={() => { if (isActive) onOpenDetail(); else onActivate(); }}
+        onClick={() => { if (isActive) router.push(`/spot/${stop.contentId}`); else onActivate(); }}
         aria-label={`${stop.order}번째 코스: ${stop.title}, ${timeRange}, ${label}${isActive ? '. 다시 눌러 상세 보기' : ''}`}
         className={`flex-1 text-left bg-surface-elevated rounded-lg border overflow-hidden mb-4 transition-all hover:border-ink-4 ${
           isActive ? 'border-brand ring-2 ring-brand/20' : 'border-line'

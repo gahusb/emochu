@@ -6,7 +6,6 @@ import { AlertCircle } from 'lucide-react';
 import type { CourseResponse, CourseStop } from '@/lib/weekend-types';
 import { useActiveStop } from '@/lib/use-active-stop';
 import Container from '@/app/components/ui/Container';
-import SpotDetailModal from '@/app/components/SpotDetailModal';
 import CourseSummary from './CourseSummary';
 import DayTabs from './DayTabs';
 import Timeline from './Timeline';
@@ -106,8 +105,6 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
 
   const { activeIndex, setActive } = useActiveStop();
 
-  const [modalContentId, setModalContentId] = useState<string | null>(null);
-
   const isMultiDay = days.length > 1;
 
   const shareUrl =
@@ -147,7 +144,6 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
               stops={visibleStops}
               activeIndex={activeIndex}
               onActivate={setActive}
-              onOpenDetail={(contentId) => setModalContentId(contentId)}
             />
             {courseData?.tip && <CourseTip tip={courseData.tip} />}
             <div className="mt-6">
@@ -181,9 +177,6 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
           </div>
         </div>
       </Container>
-      {modalContentId && (
-        <SpotDetailModal contentId={modalContentId} onClose={() => setModalContentId(null)} />
-      )}
     </>
   );
 }

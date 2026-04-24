@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocation } from '../nav/LocationContext';
 import { useHomeData } from '@/lib/use-home-data';
 import HomeHero from './HomeHero';
@@ -17,30 +15,16 @@ import Card from '../ui/Card';
 import SpotCard from '../SpotCard';
 import FestivalBadge from '../FestivalBadge';
 import SearchBar from '../SearchBar';
-import SpotDetailModal from '../SpotDetailModal';
 
 export default function HomeView() {
   const { location, openModal } = useLocation();
   const { weather, festivals, spots, loading } = useHomeData(location);
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
-
-  const handleCloseModal = () => {
-    setSelectedContentId(null);
-    if (searchParams.get('spot')) router.replace('/', { scroll: false });
-  };
-
-  useEffect(() => {
-    const spotParam = searchParams.get('spot');
-    if (spotParam) setSelectedContentId(spotParam);
-  }, [searchParams]);
 
   const main = (
     <div className="space-y-12 lg:space-y-16">
       {/* Mobile-only sections (sidebar 콘텐츠 합류) */}
       <div className="lg:hidden space-y-6">
-        <SearchBar onSelectSpot={(id) => setSelectedContentId(id)} />
+        <SearchBar />
         <WeatherCard weather={weather} />
       </div>
 
@@ -65,15 +49,14 @@ export default function HomeView() {
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {spots.slice(0, 6).map((s) => (
-              <button
+              <Link
                 key={s.contentId}
-                type="button"
-                onClick={() => setSelectedContentId(s.contentId)}
+                href={`/spot/${s.contentId}`}
                 className="text-left w-full block"
                 aria-label={`${s.title} 상세 보기`}
               >
                 <SpotCard spot={s} />
-              </button>
+              </Link>
             ))}
           </div>
         )}
@@ -145,15 +128,14 @@ export default function HomeView() {
             style={{ scrollbarWidth: 'none' }}
           >
             {festivals.map((f) => (
-              <button
+              <Link
                 key={f.contentId}
-                type="button"
-                onClick={() => setSelectedContentId(f.contentId)}
+                href={`/spot/${f.contentId}`}
                 className="snap-start text-left block"
                 aria-label={`${f.title} 상세 보기`}
               >
                 <FestivalBadge festival={f} />
-              </button>
+              </Link>
             ))}
           </div>
         )}
@@ -175,10 +157,7 @@ export default function HomeView() {
   const side = (
     <>
       <WeatherCard weather={weather} />
-      <FestivalSideList
-        festivals={festivals}
-        onSelect={(id) => setSelectedContentId(id)}
-      />
+      <FestivalSideList festivals={festivals} />
       <Card className="p-5">
         <h3
           className="text-sm font-bold text-ink-1 mb-3"
@@ -204,10 +183,6 @@ export default function HomeView() {
         <MagazineGrid main={main} side={side} />
       </Container>
 
-      <SpotDetailModal
-        contentId={selectedContentId}
-        onClose={handleCloseModal}
-      />
     </>
   );
 }

@@ -6,10 +6,9 @@ import Badge from '../ui/Badge';
 
 interface Props {
   festivals: FestivalCard[];
-  onSelect?: (contentId: string) => void;
 }
 
-export default function FestivalSideList({ festivals, onSelect }: Props) {
+export default function FestivalSideList({ festivals }: Props) {
   return (
     <Card className="p-5">
       <div className="flex items-center justify-between mb-4">
@@ -29,8 +28,8 @@ export default function FestivalSideList({ festivals, onSelect }: Props) {
         <ul className="space-y-3">
           {festivals.slice(0, 3).map((f) => (
             <li key={f.contentId}>
-              <button
-                onClick={() => onSelect?.(f.contentId)}
+              <Link
+                href={`/spot/${f.contentId}`}
                 className="w-full text-left flex items-start gap-3 group"
               >
                 <Calendar size={16} className="text-mocha mt-0.5 flex-shrink-0" />
@@ -45,7 +44,7 @@ export default function FestivalSideList({ festivals, onSelect }: Props) {
                     {f.dDay === 0 ? 'D-DAY' : `D-${f.dDay}`}
                   </Badge>
                 )}
-              </button>
+              </Link>
             </li>
           ))}
         </ul>
