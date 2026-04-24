@@ -44,7 +44,11 @@ export default function FacilityBadges({ facilities, size = 'sm' }: Props) {
           title={label}
         >
           <Icon size={sz.icon} strokeWidth={1.75} aria-hidden="true" />
-          {size === 'md' && <span>{label}</span>}
+          {size === 'md' ? (
+            <span>{label}</span>
+          ) : (
+            <span className="sr-only">{label}</span>
+          )}
         </span>
       ))}
       {hasHours && size === 'md' && (

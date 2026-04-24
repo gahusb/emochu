@@ -35,7 +35,7 @@ export default function SpotDetail({ detail }: Props) {
   const kakaoMapUrl = `https://map.kakao.com/link/map/${encodeURIComponent(detail.title)},${detail.lat},${detail.lng}`;
   const telNumber = detail.tel ? detail.tel.replace(/[^0-9-]/g, '').split(',')[0]?.trim() : '';
 
-  const needsFold = detail.overview.length > 200;
+  const needsFold = detail.overview.length > 400;
 
   return (
     <article className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-0 lg:gap-8 max-w-5xl mx-auto lg:p-6">

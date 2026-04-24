@@ -9,13 +9,47 @@ interface Props { children: ReactNode; }
 export default function SpotDetailModalFrame({ children }: Props) {
   const router = useRouter();
   const mouseDownOnBackdropRef = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerElementRef = useRef<HTMLElement | null>(null);
 
   const close = () => router.back();
 
-  // ESC 닫기 + body scroll lock (기존 overflow 값 보존하여 중첩 모달 호환)
+  // 원래 트리거 요소 기억 + 마운트 시 X 버튼으로 포커스 이동 + 언마운트 시 복원
+  useEffect(() => {
+    triggerElementRef.current = document.activeElement as HTMLElement | null;
+    // 살짝 지연시켜 layout 완료 후 포커스 (모바일 animation 충돌 방지)
+    const rafId = requestAnimationFrame(() => {
+      closeButtonRef.current?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(rafId);
+      triggerElementRef.current?.focus();
+    };
+  }, []);
+
+  // ESC 닫기 + Tab trap + body scroll lock (기존 overflow 값 보존하여 중첩 모달 호환)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') router.back();
+      if (e.key === 'Escape') {
+        router.back();
+        return;
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      // Focus trap
+      const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     const prevOverflow = document.body.style.overflow;
     document.addEventListener('keydown', handleKey);
@@ -44,6 +78,7 @@ export default function SpotDetailModalFrame({ children }: Props) {
     >
       <div className="absolute inset-0 bg-ink-1/50 backdrop-blur-sm" aria-hidden="true" />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="장소 상세"
@@ -54,6 +89,7 @@ export default function SpotDetailModalFrame({ children }: Props) {
           <div className="w-10 h-1 bg-line rounded-full" />
         </div>
         <button
+          ref={closeButtonRef}
           type="button"
           onClick={close}
           className="absolute top-3 right-3 z-10 w-8 h-8 bg-ink-1/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-ink-1/60 transition-colors"

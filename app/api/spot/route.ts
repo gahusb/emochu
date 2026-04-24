@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { detailCommon, detailIntro, detailImage, detailInfo } from '@/lib/tour-api';
 
 export const runtime = 'nodejs';
+export const revalidate = 3600; // 1시간 ISR — 전용 페이지 revalidate 설정과 일치
 
 // 콘텐츠 타입별 detailIntro 주요 필드 매핑
 const INTRO_FIELD_LABELS: Record<string, Record<string, string>> = {
