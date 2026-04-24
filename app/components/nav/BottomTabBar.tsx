@@ -13,6 +13,10 @@ const TABS = [
 export default function BottomTabBar() {
   const pathname = usePathname();
 
+  // Wizard(/course)는 자체 하단 Nav가 있어 탭바 중첩 시 버튼이 가려짐 → 해당 라우트에서만 숨김.
+  // 결과 페이지(/course/[slug])에서는 유지.
+  if (pathname === '/course') return null;
+
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-surface-base/95 backdrop-blur border-t border-line pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-around max-w-lg mx-auto h-16">
