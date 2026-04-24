@@ -12,19 +12,19 @@ export default function SpotDetailModalFrame({ children }: Props) {
 
   const close = () => router.back();
 
-  // ESC 닫기 + body scroll lock
+  // ESC 닫기 + body scroll lock (기존 overflow 값 보존하여 중첩 모달 호환)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') router.back();
     };
+    const prevOverflow = document.body.style.overflow;
     document.addEventListener('keydown', handleKey);
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', handleKey);
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
 
   // backdrop click 닫기 — mousedown 기준 (드래그 선택 시 오닫힘 방지)
   const handleBackdropMouseDown = (e: React.MouseEvent) => {

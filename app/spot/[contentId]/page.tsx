@@ -26,8 +26,8 @@ export async function generateMetadata({ params }: { params: Promise<{ contentId
   if (!detail) {
     return { title: '이모추 | 장소를 찾을 수 없어요' };
   }
-  const description = detail.overview?.slice(0, 120) ?? '이번 주말 나들이 장소로 어떠세요?';
-  const image = normalizeImageUrl(detail.mainImage ?? '/hero/autumn-clear.jpg');
+  const description = (detail.overview?.slice(0, 120)?.trim() || '이번 주말 나들이 장소로 어떠세요?');
+  const image = normalizeImageUrl(detail.mainImage || '/hero/autumn-clear.jpg');
   return {
     title: `${detail.title} | 이모추`,
     description,
