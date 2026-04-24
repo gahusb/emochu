@@ -535,11 +535,18 @@ export async function POST(request: NextRequest) {
     const course = await generateCourse(input);
 
     // 4. 이미지 URL 보강 (AI가 빈 값 반환 시 후보에서 매칭)
+    // + contentTypeId fallback 주입 (AI가 optional 필드 누락 시 후보 원본에서 보완)
     for (const stop of course.stops) {
       if (!stop.imageUrl) {
         const match = candidates.find(c => c.contentId === stop.contentId);
         if (match?.firstImage) {
           stop.imageUrl = match.firstImage;
+        }
+      }
+      if (!stop.contentTypeId && stop.contentId) {
+        const candidate = candidates.find(c => c.contentId === stop.contentId);
+        if (candidate?.contentTypeId) {
+          stop.contentTypeId = String(candidate.contentTypeId);
         }
       }
     }

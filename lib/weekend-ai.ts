@@ -255,7 +255,8 @@ description과 tip에도 기분에 맞는 어조와 내용을 반영하세요.
       "imageUrl": "이미지 URL 또는 빈 문자열",
       "isFestival": boolean,
       "isStay": boolean,
-      "day": 숫자 (1박2일 코스일 때 1 또는 2, 당일 코스는 생략 가능)
+      "day": 숫자 (1박2일 코스일 때 1 또는 2, 당일 코스는 생략 가능),
+      "contentTypeId": "문자열 — 후보 목록의 콘텐츠타입 ID 그대로 (예: \"12\", \"39\", \"15\", \"32\")"
     }
   ]
 }
@@ -551,27 +552,27 @@ ${input.festivals.length > 0
 
 ### 🏔️ 관광지·명소
 ${input.candidates.filter(c => classifySpotRole(c) === 'attraction').map((c, i) =>
-  `${i + 1}. [${c.contentId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
+  `${i + 1}. [${c.contentId}][타입:${c.contentTypeId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
 ).join('\n') || '(없음)'}
 
 ### 🍽️ 음식점·맛집
 ${input.candidates.filter(c => classifySpotRole(c) === 'restaurant').map((c, i) =>
-  `${i + 1}. [${c.contentId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
+  `${i + 1}. [${c.contentId}][타입:${c.contentTypeId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
 ).join('\n') || '(없음)'}
 
 ### ☕ 카페·디저트
 ${input.candidates.filter(c => classifySpotRole(c) === 'cafe').map((c, i) =>
-  `${i + 1}. [${c.contentId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
+  `${i + 1}. [${c.contentId}][타입:${c.contentTypeId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
 ).join('\n') || '(없음)'}
 
 ### 🎨 문화시설
 ${input.candidates.filter(c => classifySpotRole(c) === 'culture').map((c, i) =>
-  `${i + 1}. [${c.contentId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
+  `${i + 1}. [${c.contentId}][타입:${c.contentTypeId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
 ).join('\n') || '(없음)'}
 
 ### 🏄 액티비티·레포츠
 ${input.candidates.filter(c => classifySpotRole(c) === 'activity').map((c, i) =>
-  `${i + 1}. [${c.contentId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
+  `${i + 1}. [${c.contentId}][타입:${c.contentTypeId}] ${c.title} | ${c.addr1} | ${c.distanceKm.toFixed(1)}km | 위도 ${c.latitude} 경도 ${c.longitude}${formatFacilities(c)}${c.overview ? ` | ${c.overview.slice(0, 80)}` : ''}`
 ).join('\n') || '(없음)'}
 ${input.stays.length > 0 ? `
 ### 🏨 숙박시설

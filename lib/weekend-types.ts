@@ -207,6 +207,7 @@ export interface CourseStop {
   images?: string[];
   facilities?: FacilityInfo;
   transitInfo?: string;         // "차로 15분 (4.2km)"
+  contentTypeId?: string;  // Phase 2: "12"|"14"|"15"|"28"|"32"|"39" — optional (기존 저장 코스 하위호환)
 }
 
 export interface CourseData {

@@ -69,6 +69,13 @@
   --color-hero-fallback-mid: #5C3D2A;
   --color-hero-fallback-end: #7A5642;
 
+  /* Stop role palette — 타임라인 뱃지·지도 마커 공통 (Phase 2) */
+  --color-role-spot: #C5532D;      /* 관광지/문화/액티비티 (= brand) */
+  --color-role-food: #8B5E3C;      /* 맛집 (= mocha) */
+  --color-role-cafe: #A8421F;      /* 카페 (= brand-hover 톤) */
+  --color-role-festival: #B8860B;  /* 축제 (= warning) */
+  --color-role-stay: #4A6B8A;      /* 숙박 (= info) */
+
   /* Typography */
   --font-sans: 'Pretendard', -apple-system, system-ui, sans-serif;
   --font-display: 'GmarketSans', 'Pretendard', sans-serif;
