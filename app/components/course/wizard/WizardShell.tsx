@@ -6,7 +6,7 @@ import type {
   DestinationType, MoodType, CityOption,
 } from '@/lib/weekend-types';
 import { useCourseGeneration } from '@/lib/use-course-generation';
-import { CITY_OPTIONS, MOOD_OPTIONS } from '@/lib/weekend-types';
+import { CITY_OPTIONS, MOOD_OPTIONS, FEELING_OPTIONS, DURATION_LABELS, COMPANION_LABELS } from '@/lib/weekend-types';
 import Container from '@/app/components/ui/Container';
 import CourseLoading from '../loading/CourseLoading';
 import WizardStepper from './WizardStepper';
@@ -167,14 +167,18 @@ export default function WizardShell() {
     return <CourseLoading message={loadingMessage} />;
   }
 
+  const feelingLabel = state.feeling ? FEELING_OPTIONS.find(o => o.type === state.feeling)?.label ?? null : null;
+  const durationLabel = state.duration ? DURATION_LABELS[state.duration] : null;
+  const companionLabel = state.companion ? COMPANION_LABELS[state.companion] : null;
+
   const stepSummaries: (string | null)[] = [
     state.destinationType === 'nearby' ? '내 주변'
       : state.destinationType === 'city' ? state.selectedCity?.name ?? null
       : state.destinationType === 'mood' ? MOOD_OPTIONS.find(m => m.type === state.selectedMood)?.label ?? null
       : null,
-    state.feeling ?? null,
-    state.duration ?? null,
-    state.companion ?? null,
+    feelingLabel,
+    durationLabel,
+    companionLabel,
     state.preferences.length > 0 ? `${state.preferences.length}개 선택` : null,
   ];
 

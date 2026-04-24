@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { CourseStop } from '@/lib/weekend-types';
-import { getRoleInfo } from '@/lib/course-role';
+import { getRoleInfo, BRAND_HEX } from '@/lib/course-role';
 
 declare global {
   interface Window {
@@ -15,6 +15,8 @@ interface Props {
   activeIndex: number | null;
   onMarkerClick: (index: number) => void;
 }
+
+const ACTIVE_RING_SHADOW = '0 0 0 4px rgba(197, 83, 45, 0.3)';
 
 export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -95,7 +97,7 @@ export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Pro
         map,
         path: linePath,
         strokeWeight: 3,
-        strokeColor: '#C5532D',
+        strokeColor: BRAND_HEX,
         strokeOpacity: 0.6,
         strokeStyle: 'shortdash',
       });
@@ -147,7 +149,7 @@ export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Pro
     markersRef.current.forEach((m, i) => {
       if (!m) return;
       if (i === activeIndex) {
-        m.element.style.boxShadow = '0 0 0 4px rgba(197, 83, 45, 0.3)';
+        m.element.style.boxShadow = ACTIVE_RING_SHADOW;
         m.element.style.transform = 'scale(1.15)';
         if (map) map.panTo(m.position);
       } else {

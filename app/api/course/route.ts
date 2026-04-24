@@ -1,5 +1,5 @@
 // ============================================================
-// POST /api/weekend/course — AI 코스 생성 엔드포인트
+// POST /api/course — AI 코스 생성 엔드포인트
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -610,7 +610,7 @@ export async function POST(request: NextRequest) {
     // 6. 응답
     const response: CourseResponse = {
       courseId,
-      shareUrl: `/weekend/course/${shareSlug}`,
+      shareUrl: `/course/${shareSlug}`,
       course,
       kakaoNaviUrl: buildKakaoNaviUrl(course.stops),
       fortuneMessage,

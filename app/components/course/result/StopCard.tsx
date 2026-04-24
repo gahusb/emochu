@@ -11,9 +11,10 @@ interface Props {
   isLast: boolean;
   isActive: boolean;
   onActivate: () => void;
+  onOpenDetail: () => void;
 }
 
-export default function StopCard({ stop, isLast, isActive, onActivate }: Props) {
+export default function StopCard({ stop, isLast, isActive, onActivate, onOpenDetail }: Props) {
   const { colorHex, label } = getRoleInfo(stop);
   const timeRange = formatTimeRange(stop.timeStart, stop.durationMin);
 
@@ -32,8 +33,8 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
 
       <button
         type="button"
-        onClick={onActivate}
-        aria-label={`${stop.order}번째 코스: ${stop.title}, ${timeRange}, ${label}`}
+        onClick={() => { if (isActive) onOpenDetail(); else onActivate(); }}
+        aria-label={`${stop.order}번째 코스: ${stop.title}, ${timeRange}, ${label}${isActive ? '. 다시 눌러 상세 보기' : ''}`}
         className={`flex-1 text-left bg-surface-elevated rounded-lg border overflow-hidden mb-4 transition-all hover:border-ink-4 ${
           isActive ? 'border-brand ring-2 ring-brand/20' : 'border-line'
         }`}
@@ -48,14 +49,7 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
               className="object-cover"
               unoptimized={stop.imageUrl.startsWith('http://')}
             />
-            {(stop.isFestival || stop.isStay) && (
-              <span
-                className="absolute top-2 left-2 text-[11px] font-semibold text-white px-2 py-0.5 rounded-md"
-                style={{ backgroundColor: stop.isStay ? '#4A6B8A' : '#B8860B' }}
-              >
-                {stop.isStay ? '숙박' : '축제'}
-              </span>
-            )}
+
           </div>
         )}
 

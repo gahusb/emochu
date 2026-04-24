@@ -1,5 +1,5 @@
 // ============================================================
-// GET /api/weekend/course/[slug] — 공유 코스 조회
+// GET /api/course/[slug] — 공유 코스 조회
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -41,7 +41,7 @@ export async function GET(
 
     const response: CourseResponse = {
       courseId: data.id,
-      shareUrl: `/weekend/course/${data.share_slug}`,
+      shareUrl: `/course/${data.share_slug}`,
       course,
       kakaoNaviUrl: buildKakaoNaviUrl(course.stops),
     };

@@ -9,8 +9,10 @@ export interface RoleInfo {
   label: string;     // 한국어 라벨
 }
 
-const ROLE_MAP: Record<Role, Omit<RoleInfo, 'role'>> = {
-  spot:     { colorVar: 'var(--color-role-spot)',     colorHex: '#C5532D', label: '관광지' },
+export const BRAND_HEX = '#C5532D';
+
+export const ROLE_MAP: Record<Role, Omit<RoleInfo, 'role'>> = {
+  spot:     { colorVar: 'var(--color-role-spot)',     colorHex: BRAND_HEX, label: '관광지' },
   food:     { colorVar: 'var(--color-role-food)',     colorHex: '#8B5E3C', label: '맛집' },
   cafe:     { colorVar: 'var(--color-role-cafe)',     colorHex: '#A8421F', label: '카페' },
   festival: { colorVar: 'var(--color-role-festival)', colorHex: '#B8860B', label: '축제' },

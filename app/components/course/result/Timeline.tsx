@@ -8,9 +8,10 @@ interface Props {
   stops: CourseStop[];
   activeIndex: number | null;
   onActivate: (index: number) => void;
+  onOpenDetail: (contentId: string) => void;
 }
 
-export default function Timeline({ stops, activeIndex, onActivate }: Props) {
+export default function Timeline({ stops, activeIndex, onActivate, onOpenDetail }: Props) {
   const refs = useRef<Array<HTMLDivElement | null>>([]);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function Timeline({ stops, activeIndex, onActivate }: Props) {
             isLast={i === stops.length - 1}
             isActive={activeIndex === i}
             onActivate={() => onActivate(i)}
+            onOpenDetail={() => onOpenDetail(stop.contentId)}
           />
         </div>
       ))}

@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { AlertCircle } from 'lucide-react';
 import type { CourseResponse, CourseStop } from '@/lib/weekend-types';
 import { useActiveStop } from '@/lib/use-active-stop';
 import Container from '@/app/components/ui/Container';
+import SpotDetailModal from '@/app/components/SpotDetailModal';
 import CourseSummary from './CourseSummary';
 import DayTabs from './DayTabs';
 import Timeline from './Timeline';
@@ -68,7 +70,7 @@ export default function CourseResultShell({ slug }: Props) {
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20 px-6">
-        <span className="text-5xl mb-4" aria-hidden="true">😢</span>
+        <AlertCircle size={48} strokeWidth={1.5} className="text-ink-4 mb-4" aria-hidden="true" />
         <h2 className="text-lg font-bold text-ink-1" style={{ fontFamily: 'var(--font-display)' }}>
           코스를 찾을 수 없어요
         </h2>
@@ -104,6 +106,10 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
 
   const { activeIndex, setActive } = useActiveStop();
 
+  const [modalContentId, setModalContentId] = useState<string | null>(null);
+
+  const isMultiDay = days.length > 1;
+
   const shareUrl =
     course.shareUrl ??
     (typeof window !== 'undefined' ? `${window.location.origin}/course/${slug}` : `/course/${slug}`);
@@ -121,14 +127,16 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
         />
       )}
       <Container>
-        <div className="py-8 lg:py-10 grid grid-cols-1 lg:grid-cols-[1fr_22rem] gap-8">
+        <div className="py-8 lg:py-10 grid grid-cols-1 lg:grid-cols-[1fr_22rem] gap-8 pb-20 lg:pb-0">
           {/* ─── 좌: 타임라인 ─── */}
           <section
-            role="tabpanel"
-            id={`panel-${activeDay}`}
-            aria-labelledby={`tab-${activeDay}`}
-            tabIndex={0}
             className="min-w-0"
+            {...(isMultiDay && {
+              role: 'tabpanel',
+              id: `panel-${activeDay}`,
+              'aria-labelledby': `tab-${activeDay}`,
+              tabIndex: 0,
+            })}
           >
             <DayTabs
               days={days}
@@ -139,6 +147,7 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
               stops={visibleStops}
               activeIndex={activeIndex}
               onActivate={setActive}
+              onOpenDetail={(contentId) => setModalContentId(contentId)}
             />
             {courseData?.tip && <CourseTip tip={courseData.tip} />}
             <div className="mt-6">
@@ -163,7 +172,7 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
           </aside>
 
           {/* ─── 지도 (mobile, 타임라인 아래) ─── */}
-          <div className="lg:hidden h-80">
+          <div className="lg:hidden h-80 mb-20 lg:mb-0">
             <CourseMapPane
               stops={visibleStops}
               activeIndex={activeIndex}
@@ -172,6 +181,9 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
           </div>
         </div>
       </Container>
+      {modalContentId && (
+        <SpotDetailModal contentId={modalContentId} onClose={() => setModalContentId(null)} />
+      )}
     </>
   );
 }
