@@ -15,6 +15,8 @@ export default function DayTabs({ days, active, onChange }: Props) {
         return (
           <button
             key={day}
+            id={`tab-${day}`}
+            aria-controls={`panel-${day}`}
             type="button"
             role="tab"
             aria-selected={isActive}

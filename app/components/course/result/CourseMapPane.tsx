@@ -19,47 +19,79 @@ interface Props {
 export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  const overlaysRef = useRef<any[]>([]);
+  const polylineRef = useRef<any>(null);
   const markersRef = useRef<Array<{ element: HTMLElement; position: any }>>([]);
   const readyRef = useRef(false);
 
-  // SDK wait + initial render
+  // SDK wait + initial render (C2: cancelled flag + clearTimeout cleanup)
   useEffect(() => {
     if (!stops.length) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     const checkKakao = () => {
+      if (cancelled) return;
       if (window.kakao?.maps) {
         window.kakao.maps.load(() => {
-          readyRef.current = true;
-          renderMap();
+          if (!cancelled) { readyRef.current = true; renderMap(); }
         });
       } else {
-        setTimeout(checkKakao, 300);
+        timer = setTimeout(checkKakao, 300);
       }
     };
     checkKakao();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stops]);
+
+  // C1: cleanup on unmount
+  useEffect(() => {
+    return () => {
+      overlaysRef.current.forEach(o => o.setMap?.(null));
+      if (polylineRef.current) polylineRef.current.setMap?.(null);
+    };
+  }, []);
 
   function renderMap() {
     if (!mapRef.current || !stops.length) return;
     const { kakao } = window;
 
+    // C1: teardown previous overlays and polyline before re-render
+    overlaysRef.current.forEach(o => o.setMap(null));
+    overlaysRef.current = [];
+    if (polylineRef.current) { polylineRef.current.setMap(null); polylineRef.current = null; }
+
     // Reset markers
     markersRef.current = [];
 
     const bounds = new kakao.maps.LatLngBounds();
-    const map = new kakao.maps.Map(mapRef.current, {
-      center: new kakao.maps.LatLng(stops[0].latitude, stops[0].longitude),
-      level: 5,
-    });
-    mapInstanceRef.current = map;
+
+    // C1: reuse existing map instance; only create on first render
+    let map: any;
+    if (mapInstanceRef.current) {
+      map = mapInstanceRef.current;
+    } else {
+      map = new kakao.maps.Map(mapRef.current, {
+        center: new kakao.maps.LatLng(stops[0].latitude, stops[0].longitude),
+        level: 5,
+      });
+      mapInstanceRef.current = map;
+      map.addControl(
+        new kakao.maps.ZoomControl(),
+        kakao.maps.ControlPosition.RIGHT,
+      );
+    }
 
     // Polyline path
     if (stops.length > 1) {
       const linePath = stops.map(
         (s) => new kakao.maps.LatLng(s.latitude, s.longitude)
       );
-      new kakao.maps.Polyline({
+      polylineRef.current = new kakao.maps.Polyline({
         map,
         path: linePath,
         strokeWeight: 3,
@@ -101,15 +133,11 @@ export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Pro
         xAnchor: 0.5,
       });
       overlay.setMap(map);
+      overlaysRef.current.push(overlay);
       markersRef.current[i] = { element: el, position: pos };
     });
 
     map.setBounds(bounds, 60);
-
-    map.addControl(
-      new kakao.maps.ZoomControl(),
-      kakao.maps.ControlPosition.RIGHT,
-    );
   }
 
   // Active highlight

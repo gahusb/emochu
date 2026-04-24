@@ -26,7 +26,8 @@ export default function CourseResultShell({ slug }: Props) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as CourseResponse;
-        if (parsed.shareUrl?.includes(slug)) {
+        // I1: courseId 직접 비교로 느슨한 includes 매칭 대신 정확한 일치 확인
+        if (parsed.courseId === slug) {
           setData(parsed);
           setLoading(false);
           return;
@@ -35,14 +36,19 @@ export default function CourseResultShell({ slug }: Props) {
     }
 
     // DB에서 조회 (공유 URL로 접근한 경우)
-    fetch(`/api/course/${slug}`)
+    // I1: AbortController로 언마운트 시 fetch 취소
+    const controller = new AbortController();
+    fetch(`/api/course/${slug}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error('코스를 찾을 수 없어요');
         return res.json();
       })
       .then(setData)
-      .catch(() => setData(null))
+      .catch((err) => {
+        if (err.name !== 'AbortError') setData(null);
+      })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [slug]);
 
   // ─── 로딩 ───
@@ -117,7 +123,13 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
       <Container>
         <div className="py-8 lg:py-10 grid grid-cols-1 lg:grid-cols-[1fr_22rem] gap-8">
           {/* ─── 좌: 타임라인 ─── */}
-          <section className="min-w-0">
+          <section
+            role="tabpanel"
+            id={`panel-${activeDay}`}
+            aria-labelledby={`tab-${activeDay}`}
+            tabIndex={0}
+            className="min-w-0"
+          >
             <DayTabs
               days={days}
               active={activeDay}
