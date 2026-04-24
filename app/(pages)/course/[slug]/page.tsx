@@ -1,4 +1,4 @@
-import CourseResult from '@/app/components/CourseResult';
+import CourseResultShell from '@/app/components/course/result/CourseResultShell';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -30,5 +30,5 @@ export default async function CourseSlugPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  return <CourseResult slug={slug} />;
+  return <CourseResultShell slug={slug} />;
 }
