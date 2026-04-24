@@ -86,7 +86,7 @@ export default function HomeView() {
                 <ArrowRight size={16} strokeWidth={2} />
               </Link>
             </div>
-            <div className="relative aspect-[16/10] lg:aspect-auto bg-surface-sunken">
+            <div className="relative aspect-[16/10] lg:aspect-auto bg-gradient-to-br from-hero-fallback-start via-hero-fallback-mid to-hero-fallback-end">
               <Image
                 src="/hero/autumn-clear.jpg"
                 alt=""
@@ -94,6 +94,9 @@ export default function HomeView() {
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover"
               />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <Sparkles size={56} strokeWidth={1.25} className="text-white/30" aria-hidden="true" />
+              </div>
             </div>
           </div>
         </Card>
