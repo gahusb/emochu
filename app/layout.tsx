@@ -48,8 +48,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
+  modal,
 }: {
   children: React.ReactNode;
+  modal: React.ReactNode;
 }) {
   return (
     <html lang="ko">
@@ -62,6 +64,7 @@ export default function RootLayout({
             <LocationModal />
             <KakaoSDK />
           </div>
+          {modal}
         </LocationProvider>
       </body>
     </html>
