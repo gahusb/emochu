@@ -42,48 +42,60 @@ SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_KAKAO_JS_KEY=  # Kakao JavaScript 앱 키
 ```
 
-## 파일 구조
+## 파일 구조 (Phase 1·2·3 재디자인 반영)
 ```
 app/
-  layout.tsx              — 루트 레이아웃 (메타데이터, KakaoSDK)
-  page.tsx                — 홈 (날씨+축제+추천 관광지)
-  globals.css             — 전역 스타일 (CookieRun 폰트, 이모추 테마)
-  components/
-    WeekendHome.tsx       — 홈 화면 메인 컴포넌트
-    WeekendHeader.tsx     — 상단 헤더 (위치 표시)
-    BottomTabBar.tsx      — 하단 탭 네비게이션
-    WeatherBar.tsx        — 주말 날씨 요약 바
-    FestivalBadge.tsx     — 축제 카드 (홈 용)
-    SpotCard.tsx          — 관광지 카드 (홈 용)
-    SpotDetailModal.tsx   — 장소 상세 모달
-    CourseWizard.tsx      — AI 코스 생성 5단계 위저드
-    CourseResult.tsx      — 코스 결과 표시 + 공유
-    CourseMap.tsx          — 카카오맵 코스 지도
-    FestivalList.tsx      — 축제 전체 목록 페이지
-    KakaoSDK.tsx          — Kakao SDK 로더
+  layout.tsx                        — 루트 레이아웃 (GlobalHeader, BottomTabBar, LocationProvider, {modal} slot, KakaoSDK)
+  page.tsx                          — / (Home — 매거진 레이아웃)
+  globals.css                       — 토큰(@theme inline) + 폰트 + shimmer/fadeIn 키프레임
   (pages)/
-    course/page.tsx       — /course (코스 만들기)
-    course/[slug]/page.tsx — /course/:slug (코스 결과)
-    festival/page.tsx     — /festival (축제 목록)
+    course/page.tsx                 — /course (Wizard 마운트)
+    course/[slug]/page.tsx          — /course/:slug (CourseResultShell)
+    festival/page.tsx               — /festival (FestivalPageShell)
+  spot/[contentId]/page.tsx         — /spot/:id 전용 페이지 (server, generateMetadata OG)
+  @modal/
+    default.tsx                     — Parallel Route 빈 slot
+    (.)spot/[contentId]/page.tsx    — 인터셉트된 모달 (client)
   api/
-    home/route.ts         — GET: 홈 데이터 (날씨+축제+추천)
-    course/route.ts       — POST: AI 코스 생성
-    course/[slug]/route.ts — GET: 저장된 코스 조회
-    spot/route.ts         — GET: 장소 상세 정보
-    festival/route.ts     — GET: 축제 목록
+    home/route.ts                   — GET 홈 데이터 (날씨+축제+추천)
+    course/route.ts                 — POST AI 코스 생성
+    course/[slug]/route.ts          — GET 저장된 코스
+    spot/route.ts                   — GET 장소 상세
+    spot/images/route.ts            — GET 장소 이미지
+    festival/route.ts               — GET 축제 목록
+    search/route.ts                 — GET 검색
+  components/
+    ui/                             — Phase 1 프리미티브 (Button, Card, Badge, Container, SectionHeader)
+    nav/                            — GlobalHeader, BottomTabBar, LocationContext/Selector/Modal, GlobalSearchBar
+    home/                           — HomeHero, MagazineGrid, HomeView, WeatherCard, FestivalSideList
+    course/
+      wizard/                       — WizardShell, Stepper, ProgressBar, Nav, steps/Step*.tsx
+      loading/                      — CourseLoading, SkeletonStopCard
+      result/                       — CourseResultShell, Summary, DayTabs, Timeline, StopCard, CourseTip, SaveShareBar, CourseMapPane
+    festival/                       — FestivalPageShell, Header, FilterBar, Radius, RegionFilter, Grid, Card, Skeleton, Empty
+    spot/                           — SpotDetail, SpotDetailSkeleton, SpotDetailModalFrame, SpotPageBackButton
+    SpotCard.tsx                    — Home 관광지 카드
+    FestivalBadge.tsx               — Home 축제 카드 (가로 스크롤)
+    FacilityBadges.tsx              — 편의시설 뱃지 (Lucide + size API)
+    ImageGallery.tsx                — 가로 스크롤 갤러리 (next/image)
+    SearchBar.tsx                   — Home 검색 입력
+    KakaoSDK.tsx                    — Kakao SDK 로더
 lib/
-  weekend-types.ts        — 공용 타입 정의
-  weekend-ai.ts           — AI 코스 생성 엔진 (Gemini + 스코어링)
-  tour-api.ts             — TourAPI 4.0 클라이언트
-  weather-api.ts          — 기상청 API 클라이언트
+  weekend-types.ts                  — 공용 타입 정의
+  weekend-ai.ts                     — Gemini 코스 생성 엔진
+  tour-api.ts                       — TourAPI 4.0 클라이언트
+  weather-api.ts                    — 기상청 API 클라이언트
+  course-role.ts                    — stop role 매핑 (contentTypeId → spot/food/cafe/festival/stay)
+  hero-copy.ts · hero-image.ts      — Home Hero 카피/이미지 선택
+  use-course-generation.ts          — Wizard → AI 호출 + 로딩 메시지 훅
+  use-active-stop.ts                — Timeline ↔ Map 연동 상태
+  use-home-data.ts                  — Home 데이터 fetch
   supabase/
-    server.ts             — Supabase 서버 클라이언트
-    client.ts             — Supabase 브라우저 클라이언트
-    admin.ts              — Supabase 서비스 롤 클라이언트
+    server.ts · client.ts · admin.ts
 docs/
-  weekend-app-design.md   — 앱 설계 문서
-  weekend-ai-engine-design.md — AI 엔진 설계 문서
-  weekend-deploy-checklist.md — 배포 체크리스트
+  superpowers/specs/                — Phase 1·2·3 spec 문서
+  superpowers/plans/                — Phase 1·2·3 plan 문서
+  weekend-app-design.md · weekend-ai-engine-design.md · weekend-deploy-checklist.md
 ```
 
 ## TourAPI 활용 현황 (11개 API)

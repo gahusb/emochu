@@ -46,6 +46,7 @@ export default function SpotDetailModalFrame({ children }: Props) {
       <div
         role="dialog"
         aria-modal="true"
+        aria-label="장소 상세"
         className="relative w-full sm:max-w-5xl max-h-[90dvh] bg-surface-elevated rounded-t-2xl sm:rounded-2xl overflow-hidden animate-[slideUp_0.3s_ease-out] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >

@@ -19,7 +19,7 @@ interface Props {
 
 export default function FestivalFilterBar({ status, sort, onStatusChange, onSortChange }: Props) {
   return (
-    <div className="sticky top-16 z-20 bg-surface-base/95 backdrop-blur border-b border-line">
+    <div className="sticky top-14 lg:top-16 z-20 bg-surface-base/95 backdrop-blur border-b border-line">
       <div className="max-w-7xl mx-auto px-5 lg:px-8 flex items-center justify-between gap-4 py-3">
         <div role="tablist" aria-label="축제 상태 필터" className="flex items-center gap-4 overflow-x-auto">
           {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((key) => {

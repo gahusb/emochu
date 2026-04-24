@@ -6,7 +6,9 @@ import SpotPageBackButton from '@/app/components/spot/SpotPageBackButton';
 import { AlertCircle } from 'lucide-react';
 
 async function fetchSpot(contentId: string): Promise<SpotDetailData | null> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://emochu.vercel.app');
   try {
     const res = await fetch(`${base}/api/spot?contentId=${contentId}`, { next: { revalidate: 3600 } });
     if (!res.ok) return null;
