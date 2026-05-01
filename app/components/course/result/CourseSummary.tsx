@@ -9,6 +9,7 @@ interface Props {
     tip: string;
     estimatedCostWon?: number;
     difficulty?: CourseDifficulty;
+    storyArc?: string;
   };
 }
 
@@ -65,6 +66,12 @@ export default function CourseSummary({ course }: Props) {
             </span>
           )}
         </div>
+
+        {course.storyArc && (
+          <div className="mt-4 p-4 bg-surface-elevated rounded-xl border border-line">
+            <p className="text-sm text-ink-2 leading-relaxed break-keep italic">{course.storyArc}</p>
+          </div>
+        )}
       </div>
     </section>
   );

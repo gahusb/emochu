@@ -202,6 +202,8 @@ export interface CourseStop {
   longitude: number;
   imageUrl?: string;
   isFestival: boolean;
+  hook?: string;            // 15자 이내 후크 카피 (예: "서울 숨은 뷰맛집")
+  whyNow?: string;          // 지금 이 시즌에 가야 하는 이유 1문장
   isStay?: boolean;         // 숙박 장소 여부
   day?: number;             // 1박2일 시 1일차/2일차 (1 or 2)
   images?: string[];
@@ -220,6 +222,7 @@ export interface CourseData {
   stops: CourseStop[];
   estimatedCostWon?: number;    // 1인 기준 총 예상 비용 (원)
   difficulty?: CourseDifficulty; // easy | moderate | active
+  storyArc?: string;            // 코스 전체 내러티브 3~5문장 (편집장 추천 스타일)
 }
 
 export interface CourseResponse {

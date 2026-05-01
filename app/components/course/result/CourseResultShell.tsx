@@ -165,6 +165,7 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
             tip: courseData.tip,
             estimatedCostWon: courseData.estimatedCostWon,
             difficulty: courseData.difficulty,
+            storyArc: courseData.storyArc,
           }}
         />
       )}
