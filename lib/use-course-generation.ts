@@ -68,6 +68,15 @@ export function useCourseGeneration() {
       if (!slug) {
         throw new Error('코스 공유 URL이 올바르지 않아요.');
       }
+      // localStorage에 최근 코스 기록 저장 (최대 5개)
+      try {
+        const raw = localStorage.getItem('emochu.course_history');
+        const history: Array<{ slug: string; title: string; createdAt: number }> =
+          raw ? JSON.parse(raw) : [];
+        const entry = { slug, title: data.course.title, createdAt: Date.now() };
+        const updated = [entry, ...history.filter((h) => h.slug !== slug)].slice(0, 5);
+        localStorage.setItem('emochu.course_history', JSON.stringify(updated));
+      } catch { /* ignore */ }
       router.replace(`/course/${slug}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '코스 생성 중 문제가 생겼어요.');

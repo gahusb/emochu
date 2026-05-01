@@ -444,18 +444,20 @@ export function scoreAndRankCandidates(
     const wScore = weatherScore(spot, weather) * 15;
     const dScore = distanceScore(spot.distanceKm, duration) * 20;
     const sBonus = seasonBonus(spot, month) * 10;
-    const fBonus = facilityBonus(spot, companion); // 편의시설 보너스 (0~10점)
-    const feelBonus = feelingScore(spot, feeling); // 감정 보너스 (0~13점)
+    const fBonus = facilityBonus(spot, companion);
+    const feelBonus = feelingScore(spot, feeling);
 
     return { ...spot, score: pScore + cScore + wScore + dScore + sBonus + fBonus + feelBonus };
   });
 
-  // 역할별 분류 후 각 역할 내에서 점수 정렬
-  return diversifyByRole(scored, duration);
+  return diversifyByRole(scored, duration, feeling);
 }
 
-function diversifyByRole(scored: ScoredSpot[], duration: Duration): ScoredSpot[] {
-  const slots = ROLE_SLOTS[duration];
+function diversifyByRole(scored: ScoredSpot[], duration: Duration, feeling?: Feeling): ScoredSpot[] {
+  const base = ROLE_SLOTS[duration];
+  // activity(레포츠) 슬롯은 모험적/에너지 기분일 때만 포함. 그 외엔 0으로 줄여 등산·레포츠 추천을 차단
+  const isActiveMode = feeling === 'adventurous' || feeling === 'excited';
+  const slots: Record<SpotRole, number> = isActiveMode ? base : { ...base, activity: 0 };
 
   // 역할별 버킷 (점수순 정렬)
   const buckets: Record<SpotRole, ScoredSpot[]> = {
@@ -536,7 +538,7 @@ function buildUserMessage(input: CourseGenerationInput): string {
 - 시간 예산: ${DURATION_DETAIL[input.duration]}
 - 동반자: ${COMPANION_DETAIL[input.companion]}
 - 취향: ${input.preferences.map(p => PREFERENCE_KOREAN[p]).join(', ')}${input.feeling ? `\n- 🎭 오늘의 기분: ${FEELING_DETAIL[input.feeling]}` : ''}
-- 현재: ${month}월 (${SEASON_NAME[month]})
+- 현재: ${month}월 (${SEASON_NAME[month]})${(input.feeling !== 'adventurous' && input.feeling !== 'excited') ? '\n⚠️ 레포츠·등산·자전거 등 체력 소모 활동은 포함하지 마세요. 관광·맛집·카페·문화 중심 코스를 설계하세요.' : ''}
 
 ## 이번 주말 날씨
 - 토요일: ${input.weather.saturday.summary} (강수확률 ${input.weather.saturday.pop}%)

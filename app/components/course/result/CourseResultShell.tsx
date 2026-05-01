@@ -26,7 +26,8 @@ export default function CourseResultShell({ slug }: Props) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as CourseResponse;
-        if (parsed.courseId === slug) {
+        const parsedSlug = parsed.shareUrl?.split('/').pop();
+      if (parsedSlug === slug) {
           setData(parsed);
           setLoading(false);
           return;

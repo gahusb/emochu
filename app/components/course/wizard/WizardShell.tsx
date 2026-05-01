@@ -1,7 +1,8 @@
 'use client';
 
 import { useReducer, useEffect, useRef, useState } from 'react';
-import { RotateCcw, X } from 'lucide-react';
+import Link from 'next/link';
+import { RotateCcw, X, History } from 'lucide-react';
 import type {
   Duration, Companion, Preference, Feeling,
   DestinationType, MoodType, CityOption,
@@ -104,17 +105,23 @@ export default function WizardShell() {
   const [state, dispatch] = useReducer(reducer, INITIAL);
   const { loading, error, generate, loadingMessage } = useCourseGeneration();
   const [showResumeBanner, setShowResumeBanner] = useState(false);
+  const [courseHistory, setCourseHistory] = useState<Array<{ slug: string; title: string; createdAt: number }>>([]);
   const isMounted = useRef(false);
 
-  // 마운트 시 draft 복구 확인
+  // 마운트 시 draft 복구 확인 + 코스 히스토리 로드
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      const { state: saved, savedAt } = JSON.parse(raw) as DraftPayload;
-      if (Date.now() - savedAt < DRAFT_TTL_MS && (saved.step ?? 0) > 0) {
-        setShowResumeBanner(true);
+      if (raw) {
+        const { state: saved, savedAt } = JSON.parse(raw) as DraftPayload;
+        if (Date.now() - savedAt < DRAFT_TTL_MS && (saved.step ?? 0) > 0) {
+          setShowResumeBanner(true);
+        }
       }
+    } catch { /* ignore */ }
+    try {
+      const raw = localStorage.getItem('emochu.course_history');
+      if (raw) setCourseHistory(JSON.parse(raw));
     } catch { /* ignore */ }
     isMounted.current = true;
   }, []);
@@ -274,6 +281,27 @@ export default function WizardShell() {
             >
               <X size={16} strokeWidth={2} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 최근 코스 히스토리 */}
+      {courseHistory.length > 0 && (
+        <div className="border-b border-line bg-surface-base">
+          <div className="max-w-7xl mx-auto px-5 lg:px-8 py-3 flex items-center gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            <History size={14} className="text-ink-4 flex-shrink-0" aria-hidden="true" />
+            <span className="text-xs text-ink-4 flex-shrink-0">최근 코스</span>
+            <div className="flex gap-2">
+              {courseHistory.map((h) => (
+                <Link
+                  key={h.slug}
+                  href={`/course/${h.slug}`}
+                  className="flex-shrink-0 text-xs font-medium text-ink-2 bg-surface-sunken hover:bg-surface-elevated border border-line rounded-full px-3 py-1.5 transition-colors whitespace-nowrap"
+                >
+                  {h.title}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}
