@@ -3,7 +3,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { buildKakaoNaviUrl } from '@/lib/weekend-ai';
 import type { CourseResponse, CourseData } from '@/lib/weekend-types';
 
@@ -18,11 +18,11 @@ export async function GET(
   }
 
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('wk_courses')
-      .select('id, share_slug, course_data')
+      .select('id, share_slug, course_data, course_b_data, view_count')
       .eq('share_slug', slug)
       .single();
 
@@ -30,19 +30,21 @@ export async function GET(
       return NextResponse.json({ error: '코스를 찾을 수 없어요.' }, { status: 404 });
     }
 
-    // 조회수 증가 (실패해도 무시)
+    // 조회수 증가 (실패해도 무시) — 괄호로 연산자 우선순위 명시
     supabase
       .from('wk_courses')
-      .update({ view_count: (data as Record<string, unknown>).view_count as number ?? 0 + 1 })
+      .update({ view_count: ((data.view_count as number) ?? 0) + 1 })
       .eq('id', data.id)
       .then(() => {});
 
     const course = data.course_data as CourseData;
+    const courseB = data.course_b_data as CourseData | null | undefined;
 
     const response: CourseResponse = {
       courseId: data.id,
       shareUrl: `/course/${data.share_slug}`,
       course,
+      ...(courseB ? { courseB } : {}),
       kakaoNaviUrl: buildKakaoNaviUrl(course.stops),
     };
 

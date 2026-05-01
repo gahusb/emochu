@@ -41,7 +41,7 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
         }`}
       >
         {stop.imageUrl && (
-          <div className="relative h-36">
+          <div className="relative aspect-video overflow-hidden">
             <Image
               src={stop.imageUrl}
               alt={stop.title}
@@ -50,7 +50,7 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
               className="object-cover"
               unoptimized={stop.imageUrl.startsWith('http://')}
             />
-
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           </div>
         )}
 

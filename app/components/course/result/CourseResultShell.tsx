@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { AlertCircle } from 'lucide-react';
-import type { CourseResponse, CourseStop } from '@/lib/weekend-types';
+import { AlertCircle, Sparkles, Compass } from 'lucide-react';
+import type { CourseResponse, CourseData, CourseStop } from '@/lib/weekend-types';
 import { useActiveStop } from '@/lib/use-active-stop';
 import Container from '@/app/components/ui/Container';
 import CourseSummary from './CourseSummary';
@@ -22,12 +22,10 @@ export default function CourseResultShell({ slug }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // sessionStorage에서 먼저 확인 (CourseWizard에서 저장한 데이터)
     const cached = sessionStorage.getItem('weekendCourse');
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as CourseResponse;
-        // I1: courseId 직접 비교로 느슨한 includes 매칭 대신 정확한 일치 확인
         if (parsed.courseId === slug) {
           setData(parsed);
           setLoading(false);
@@ -36,8 +34,6 @@ export default function CourseResultShell({ slug }: Props) {
       } catch { /* 무시 */ }
     }
 
-    // DB에서 조회 (공유 URL로 접근한 경우)
-    // I1: AbortController로 언마운트 시 fetch 취소
     const controller = new AbortController();
     fetch(`/api/course/${slug}`, { signal: controller.signal })
       .then((res) => {
@@ -52,7 +48,6 @@ export default function CourseResultShell({ slug }: Props) {
     return () => controller.abort();
   }, [slug]);
 
-  // ─── 로딩 ───
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20">
@@ -65,7 +60,6 @@ export default function CourseResultShell({ slug }: Props) {
     );
   }
 
-  // ─── 코스 없음 ───
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20 px-6">
@@ -89,10 +83,53 @@ export default function CourseResultShell({ slug }: Props) {
   return <CourseResultView course={data} slug={slug} />;
 }
 
-// ─── Inner view (course data guaranteed) ───
+// ─── A/B 탭 스위처 ───
+
+interface ABTabProps {
+  active: 'a' | 'b';
+  onChange: (v: 'a' | 'b') => void;
+}
+
+function ABTabSwitcher({ active, onChange }: ABTabProps) {
+  return (
+    <div className="flex items-center gap-1 bg-surface-sunken rounded-xl p-1 w-full max-w-sm mx-auto">
+      <button
+        type="button"
+        onClick={() => onChange('a')}
+        className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg text-sm font-semibold transition-all ${
+          active === 'a'
+            ? 'bg-surface-elevated text-brand shadow-sm'
+            : 'text-ink-3 hover:text-ink-1'
+        }`}
+      >
+        <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
+        추천 코스
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('b')}
+        className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg text-sm font-semibold transition-all ${
+          active === 'b'
+            ? 'bg-surface-elevated text-brand shadow-sm'
+            : 'text-ink-3 hover:text-ink-1'
+        }`}
+      >
+        <Compass size={14} strokeWidth={2} aria-hidden="true" />
+        이색 발견
+      </button>
+    </div>
+  );
+}
+
+// ─── Inner view ───
 
 function CourseResultView({ course, slug }: { course: CourseResponse; slug: string }) {
-  const courseData = course.course;
+  const hasAB = Boolean(course.courseB);
+  const [activeVariant, setActiveVariant] = useState<'a' | 'b'>('a');
+
+  const courseData: CourseData | undefined =
+    activeVariant === 'b' && course.courseB ? course.courseB : course.course;
+
   const allStops: CourseStop[] = courseData?.stops ?? [];
 
   const days = useMemo(() => {
@@ -101,10 +138,14 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
   }, [allStops]);
 
   const [activeDay, setActiveDay] = useState<number>(days[0] ?? 1);
+
+  // 탭 전환 시 일차 리셋
+  useEffect(() => {
+    setActiveDay(days[0] ?? 1);
+  }, [activeVariant, days]);
+
   const visibleStops = allStops.filter((s) => (s.day ?? 1) === activeDay);
-
   const { activeIndex, setActive } = useActiveStop();
-
   const isMultiDay = days.length > 1;
 
   const shareUrl =
@@ -113,6 +154,7 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
 
   return (
     <>
+      {/* ─── 코스 요약 헤더 ─── */}
       {courseData && (
         <CourseSummary
           course={{
@@ -120,9 +162,21 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
             summary: courseData.summary,
             totalDistanceKm: courseData.totalDistanceKm,
             tip: courseData.tip,
+            estimatedCostWon: courseData.estimatedCostWon,
+            difficulty: courseData.difficulty,
           }}
         />
       )}
+
+      {/* ─── A/B 탭 스위처 (두 코스가 있을 때만) ─── */}
+      {hasAB && (
+        <div className="bg-surface-base border-b border-line">
+          <div className="max-w-7xl mx-auto px-5 lg:px-8 py-3">
+            <ABTabSwitcher active={activeVariant} onChange={(v) => { setActiveVariant(v); setActive(null); }} />
+          </div>
+        </div>
+      )}
+
       <Container>
         <div className="py-8 lg:py-10 grid grid-cols-1 lg:grid-cols-[1fr_22rem] gap-8 pb-20 lg:pb-0">
           {/* ─── 좌: 타임라인 ─── */}
@@ -167,7 +221,7 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
             </div>
           </aside>
 
-          {/* ─── 지도 (mobile, 타임라인 아래) ─── */}
+          {/* ─── 지도 (mobile) ─── */}
           <div className="lg:hidden h-80 mb-20 lg:mb-0">
             <CourseMapPane
               stops={visibleStops}

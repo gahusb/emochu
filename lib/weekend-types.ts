@@ -210,18 +210,23 @@ export interface CourseStop {
   contentTypeId?: string;  // Phase 2: "12"|"14"|"15"|"28"|"32"|"39" — optional (기존 저장 코스 하위호환)
 }
 
+export type CourseDifficulty = 'easy' | 'moderate' | 'active';
+
 export interface CourseData {
   title: string;
   summary: string;
   totalDistanceKm: number;
   tip: string;
   stops: CourseStop[];
+  estimatedCostWon?: number;    // 1인 기준 총 예상 비용 (원)
+  difficulty?: CourseDifficulty; // easy | moderate | active
 }
 
 export interface CourseResponse {
   courseId: string;
   shareUrl: string;
   course: CourseData;
+  courseB?: CourseData;   // A/B 비교용 이색 발견 코스
   kakaoNaviUrl: string;
   fortuneMessage?: string;
 }

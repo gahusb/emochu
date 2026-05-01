@@ -240,6 +240,8 @@ description과 tip에도 기분에 맞는 어조와 내용을 반영하세요.
   "title": "코스 제목",
   "summary": "코스 한 줄 요약 (예: 북한산 등산 후 삼겹살에 카페 한잔, 여유로운 하루)",
   "totalDistanceKm": 숫자,
+  "estimatedCostWon": 숫자 (1인 기준 총 예상 비용, 원 단위. 입장료+식사+카페 합산. 예: 45000. 무료인 경우 0),
+  "difficulty": "easy|moderate|active" (easy: 가볍게 걷기·체력 부담 없음, moderate: 도보 10~20km 또는 약간의 활동, active: 등산·레포츠 등 체력 소모 코스),
   "tip": "전체 코스 꿀팁 한 줄",
   "stops": [
     {
@@ -615,6 +617,16 @@ function validateCourseSchema(data: unknown): asserts data is CourseData {
   if (!d.summary || typeof d.summary !== 'string') throw new Error('summary 누락');
   if (!Array.isArray(d.stops) || d.stops.length === 0) throw new Error('stops 빈 배열');
 
+  // estimatedCostWon: optional 숫자, 음수 방지
+  if (d.estimatedCostWon !== undefined) {
+    const cost = Number(d.estimatedCostWon);
+    d.estimatedCostWon = isNaN(cost) || cost < 0 ? undefined : cost;
+  }
+  // difficulty: optional 열거형
+  if (d.difficulty !== undefined && !['easy', 'moderate', 'active'].includes(d.difficulty as string)) {
+    d.difficulty = undefined;
+  }
+
   for (const stop of d.stops as Record<string, unknown>[]) {
     if (!stop.contentId) throw new Error(`stop: contentId 누락`);
     if (!stop.title) throw new Error(`stop: title 누락`);
@@ -982,9 +994,23 @@ ${weatherSummary ? `날씨: ${weatherSummary}` : ''}
   return callGeminiLite(prompt, 80);
 }
 
+// ─── B 변형용 추가 지시 ───
+
+const VARIANT_B_HINT = `
+
+## ★ 이 코스는 "이색 발견" 버전입니다
+위 후보 목록에서 최대한 새로운 조합을 시도하세요:
+- 인기 명소보다는 후보 목록 중간~하위 장소를 적극 활용하세요.
+- 문화시설·체험·액티비티 비중을 높이고, 의외의 경험을 줄 수 있는 장소를 우선하세요.
+- 동선도 기본 코스와 다른 방향으로 잡아 새로운 지역을 탐험하게 해주세요.
+- 코스 제목에 "(이색)", "(발견)" 같은 태그를 붙이지 마세요. 제목 자체로 매력을 표현하세요.`;
+
 // ─── 메인 생성 함수 ───
 
-export async function generateCourse(input: CourseGenerationInput): Promise<CourseData> {
+export async function generateCourse(
+  input: CourseGenerationInput,
+  variant: 'a' | 'b' = 'a',
+): Promise<CourseData> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     console.warn('[이모추AI] GEMINI_API_KEY 미설정 → 폴백 코스 생성');
@@ -992,13 +1018,19 @@ export async function generateCourse(input: CourseGenerationInput): Promise<Cour
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const userMessage = buildUserMessage(input);
+  const baseMessage = buildUserMessage(input);
+  const userMessage = variant === 'b' ? baseMessage + VARIANT_B_HINT : baseMessage;
 
-  for (const { id: modelId, maxTokens, temp } of MODELS) {
+  // B 변형은 온도를 높여 더 창의적인 결과 유도
+  const models = variant === 'b'
+    ? MODELS.map(m => ({ ...m, temp: Math.min(parseFloat((m.temp + 0.2).toFixed(1)), 1.0) }))
+    : MODELS;
+
+  for (const { id: modelId, maxTokens, temp } of models) {
     // 최대 2회 시도 (JSON 파싱 실패 시 1회 재시도)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        console.log(`[이모추AI] ${modelId} 시도 (attempt ${attempt + 1})`);
+        console.log(`[이모추AI] ${modelId} variant=${variant} 시도 (attempt ${attempt + 1})`);
 
         const model = genAI.getGenerativeModel({
           model: modelId,

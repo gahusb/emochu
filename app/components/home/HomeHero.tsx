@@ -34,8 +34,16 @@ export default function HomeHero({ weather, spots }: Props) {
   }, [spots, weather]);
 
   const handleError = () => {
-    setTried((prev) => new Set(prev).add(imgSrc));
-    setImgSrc(getCuratedHeroImage(weather));
+    const failed = imgSrc;
+    setTried((prev) => new Set(prev).add(failed));
+    // spot 이미지 실패 → curated로 한 번만 폴백
+    if (!failed.startsWith('/hero/')) {
+      const curated = getCuratedHeroImage(weather);
+      setImgSrc(curated);
+    } else {
+      // curated 이미지도 실패 → 빈 문자열로 설정, CSS 그라디언트가 보임
+      setImgSrc('');
+    }
   };
 
   const copy = getHeroCopy(weather);
@@ -46,16 +54,18 @@ export default function HomeHero({ weather, spots }: Props) {
     <section className="relative w-full h-[50vh] lg:h-[60vh] min-h-[420px] overflow-hidden">
       {/* Always-on gradient base — visible if all image fallbacks fail */}
       <div className="absolute inset-0 bg-gradient-to-br from-hero-fallback-start via-hero-fallback-mid to-hero-fallback-end" aria-hidden="true" />
-      <Image
-        src={imgSrc}
-        alt="이번 주말의 풍경"
-        fill
-        sizes="100vw"
-        priority
-        className="object-cover"
-        onError={handleError}
-        unoptimized={imgSrc.startsWith('http://')}
-      />
+      {imgSrc && (
+        <Image
+          src={imgSrc}
+          alt="이번 주말의 풍경"
+          fill
+          sizes="100vw"
+          priority
+          className="object-cover"
+          onError={handleError}
+          unoptimized={imgSrc.startsWith('http://')}
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-ink-1/70 via-ink-1/20 to-transparent" />
 
       <div className="absolute inset-x-0 bottom-0">
