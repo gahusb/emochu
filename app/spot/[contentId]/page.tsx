@@ -10,7 +10,7 @@ async function fetchSpot(contentId: string): Promise<SpotDetailData | null> {
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://emochu.vercel.app');
   try {
-    const res = await fetch(`${base}/api/spot?contentId=${contentId}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${base}/api/spot?contentId=${contentId}`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     return res.json();
   } catch {

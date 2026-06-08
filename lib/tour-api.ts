@@ -31,7 +31,9 @@ async function callTourApi<T>(
     }
   }
 
-  const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
+  // 한국관광공사 OpenAPI 실시간 호출 규정 준수: 1시간 캐싱 → 60초 절충
+  // (개발·심사 기간 실호출 이력 확보 목적. no-store 대신 rate limit·성능 고려한 60초)
+  const res = await fetch(url.toString(), { next: { revalidate: 60 } });
   if (!res.ok) {
     throw new Error(`TourAPI ${endpoint} 호출 실패: ${res.status}`);
   }
