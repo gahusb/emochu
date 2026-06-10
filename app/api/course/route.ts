@@ -39,6 +39,7 @@ import type {
   Feeling,
   DestinationType,
   MoodType,
+  CourseSaju,
 } from '@/lib/weekend-types';
 import { MOOD_OPTIONS, CITY_OPTIONS, FEELING_OPTIONS } from '@/lib/weekend-types';
 
@@ -134,7 +135,26 @@ function validateRequest(body: unknown): CourseRequest {
     throw new Error('기분 선택이 올바르지 않습니다.');
   }
 
-  return { lat, lng, duration, companion, preferences, feeling, destinationType, cityAreaCode, mood };
+  let saju: CourseSaju | undefined;
+  const rawSaju = b.saju as Record<string, unknown> | undefined;
+  if (
+    rawSaju &&
+    typeof rawSaju.birthElement === 'string' &&
+    typeof rawSaju.todayElement === 'string' &&
+    typeof rawSaju.relation === 'string' &&
+    typeof rawSaju.headline === 'string' &&
+    typeof rawSaju.message === 'string'
+  ) {
+    saju = {
+      birthElement: rawSaju.birthElement,
+      todayElement: rawSaju.todayElement,
+      relation: rawSaju.relation,
+      headline: rawSaju.headline,
+      message: rawSaju.message,
+    };
+  }
+
+  return { lat, lng, duration, companion, preferences, feeling, destinationType, cityAreaCode, mood, saju };
 }
 
 // ─── TourAPI → ScoredSpot 변환 ───
@@ -531,6 +551,7 @@ export async function POST(request: NextRequest) {
       festivals,
       stays,
       weather,
+      saju: req.saju,
     };
 
     // A/B 코스 병렬 생성 (B는 20초 타임아웃, 실패해도 A는 영향 없음)
@@ -576,15 +597,21 @@ export async function POST(request: NextRequest) {
     calcTransit(course.stops);
     if (courseB) calcTransit(courseB.stops);
 
-    // 4.6. 나들이 운세 메시지 생성
+    // 4.6. 나들이 운세 메시지 생성 — 사주 사용 시 사주 메시지로 개인화
     let fortuneMessage = '';
-    try {
-      fortuneMessage = await generateCourseFortuneMessage(
-        course.title,
-        req.feeling,
-        undefined // weather summary if available
-      );
-    } catch { /* ignore */ }
+    if (req.saju) {
+      fortuneMessage = req.saju.message;
+      course.saju = req.saju;
+      if (courseB) courseB.saju = req.saju;
+    } else {
+      try {
+        fortuneMessage = await generateCourseFortuneMessage(
+          course.title,
+          req.feeling,
+          undefined // weather summary if available
+        );
+      } catch { /* ignore */ }
+    }
 
     // 5. Supabase 저장 (실패해도 코스는 반환)
     const shareSlug = generateShareSlug();
