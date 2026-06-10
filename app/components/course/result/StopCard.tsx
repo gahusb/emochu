@@ -41,7 +41,7 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
         }`}
       >
         {stop.imageUrl && (
-          <div className="relative h-36">
+          <div className="relative aspect-video overflow-hidden">
             <Image
               src={stop.imageUrl}
               alt={stop.title}
@@ -50,7 +50,12 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
               className="object-cover"
               unoptimized={stop.imageUrl.startsWith('http://')}
             />
-
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            {stop.hook && (
+              <span className="absolute bottom-2 left-2 text-[11px] font-bold text-white bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                {stop.hook}
+              </span>
+            )}
           </div>
         )}
 
@@ -63,6 +68,9 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
           </span>
           <h3 className="text-base font-semibold text-ink-1">{stop.title}</h3>
           <p className="text-xs text-ink-3">{timeRange} · {stop.durationMin}분</p>
+          {stop.whyNow && (
+            <p className="text-xs font-semibold text-brand mb-2">{stop.whyNow}</p>
+          )}
           <p className="text-sm text-ink-2 line-clamp-3">{stop.description}</p>
           {stop.transitInfo && (
             <p className="text-xs text-ink-3 flex items-center gap-1">

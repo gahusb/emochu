@@ -2,12 +2,12 @@ import type { SpotCard, WeekendWeather } from './weekend-types';
 import { getSeason, type Season } from './hero-copy';
 
 const CURATED: Record<Season | 'rain' | 'snow', string> = {
-  spring: '/hero/spring-clear.jpg',
-  summer: '/hero/summer-clear.jpg',
-  autumn: '/hero/autumn-clear.jpg',
-  winter: '/hero/winter-clear.jpg',
-  rain: '/hero/rain.jpg',
-  snow: '/hero/snow.jpg',
+  spring: '/hero/spring-clear.png',
+  summer: '/hero/summer-clear.png',
+  autumn: '/hero/autumn-clear.png',
+  winter: '/hero/winter-clear.png',
+  rain: '/hero/rain.png',
+  snow: '/hero/snow.png',
 };
 
 export function getCuratedHeroImage(

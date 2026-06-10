@@ -1,6 +1,8 @@
 'use client';
 
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { RotateCcw, X, History } from 'lucide-react';
 import type {
   Duration, Companion, Preference, Feeling,
   DestinationType, MoodType, CityOption,
@@ -41,7 +43,8 @@ export type WizardAction =
   | { type: 'SET_COMPANION'; value: Companion | null }
   | { type: 'TOGGLE_PREFERENCE'; value: Preference }
   | { type: 'SET_USER_LOCATION'; value: { lat: number; lng: number } | null }
-  | { type: 'SET_GPS_LOADING'; value: boolean };
+  | { type: 'SET_GPS_LOADING'; value: boolean }
+  | { type: 'RESTORE_DRAFT'; value: Partial<WizardState> };
 
 const INITIAL: WizardState = {
   step: 0,
@@ -76,11 +79,19 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
     }
     case 'SET_USER_LOCATION': return { ...state, userLocation: action.value };
     case 'SET_GPS_LOADING': return { ...state, gpsLoading: action.value };
+    case 'RESTORE_DRAFT': return { ...state, ...action.value, userLocation: null, gpsLoading: false };
     default: return state;
   }
 }
 
 const TOTAL_STEPS = 5;
+const DRAFT_KEY = 'emochu.wizard_draft';
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24시간
+
+interface DraftPayload {
+  state: Partial<WizardState>;
+  savedAt: number;
+}
 
 const STEP_META = [
   { title: '목적지', question: '어디로 떠나볼까요?', sub: '가고 싶은 스타일을 골라주세요.' },
@@ -93,6 +104,63 @@ const STEP_META = [
 export default function WizardShell() {
   const [state, dispatch] = useReducer(reducer, INITIAL);
   const { loading, error, generate, loadingMessage } = useCourseGeneration();
+  const [showResumeBanner, setShowResumeBanner] = useState(false);
+  const [courseHistory, setCourseHistory] = useState<Array<{ slug: string; title: string; createdAt: number }>>([]);
+  const isMounted = useRef(false);
+
+  // 마운트 시 draft 복구 확인 + 코스 히스토리 로드
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const { state: saved, savedAt } = JSON.parse(raw) as DraftPayload;
+        if (Date.now() - savedAt < DRAFT_TTL_MS && (saved.step ?? 0) > 0) {
+          setShowResumeBanner(true);
+        }
+      }
+    } catch { /* ignore */ }
+    try {
+      const raw = localStorage.getItem('emochu.course_history');
+      if (raw) setCourseHistory(JSON.parse(raw));
+    } catch { /* ignore */ }
+    isMounted.current = true;
+  }, []);
+
+  // state 변경 시 draft 자동저장 (마운트 직후 초기 상태 저장 방지)
+  useEffect(() => {
+    if (!isMounted.current) return;
+    if (state.step === 0 && !state.destinationType) return;
+    try {
+      const payload: DraftPayload = {
+        state: {
+          step: state.step,
+          destinationType: state.destinationType,
+          selectedCity: state.selectedCity,
+          selectedMood: state.selectedMood,
+          feeling: state.feeling,
+          duration: state.duration,
+          companion: state.companion,
+          preferences: state.preferences,
+        },
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    } catch { /* ignore */ }
+  }, [state]);
+
+  const handleResume = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const { state: saved } = JSON.parse(raw) as DraftPayload;
+      dispatch({ type: 'RESTORE_DRAFT', value: saved });
+    } catch { /* ignore */ }
+    setShowResumeBanner(false);
+  };
+
+  const clearDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     if (state.destinationType !== 'nearby' || state.userLocation) return;
@@ -145,6 +213,7 @@ export default function WizardShell() {
     if (state.step < TOTAL_STEPS - 1) {
       dispatch({ type: 'SET_STEP', step: state.step + 1 });
     } else if (state.duration && state.companion && state.preferences.length > 0) {
+      clearDraft();
       const loc = getRequestLocation();
       generate({
         ...loc,
@@ -188,6 +257,55 @@ export default function WizardShell() {
   return (
     <>
       <WizardProgressBar current={state.step} total={TOTAL_STEPS} />
+
+      {/* Draft 복구 배너 */}
+      {showResumeBanner && (
+        <div className="bg-brand-soft border-b border-brand/20">
+          <div className="max-w-7xl mx-auto px-5 lg:px-8 py-3 flex items-center gap-3">
+            <RotateCcw size={16} className="text-brand flex-shrink-0" aria-hidden="true" />
+            <p className="text-sm text-ink-2 flex-1 break-keep">
+              이전에 입력하던 코스가 있어요.
+            </p>
+            <button
+              type="button"
+              onClick={handleResume}
+              className="text-xs font-semibold text-brand whitespace-nowrap hover:underline"
+            >
+              이어서 하기
+            </button>
+            <button
+              type="button"
+              onClick={() => { clearDraft(); setShowResumeBanner(false); }}
+              className="text-ink-4 hover:text-ink-2 flex-shrink-0"
+              aria-label="닫기"
+            >
+              <X size={16} strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 최근 코스 히스토리 */}
+      {courseHistory.length > 0 && (
+        <div className="border-b border-line bg-surface-base">
+          <div className="max-w-7xl mx-auto px-5 lg:px-8 py-3 flex items-center gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            <History size={14} className="text-ink-4 flex-shrink-0" aria-hidden="true" />
+            <span className="text-xs text-ink-4 flex-shrink-0">최근 코스</span>
+            <div className="flex gap-2">
+              {courseHistory.map((h) => (
+                <Link
+                  key={h.slug}
+                  href={`/course/${h.slug}`}
+                  className="flex-shrink-0 text-xs font-medium text-ink-2 bg-surface-sunken hover:bg-surface-elevated border border-line rounded-full px-3 py-1.5 transition-colors whitespace-nowrap"
+                >
+                  {h.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Container>
         <div className="py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-10">
           <aside className="hidden lg:block">

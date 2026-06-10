@@ -13,7 +13,8 @@ interface LocationContextValue {
   location: UserLocation | null;
   setLocation: (loc: UserLocation) => void;
   recentLocations: UserLocation[];
-  requestGPS: () => void;
+  requestGPS: () => Promise<boolean>;  // true: 성공, false: 거부/실패
+  gpsPermissionDenied: boolean;
   isModalOpen: boolean;
   openModal: () => void;
   closeModal: () => void;
@@ -29,6 +30,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const [location, setLocationState] = useState<UserLocation | null>(null);
   const [recentLocations, setRecentLocations] = useState<UserLocation[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [gpsPermissionDenied, setGpsPermissionDenied] = useState(false);
 
   useEffect(() => {
     try {
@@ -50,7 +52,10 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           name: '내 근처',
         });
       },
-      () => setLocationState(DEFAULT_SEOUL),
+      (err) => {
+        if (err.code === 1) setGpsPermissionDenied(true);
+        setLocationState(DEFAULT_SEOUL);
+      },
       { timeout: 5000 },
     );
   }, []);
@@ -71,19 +76,27 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const requestGPS = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          name: '내 근처',
-        });
-      },
-      () => {},
-      { timeout: 5000 },
-    );
+  const requestGPS = (): Promise<boolean> => {
+    if (!navigator.geolocation) return Promise.resolve(false);
+
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGpsPermissionDenied(false);
+          setLocation({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            name: '내 근처',
+          });
+          resolve(true);
+        },
+        (err) => {
+          if (err.code === 1) setGpsPermissionDenied(true);
+          resolve(false);
+        },
+        { timeout: 5000 },
+      );
+    });
   };
 
   return (
@@ -93,6 +106,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         setLocation,
         recentLocations,
         requestGPS,
+        gpsPermissionDenied,
         isModalOpen,
         openModal: () => setIsModalOpen(true),
         closeModal: () => setIsModalOpen(false),

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin, Phone, Globe, ChevronDown, ChevronUp, ImageOff } from 'lucide-react';
+import KakaoMiniMap from './KakaoMiniMap';
 
 export interface SpotDetailData {
   contentId: string;
@@ -146,6 +147,13 @@ export default function SpotDetail({ detail }: Props) {
             </a>
           )}
         </div>
+
+        {/* ─── 지도 미니뷰 ─── */}
+        {detail.lat && detail.lng ? (
+          <div className="mt-5">
+            <KakaoMiniMap lat={detail.lat} lng={detail.lng} title={detail.title} />
+          </div>
+        ) : null}
 
         {/* ─── 상세 정보 ─── */}
         {detail.introFields.length > 0 && (

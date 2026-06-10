@@ -22,20 +22,6 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: 'GmarketSans';
-  src: url('/fonts/GmarketSansBold.otf') format('opentype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'GmarketSans';
-  src: url('/fonts/GmarketSansMedium.otf') format('opentype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
 
 @theme inline {
   /* Surface */
@@ -78,7 +64,7 @@
 
   /* Typography */
   --font-sans: 'Pretendard', -apple-system, system-ui, sans-serif;
-  --font-display: 'GmarketSans', 'Pretendard', sans-serif;
+  --font-display: 'CookieRun', 'Pretendard', sans-serif;
   --font-logo: 'CookieRun', 'Pretendard', sans-serif;
 
   /* Shadow */

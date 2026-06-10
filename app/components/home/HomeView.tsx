@@ -2,7 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, MapPinOff, X } from 'lucide-react';
+import { useState } from 'react';
 import { useLocation } from '../nav/LocationContext';
 import { useHomeData } from '@/lib/use-home-data';
 import HomeHero from './HomeHero';
@@ -17,8 +18,9 @@ import FestivalBadge from '../FestivalBadge';
 import SearchBar from '../SearchBar';
 
 export default function HomeView() {
-  const { location, openModal } = useLocation();
+  const { location, openModal, gpsPermissionDenied, requestGPS } = useLocation();
   const { weather, festivals, spots, loading } = useHomeData(location);
+  const [gpsBannerDismissed, setGpsBannerDismissed] = useState(false);
 
   const main = (
     <div className="space-y-12 lg:space-y-16">
@@ -88,7 +90,7 @@ export default function HomeView() {
             </div>
             <div className="relative aspect-[16/10] lg:aspect-auto bg-gradient-to-br from-hero-fallback-start via-hero-fallback-mid to-hero-fallback-end">
               <Image
-                src="/hero/autumn-clear.jpg"
+                src="/hero/autumn-clear.png"
                 alt=""
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -179,13 +181,49 @@ export default function HomeView() {
     </>
   );
 
+  const showGpsBanner = gpsPermissionDenied && !gpsBannerDismissed;
+
   return (
     <>
       <HomeHero weather={weather} spots={spots} />
+
+      {/* GPS 권한 거부 안내 배너 */}
+      {showGpsBanner && (
+        <div
+          role="alert"
+          className="bg-mocha-soft border-b border-mocha/20"
+        >
+          <div className="max-w-7xl mx-auto px-5 lg:px-8 py-3 flex items-center gap-3">
+            <MapPinOff size={16} className="text-mocha flex-shrink-0" aria-hidden="true" />
+            <p className="text-sm text-ink-2 flex-1 break-keep">
+              위치 권한이 거부되어 <strong className="font-semibold">서울</strong> 기준으로 보여드리고 있어요.
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                const granted = await requestGPS();
+                // 성공 시에만 배너 닫기; 재거부 시 배너 유지
+                if (granted) setGpsBannerDismissed(true);
+              }}
+              className="text-xs font-semibold text-brand whitespace-nowrap hover:underline"
+            >
+              권한 허용하기
+            </button>
+            <button
+              type="button"
+              onClick={() => setGpsBannerDismissed(true)}
+              className="text-ink-4 hover:text-ink-2 flex-shrink-0"
+              aria-label="닫기"
+            >
+              <X size={16} strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <Container className="py-10 lg:py-14">
         <MagazineGrid main={main} side={side} />
       </Container>
-
     </>
   );
 }

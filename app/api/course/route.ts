@@ -3,7 +3,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   locationBasedList,
   areaBasedList,
@@ -32,6 +32,7 @@ import {
 import type {
   CourseRequest,
   CourseResponse,
+  CourseStop,
   Duration,
   Companion,
   Preference,
@@ -532,39 +533,48 @@ export async function POST(request: NextRequest) {
       weather,
     };
 
-    const course = await generateCourse(input);
+    // A/B 코스 병렬 생성 (B는 20초 타임아웃, 실패해도 A는 영향 없음)
+    const courseBWithTimeout = Promise.race([
+      generateCourse(input, 'b'),
+      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 20_000)),
+    ]).catch((err) => {
+      console.warn('[이모추API] B 코스 생성 실패 (무시):', err);
+      return undefined;
+    });
 
-    // 4. 이미지 URL 보강 (AI가 빈 값 반환 시 후보에서 매칭)
-    // + contentTypeId fallback 주입 (AI가 optional 필드 누락 시 후보 원본에서 보완)
-    for (const stop of course.stops) {
-      if (!stop.imageUrl) {
-        const match = candidates.find(c => c.contentId === stop.contentId);
-        if (match?.firstImage) {
-          stop.imageUrl = match.firstImage;
+    const [course, courseB] = await Promise.all([
+      generateCourse(input, 'a'),
+      courseBWithTimeout,
+    ]);
+
+    // 4. 이미지 URL 보강 + contentTypeId fallback (A/B 모두 적용)
+    const enrichStops = (stops: CourseStop[]) => {
+      for (const stop of stops) {
+        if (!stop.imageUrl) {
+          const match = candidates.find(c => c.contentId === stop.contentId);
+          if (match?.firstImage) stop.imageUrl = match.firstImage;
+        }
+        if (!stop.contentTypeId && stop.contentId) {
+          const candidate = candidates.find(c => c.contentId === stop.contentId);
+          if (candidate?.contentTypeId) stop.contentTypeId = String(candidate.contentTypeId);
         }
       }
-      if (!stop.contentTypeId && stop.contentId) {
-        const candidate = candidates.find(c => c.contentId === stop.contentId);
-        if (candidate?.contentTypeId) {
-          stop.contentTypeId = String(candidate.contentTypeId);
-        }
-      }
-    }
+    };
+    enrichStops(course.stops);
+    if (courseB) enrichStops(courseB.stops);
 
-    // 4.5. 이동 정보 계산 (stops 사이 거리/시간)
-    for (let i = 1; i < course.stops.length; i++) {
-      const prev = course.stops[i - 1];
-      const curr = course.stops[i];
-      const R = 6371;
-      const dLat = (curr.latitude - prev.latitude) * Math.PI / 180;
-      const dLon = (curr.longitude - prev.longitude) * Math.PI / 180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(prev.latitude*Math.PI/180) * Math.cos(curr.latitude*Math.PI/180) * Math.sin(dLon/2)**2;
-      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const mins = Math.round(dist * 1.5 * 2);
-      if (mins > 0) {
-        curr.transitInfo = `차로 ${mins}분 (${dist.toFixed(1)}km)`;
+    // 4.5. 이동 정보 계산 (A/B 모두)
+    const calcTransit = (stops: CourseStop[]) => {
+      for (let i = 1; i < stops.length; i++) {
+        const prev = stops[i - 1];
+        const curr = stops[i];
+        const dist = haversineKm(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
+        const mins = Math.round(dist * 1.5 * 2);
+        if (mins > 0) curr.transitInfo = `차로 ${mins}분 (${dist.toFixed(1)}km)`;
       }
-    }
+    };
+    calcTransit(course.stops);
+    if (courseB) calcTransit(courseB.stops);
 
     // 4.6. 나들이 운세 메시지 생성
     let fortuneMessage = '';
@@ -581,20 +591,20 @@ export async function POST(request: NextRequest) {
     let courseId = shareSlug;
 
     try {
-      const supabase = await createClient();
-      const { data: userData } = await supabase.auth.getUser();
+      const supabase = createAdminClient();
 
       const { data: inserted } = await supabase
         .from('wk_courses')
         .insert({
           share_slug: shareSlug,
-          user_id: userData.user?.id ?? null,
+          user_id: null,
           departure_lat: req.lat,
           departure_lng: req.lng,
           duration: req.duration,
           companion: req.companion,
           preferences: req.preferences,
           course_data: course,
+          course_b_data: courseB ?? null,
           ai_model: 'gemini',
         })
         .select('id')
@@ -612,6 +622,7 @@ export async function POST(request: NextRequest) {
       courseId,
       shareUrl: `/course/${shareSlug}`,
       course,
+      ...(courseB && { courseB }),
       kakaoNaviUrl: buildKakaoNaviUrl(course.stops),
       fortuneMessage,
     };
