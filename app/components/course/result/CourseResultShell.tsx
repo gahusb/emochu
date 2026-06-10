@@ -7,6 +7,7 @@ import type { CourseResponse, CourseData, CourseStop } from '@/lib/weekend-types
 import { useActiveStop } from '@/lib/use-active-stop';
 import Container from '@/app/components/ui/Container';
 import CourseSummary from './CourseSummary';
+import SajuCard from './SajuCard';
 import DayTabs from './DayTabs';
 import Timeline from './Timeline';
 import CourseTip from './CourseTip';
@@ -169,6 +170,8 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
           }}
         />
       )}
+
+      {course.course.saju && <SajuCard saju={course.course.saju} />}
 
       {/* ─── A/B 탭 스위처 (두 코스가 있을 때만) ─── */}
       {hasAB && (
