@@ -44,20 +44,29 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       setLocationState(DEFAULT_SEOUL);
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocationState({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          name: '내 근처',
-        });
-      },
-      (err) => {
-        if (err.code === 1) setGpsPermissionDenied(true);
-        setLocationState(DEFAULT_SEOUL);
-      },
-      { timeout: 5000 },
-    );
+
+    // 콜드 프롬프트 제거 — Permissions API로 분기.
+    // granted: 끊김 없이 위치 / 그 외(prompt·denied·미지원): 서울 소프트 기본
+    // (실제 권한 요청은 LocationPermissionToast가 맥락과 함께 유도)
+    if (!navigator.permissions?.query) {
+      setLocationState(DEFAULT_SEOUL);
+      return;
+    }
+    navigator.permissions
+      .query({ name: 'geolocation' as PermissionName })
+      .then((status) => {
+        if (status.state === 'granted') {
+          navigator.geolocation.getCurrentPosition(
+            (pos) =>
+              setLocationState({ lat: pos.coords.latitude, lng: pos.coords.longitude, name: '내 근처' }),
+            () => setLocationState(DEFAULT_SEOUL),
+            { timeout: 5000 },
+          );
+        } else {
+          setLocationState(DEFAULT_SEOUL);
+        }
+      })
+      .catch(() => setLocationState(DEFAULT_SEOUL));
   }, []);
 
   const setLocation = (loc: UserLocation) => {

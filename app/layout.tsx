@@ -4,6 +4,7 @@ import KakaoSDK from './components/KakaoSDK';
 import GlobalHeader from './components/nav/GlobalHeader';
 import BottomTabBar from './components/nav/BottomTabBar';
 import LocationModal from './components/nav/LocationModal';
+import LocationPermissionToast from './components/nav/LocationPermissionToast';
 import { LocationProvider } from './components/nav/LocationContext';
 
 export const metadata: Metadata = {
@@ -62,6 +63,7 @@ export default function RootLayout({
             <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
             <BottomTabBar />
             <LocationModal />
+            <LocationPermissionToast />
             <KakaoSDK />
           </div>
           {modal}
