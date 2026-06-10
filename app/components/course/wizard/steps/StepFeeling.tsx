@@ -50,6 +50,7 @@ export default function StepFeeling({ state, dispatch }: Props) {
   };
 
   const handleResetSaju = () => {
+    dispatch({ type: 'SET_SAJU', value: null });
     setSajuResult(null);
     setShowSaju(false);
   };
