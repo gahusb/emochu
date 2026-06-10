@@ -12,6 +12,7 @@ import type {
   Preference,
   Feeling,
   WeekendWeather,
+  CourseSaju,
 } from './weekend-types';
 
 // ─── 타입 ───
@@ -73,6 +74,7 @@ export interface CourseGenerationInput {
   festivals: FestivalCandidate[];
   stays: StayCandidate[];     // 숙박 후보 (overnight일 때만 사용)
   weather: WeekendWeather;
+  saju?: CourseSaju;
 }
 
 // ─── 상수 ───
@@ -491,7 +493,7 @@ function buildUserMessage(input: CourseGenerationInput): string {
 - 출발: ${input.departure.name} (위도 ${input.departure.lat}, 경도 ${input.departure.lng})
 - 시간 예산: ${DURATION_DETAIL[input.duration]}
 - 동반자: ${COMPANION_DETAIL[input.companion]}
-- 취향: ${input.preferences.map(p => PREFERENCE_KOREAN[p]).join(', ')}${input.feeling ? `\n- 🎭 오늘의 기분: ${FEELING_DETAIL[input.feeling]}` : ''}
+- 취향: ${input.preferences.map(p => PREFERENCE_KOREAN[p]).join(', ')}${input.feeling ? `\n- 🎭 오늘의 기분: ${FEELING_DETAIL[input.feeling]}` : ''}${input.saju ? `\n- ☯️ 오늘의 사주 기운: ${input.saju.headline} — ${input.saju.message}\n  → 위 기운의 정서를 코스 내러티브(storyArc·summary)의 톤에 자연스럽게 녹이되, 장소 선택 자체는 위 취향·동반자·기분 조건을 따르세요.` : ''}
 - 현재: ${month}월 (${SEASON_NAME[month]})${(input.feeling !== 'adventurous' && input.feeling !== 'excited') ? '\n⚠️ 레포츠·등산·자전거 등 체력 소모 활동은 포함하지 마세요. 관광·맛집·카페·문화 중심 코스를 설계하세요.' : ''}
 
 ## 이번 주말 날씨
