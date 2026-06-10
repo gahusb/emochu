@@ -4,57 +4,33 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
-import type { SpotCard, WeekendWeather } from '@/lib/weekend-types';
+import type { WeekendWeather } from '@/lib/weekend-types';
 import { getHeroCopy, getWeekendLabel } from '@/lib/hero-copy';
-import { getCuratedHeroImage, pickHeroFromSpots } from '@/lib/hero-image';
+import { getCuratedHeroImage } from '@/lib/hero-image';
 import { useLocation } from '../nav/LocationContext';
 
 interface Props {
   weather: WeekendWeather | null;
-  spots: SpotCard[];
 }
 
-export default function HomeHero({ weather, spots }: Props) {
+export default function HomeHero({ weather }: Props) {
   const { location } = useLocation();
-  const [imgSrc, setImgSrc] = useState<string>(() => getCuratedHeroImage(weather));
-  const [tried, setTried] = useState<Set<string>>(new Set());
+  const [failed, setFailed] = useState(false);
+  const imgSrc = getCuratedHeroImage(weather);
 
   useEffect(() => {
-    const candidate = pickHeroFromSpots(spots);
-    if (candidate && !tried.has(candidate)) {
-      setImgSrc(candidate);
-    } else {
-      setImgSrc(getCuratedHeroImage(weather));
-    }
-    // Intentionally exclude `tried` from deps: it's only consulted to skip
-    // already-failed URLs when spots/weather change. handleError already
-    // updates imgSrc directly, so re-running the effect on `tried` change
-    // would just re-set the same value.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spots, weather]);
-
-  const handleError = () => {
-    const failed = imgSrc;
-    setTried((prev) => new Set(prev).add(failed));
-    // spot 이미지 실패 → curated로 한 번만 폴백
-    if (!failed.startsWith('/hero/')) {
-      const curated = getCuratedHeroImage(weather);
-      setImgSrc(curated);
-    } else {
-      // curated 이미지도 실패 → 빈 문자열로 설정, CSS 그라디언트가 보임
-      setImgSrc('');
-    }
-  };
+    setFailed(false);
+  }, [imgSrc]);
 
   const copy = getHeroCopy(weather);
   const weekendLabel = getWeekendLabel();
   const locationLabel = location?.name ?? '내 근처';
 
   return (
-    <section className="relative w-full h-[50vh] lg:h-[60vh] min-h-[420px] overflow-hidden">
-      {/* Always-on gradient base — visible if all image fallbacks fail */}
+    <section className="relative w-full h-[50vh] lg:h-[60vh] min-h-[420px] overflow-hidden" aria-labelledby="hero-heading">
+      {/* Always-on gradient base — visible if the curated image fails to load */}
       <div className="absolute inset-0 bg-gradient-to-br from-hero-fallback-start via-hero-fallback-mid to-hero-fallback-end" aria-hidden="true" />
-      {imgSrc && (
+      {!failed && (
         <Image
           src={imgSrc}
           alt="이번 주말의 풍경"
@@ -62,8 +38,7 @@ export default function HomeHero({ weather, spots }: Props) {
           sizes="100vw"
           priority
           className="object-cover"
-          onError={handleError}
-          unoptimized={imgSrc.startsWith('http://')}
+          onError={() => setFailed(true)}
         />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-ink-1/70 via-ink-1/20 to-transparent" />
@@ -74,6 +49,7 @@ export default function HomeHero({ weather, spots }: Props) {
             {weekendLabel} · {locationLabel}
           </p>
           <h1
+            id="hero-heading"
             className="text-3xl lg:text-5xl font-bold text-white leading-tight break-keep max-w-2xl"
             style={{ fontFamily: 'var(--font-display)' }}
           >

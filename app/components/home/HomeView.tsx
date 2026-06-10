@@ -185,7 +185,7 @@ export default function HomeView() {
 
   return (
     <>
-      <HomeHero weather={weather} spots={spots} />
+      <HomeHero weather={weather} />
 
       {/* GPS 권한 거부 안내 배너 */}
       {showGpsBanner && (
