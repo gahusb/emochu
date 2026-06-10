@@ -89,6 +89,8 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { festivals, weekendDates: { saturday: satStr, sunday: sunStr } },
-    { headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600' } },
+    // TourAPI 실시간 호출 규정 준수: searchFestival은 고정 파라미터라 캐시 히트율이
+    // 높은 위험 구간 → CDN 캐시 30분→60초 축소 (lib/tour-api revalidate 60초와 정합)
+    { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } },
   );
 }
