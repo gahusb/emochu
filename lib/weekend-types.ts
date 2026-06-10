@@ -178,6 +178,7 @@ export interface CourseRequest {
   destinationType?: DestinationType;
   cityAreaCode?: number;
   mood?: MoodType;
+  saju?: CourseSaju;
 }
 
 // ─── 편의시설 정보 ───
@@ -214,6 +215,15 @@ export interface CourseStop {
 
 export type CourseDifficulty = 'easy' | 'moderate' | 'active';
 
+/** 저장·표시용 사주 컨텍스트 (lib/saju.ts SajuResult가 구조적으로 할당 가능) */
+export interface CourseSaju {
+  birthElement: string;   // 'wood'|'fire'|'earth'|'metal'|'water'
+  todayElement: string;
+  relation: string;       // 'same'|'generates'|'generated'|'controls'|'controlled'
+  headline: string;
+  message: string;
+}
+
 export interface CourseData {
   title: string;
   summary: string;
@@ -223,6 +233,7 @@ export interface CourseData {
   estimatedCostWon?: number;    // 1인 기준 총 예상 비용 (원)
   difficulty?: CourseDifficulty; // easy | moderate | active
   storyArc?: string;            // 코스 전체 내러티브 3~5문장 (편집장 추천 스타일)
+  saju?: CourseSaju;            // 사주 사용 시 — 코스에 관통된 오늘의 기운
 }
 
 export interface CourseResponse {
