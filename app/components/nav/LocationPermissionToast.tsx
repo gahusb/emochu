@@ -68,12 +68,14 @@ export default function LocationPermissionToast() {
           <p className="text-xs text-ink-3 mt-0.5">위치를 허용하면 더 정확한 코스를 만들어드려요</p>
           <div className="flex gap-2 mt-3">
             <button
+              type="button"
               onClick={allow}
               className="h-9 px-4 rounded-lg bg-brand text-white text-sm font-bold hover:bg-brand-hover transition-colors"
             >
               위치 허용
             </button>
             <button
+              type="button"
               onClick={dismiss}
               className="h-9 px-3 rounded-lg border border-line text-ink-3 text-sm hover:bg-surface-sunken transition-colors"
             >
@@ -81,7 +83,7 @@ export default function LocationPermissionToast() {
             </button>
           </div>
         </div>
-        <button onClick={dismiss} aria-label="닫기" className="text-ink-4 hover:text-ink-2 flex-shrink-0">
+        <button type="button" onClick={dismiss} aria-label="닫기" className="text-ink-4 hover:text-ink-2 flex-shrink-0">
           <X size={16} />
         </button>
       </div>
