@@ -7,6 +7,7 @@ import type {
   Duration, Companion, Preference, Feeling,
   DestinationType, MoodType, CityOption,
 } from '@/lib/weekend-types';
+import type { SajuResult } from '@/lib/saju';
 import { useCourseGeneration } from '@/lib/use-course-generation';
 import { CITY_OPTIONS, MOOD_OPTIONS, FEELING_OPTIONS, DURATION_LABELS, COMPANION_LABELS } from '@/lib/weekend-types';
 import Container from '@/app/components/ui/Container';
@@ -31,6 +32,7 @@ export interface WizardState {
   preferences: Preference[];
   userLocation: { lat: number; lng: number } | null;
   gpsLoading: boolean;
+  saju: SajuResult | null;
 }
 
 export type WizardAction =
@@ -39,6 +41,7 @@ export type WizardAction =
   | { type: 'SET_CITY'; value: CityOption | null }
   | { type: 'SET_MOOD'; value: MoodType | null }
   | { type: 'SET_FEELING'; value: Feeling | null }
+  | { type: 'SET_SAJU'; value: SajuResult | null }
   | { type: 'SET_DURATION'; value: Duration | null }
   | { type: 'SET_COMPANION'; value: Companion | null }
   | { type: 'TOGGLE_PREFERENCE'; value: Preference }
@@ -57,6 +60,7 @@ const INITIAL: WizardState = {
   preferences: [],
   userLocation: null,
   gpsLoading: false,
+  saju: null,
 };
 
 function reducer(state: WizardState, action: WizardAction): WizardState {
@@ -71,6 +75,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
     case 'SET_CITY': return { ...state, selectedCity: action.value };
     case 'SET_MOOD': return { ...state, selectedMood: action.value };
     case 'SET_FEELING': return { ...state, feeling: action.value };
+    case 'SET_SAJU': return { ...state, saju: action.value };
     case 'SET_DURATION': return { ...state, duration: action.value };
     case 'SET_COMPANION': return { ...state, companion: action.value };
     case 'TOGGLE_PREFERENCE': {
@@ -224,6 +229,7 @@ export default function WizardShell() {
         destinationType: state.destinationType ?? 'nearby',
         cityAreaCode: state.selectedCity?.areaCode != null ? String(state.selectedCity.areaCode) : undefined,
         mood: state.selectedMood,
+        saju: state.saju ?? undefined,
       });
     }
   };

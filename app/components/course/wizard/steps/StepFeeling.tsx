@@ -45,6 +45,7 @@ export default function StepFeeling({ state, dispatch }: Props) {
   const handleApplySaju = () => {
     if (!sajuResult) return;
     dispatch({ type: 'SET_FEELING', value: sajuResult.feeling });
+    dispatch({ type: 'SET_SAJU', value: sajuResult });
     setShowSaju(false);
   };
 
@@ -71,6 +72,7 @@ export default function StepFeeling({ state, dispatch }: Props) {
               type="button"
               onClick={() => {
                 dispatch({ type: 'SET_FEELING', value: opt.type as Feeling });
+                dispatch({ type: 'SET_SAJU', value: null });
                 setSajuResult(null);
                 setShowSaju(false);
               }}
