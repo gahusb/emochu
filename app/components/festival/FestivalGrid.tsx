@@ -19,8 +19,8 @@ export default function FestivalGrid({ festivals, loading, today, satStr, sunStr
         {loading
           ? Array.from({ length: 8 }, (_, i) => <FestivalSkeleton key={i} />)
           : festivals.length > 0
-            ? festivals.map((f) => (
-                <FestivalCard key={f.contentId} festival={f} today={today} satStr={satStr} sunStr={sunStr} />
+            ? festivals.map((f, i) => (
+                <FestivalCard key={f.contentId} festival={f} today={today} satStr={satStr} sunStr={sunStr} index={i} />
               ))
             : <FestivalEmpty onExpandRadius={onExpandRadius} />
         }

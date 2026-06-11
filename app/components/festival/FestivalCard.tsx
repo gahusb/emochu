@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { PartyPopper } from 'lucide-react';
 import type { FestivalCard as FestivalCardData } from '@/lib/weekend-types';
 
-interface Props { festival: FestivalCardData; today: string; satStr: string; sunStr: string; }
+interface Props { festival: FestivalCardData; today: string; satStr: string; sunStr: string; index?: number; }
 
 function formatDate(yyyymmdd: string): string {
   if (!yyyymmdd || yyyymmdd.length !== 8) return '';
@@ -32,16 +32,20 @@ function getStatusBadge(f: FestivalCardData, today: string, satStr: string, sunS
   return null;
 }
 
-export default function FestivalCard({ festival: f, today, satStr, sunStr }: Props) {
+export default function FestivalCard({ festival: f, today, satStr, sunStr, index }: Props) {
   const dateStr = `${formatDate(f.eventStart)}${f.eventEnd && f.eventEnd !== f.eventStart ? ` ~ ${formatDate(f.eventEnd)}` : ''}`;
   const status = getStatusBadge(f, today, satStr, sunStr);
   const distanceStr = f.distanceKm != null ? `${f.distanceKm.toFixed(1)}km` : '';
   const region = f.addr1 ? f.addr1.split(' ')[0] : '';
 
+  const staggerClass = index != null ? ' stagger-item' : '';
+  const staggerStyle = index != null ? { animationDelay: `${Math.min(index, 12) * 40}ms` } : undefined;
+
   return (
     <Link
       href={`/spot/${f.contentId}`}
-      className="group block bg-surface-elevated border border-line rounded-lg overflow-hidden hover:shadow-raised transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      className={`group block bg-surface-elevated border border-line rounded-lg overflow-hidden hover:shadow-raised transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand${staggerClass}`}
+      style={staggerStyle}
       aria-label={`${f.title}, ${region}, ${dateStr}, ${distanceStr}`}
     >
       <div className="relative aspect-[4/3] bg-surface-sunken overflow-hidden">
