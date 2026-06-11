@@ -44,7 +44,7 @@ export default function FestivalCard({ festival: f, today, satStr, sunStr, index
   return (
     <Link
       href={`/spot/${f.contentId}`}
-      className={`group block bg-surface-elevated border border-line rounded-lg overflow-hidden hover:shadow-raised transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand${staggerClass}`}
+      className={`group block bg-surface-elevated border border-line rounded-lg overflow-hidden hover:shadow-[var(--shadow-raised)] transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand${staggerClass}`}
       style={staggerStyle}
       aria-label={`${f.title}, ${region}, ${dateStr}, ${distanceStr}`}
     >
@@ -52,7 +52,7 @@ export default function FestivalCard({ festival: f, today, satStr, sunStr, index
         {f.firstImage ? (
           <Image
             src={f.firstImage}
-            alt={f.title}
+            alt=""
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"

@@ -32,7 +32,7 @@ export default function GlobalHeader() {
       {/* Desktop (lg+) */}
       <div className="hidden lg:flex max-w-7xl mx-auto px-8 h-16 items-center gap-6">
         <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-          <Compass size={22} className="text-brand" strokeWidth={1.8} />
+          <Compass size={22} className="text-brand" strokeWidth={1.8} aria-hidden="true" />
           <span
             className="text-xl font-bold text-ink-1 tracking-tight"
             style={{ fontFamily: 'var(--font-logo)' }}
@@ -71,7 +71,7 @@ export default function GlobalHeader() {
       {/* Mobile (<lg) */}
       <div className="lg:hidden max-w-7xl mx-auto px-5 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-1.5">
-          <Compass size={20} className="text-brand" strokeWidth={1.8} />
+          <Compass size={20} className="text-brand" strokeWidth={1.8} aria-hidden="true" />
           <span
             className="text-lg font-bold text-ink-1 tracking-tight"
             style={{ fontFamily: 'var(--font-logo)' }}

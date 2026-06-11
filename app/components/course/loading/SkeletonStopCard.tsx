@@ -3,7 +3,7 @@ interface Props { index: number; }
 export default function SkeletonStopCard({ index }: Props) {
   return (
     <div
-      className="flex gap-4 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]"
+      className="flex gap-4 opacity-0 motion-safe:animate-[fadeIn_0.5s_ease-out_forwards]"
       style={{ animationDelay: `${index * 800}ms` }}
     >
       <div className="flex flex-col items-center flex-shrink-0 w-10">

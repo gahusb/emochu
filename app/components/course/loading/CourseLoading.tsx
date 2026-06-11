@@ -9,7 +9,7 @@ export default function CourseLoading({ message }: Props) {
     <Container>
       <div className="py-8 lg:py-12">
         <div className="text-center mb-10">
-          <Loader2 size={32} strokeWidth={1.75} className="text-brand mx-auto animate-spin" aria-hidden="true" />
+          <Loader2 size={32} strokeWidth={1.75} className="text-brand mx-auto motion-safe:animate-spin" aria-hidden="true" />
           <h2 className="text-2xl lg:text-3xl font-bold text-ink-1 mt-4" style={{ fontFamily: 'var(--font-display)' }}>
             코스를 설계하고 있어요
           </h2>

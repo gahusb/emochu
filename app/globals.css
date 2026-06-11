@@ -151,6 +151,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .stagger-item { animation: none; }
   .skeleton { animation: none; }
+  .slide-in-right, .slide-in-left { animation: none; }
+  .animate-spin { animation: none; }
 }
 
 @keyframes fadeIn {

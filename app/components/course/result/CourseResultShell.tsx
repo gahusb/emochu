@@ -53,9 +53,13 @@ export default function CourseResultShell({ slug }: Props) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60dvh] pt-20">
-        <div className="relative w-16 h-16">
+        <div
+          role="status"
+          aria-label="코스 불러오는 중"
+          className="relative w-16 h-16"
+        >
           <div className="absolute inset-0 rounded-full border-4 border-brand-soft" />
-          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-brand animate-spin" />
+          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-brand motion-safe:animate-spin" />
         </div>
         <p className="text-ink-3 text-sm mt-4">코스를 불러오는 중...</p>
       </div>
@@ -94,9 +98,11 @@ interface ABTabProps {
 
 function ABTabSwitcher({ active, onChange }: ABTabProps) {
   return (
-    <div className="flex items-center gap-1 bg-surface-sunken rounded-xl p-1 w-full max-w-sm mx-auto">
+    <div role="tablist" aria-label="코스 선택" className="flex items-center gap-1 bg-surface-sunken rounded-xl p-1 w-full max-w-sm mx-auto">
       <button
         type="button"
+        role="tab"
+        aria-selected={active === 'a'}
         onClick={() => onChange('a')}
         className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg text-sm font-semibold transition-all ${
           active === 'a'
@@ -109,6 +115,8 @@ function ABTabSwitcher({ active, onChange }: ABTabProps) {
       </button>
       <button
         type="button"
+        role="tab"
+        aria-selected={active === 'b'}
         onClick={() => onChange('b')}
         className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg text-sm font-semibold transition-all ${
           active === 'b'

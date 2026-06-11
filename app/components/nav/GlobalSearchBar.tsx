@@ -102,7 +102,7 @@ export default function GlobalSearchBar() {
           {!loading && results.map((r) => (
             <Link
               key={r.contentId}
-              href={`/?spot=${r.contentId}`}
+              href={`/spot/${r.contentId}`}
               onClick={() => setShowResults(false)}
               className="flex items-center gap-3 px-4 py-3 hover:bg-surface-sunken transition-colors border-b border-line last:border-0"
             >

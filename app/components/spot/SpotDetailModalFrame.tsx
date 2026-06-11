@@ -71,7 +71,7 @@ export default function SpotDetailModalFrame({ children }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center animate-[fadeIn_0.2s_ease-out]"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center motion-safe:animate-[fadeIn_0.2s_ease-out]"
       onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
       role="presentation"
@@ -82,7 +82,7 @@ export default function SpotDetailModalFrame({ children }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="장소 상세"
-        className="relative w-full sm:max-w-5xl max-h-[90dvh] bg-surface-elevated rounded-t-2xl sm:rounded-2xl overflow-hidden animate-[slideUp_0.3s_ease-out] flex flex-col"
+        className="relative w-full sm:max-w-5xl max-h-[90dvh] bg-surface-elevated rounded-t-2xl sm:rounded-2xl overflow-hidden motion-safe:animate-[slideUp_0.3s_ease-out] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-2 pb-1 sm:hidden" aria-hidden="true">

@@ -35,7 +35,7 @@ export default function SaveShareBar({ shareUrl, title, summary, stops }: Props)
     const stopNames = stops?.map((s) => s.title).join(' → ') ?? '';
     const firstImage =
       stops?.find((s) => s.imageUrl)?.imageUrl ??
-      'https://jaengseung-made.com/icons/weekend-og.png';
+      'https://emochu.vercel.app/opengraph-image';
 
     Kakao.Share.sendDefault({
       objectType: 'feed',

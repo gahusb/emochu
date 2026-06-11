@@ -104,9 +104,11 @@ export default function SpotCard({ spot }: Props) {
         <h3 className="text-sm font-bold text-ink-1 leading-snug line-clamp-1">
           {spot.title}
         </h3>
-        <p className="text-xs text-ink-3 mt-1.5 line-clamp-2 leading-relaxed break-keep">
-          {spot.reason}
-        </p>
+        {spot.reason && (
+          <p className="text-xs text-ink-3 mt-1.5 line-clamp-2 leading-relaxed break-keep">
+            {spot.reason}
+          </p>
+        )}
         {spot.facilities && (
           <div className="mt-2">
             <FacilityBadges facilities={spot.facilities} />
