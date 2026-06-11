@@ -17,7 +17,8 @@ const STEM_ELEMENTS: Element5[] = [
 ];
 
 // 일주(日柱) 기준: 2000-01-01 = 甲 (index 0)
-const REF_DATE = new Date(2000, 0, 1).getTime();
+// UTC 기준으로 고정하여 KST 00:00~08:59 구간의 날짜 드리프트 방지
+const REF_DATE = Date.UTC(2000, 0, 1);
 
 export function getYearElement(birthYear: number): Element5 {
   const idx = ((birthYear - 4) % 10 + 10) % 10;
@@ -25,7 +26,9 @@ export function getYearElement(birthYear: number): Element5 {
 }
 
 export function getTodayElement(date: Date = new Date()): Element5 {
-  const days = Math.floor((date.getTime() - REF_DATE) / 86_400_000);
+  // 로컬(KST) 날짜 기준으로 UTC 자정 타임스탬프를 구성해 안정적인 일 인덱스 계산
+  const utcMidnight = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const days = Math.floor((utcMidnight - REF_DATE) / 86_400_000);
   return STEM_ELEMENTS[((days % 10) + 10) % 10];
 }
 

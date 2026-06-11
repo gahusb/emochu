@@ -620,7 +620,7 @@ function validateCourseSchema(data: unknown): asserts data is CourseData {
     const currDay = stops[i].day ?? 1;
     // 일차가 바뀌면 시간이 리셋되므로 비교 스킵
     if (currDay > prevDay) continue;
-    if (stops[i].timeStart <= stops[i - 1].timeStart) {
+    if (stops[i].timeStart < stops[i - 1].timeStart) {
       throw new Error(`시간 순서 역전: ${stops[i - 1].title}(${stops[i - 1].timeStart}) → ${stops[i].title}(${stops[i].timeStart})`);
     }
   }
@@ -793,7 +793,7 @@ function calculateTotalDistance(stops: CourseStop[]): number {
 
 // ─── 폴백 코스 (AI 실패 시) ───
 
-function generateFallbackCourse(
+export function generateFallbackCourse(
   candidates: ScoredSpot[],
   duration: Duration,
   departure: { lat: number; lng: number },

@@ -18,6 +18,7 @@ import {
 import { getWeekendForecast } from '@/lib/weather-api';
 import {
   generateCourse,
+  generateFallbackCourse,
   scoreAndRankCandidates,
   enrichWithFacilities,
   generateShareSlug,
@@ -554,7 +555,7 @@ export async function POST(request: NextRequest) {
       saju: req.saju,
     };
 
-    // A/B 코스 병렬 생성 (B는 20초 타임아웃, 실패해도 A는 영향 없음)
+    // A/B 코스 병렬 생성 (B는 20초 타임아웃, A는 50초 타임아웃으로 504 방지)
     const courseBWithTimeout = Promise.race([
       generateCourse(input, 'b'),
       new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 20_000)),
@@ -563,8 +564,19 @@ export async function POST(request: NextRequest) {
       return undefined;
     });
 
-    const [course, courseB] = await Promise.all([
+    // 코스 A: Gemini가 네트워크 행으로 응답 없을 때 maxDuration(60s) 전에 폴백 코스 반환
+    const courseAWithTimeout = Promise.race([
       generateCourse(input, 'a'),
+      new Promise<ReturnType<typeof generateFallbackCourse>>((resolve) =>
+        setTimeout(() => {
+          console.warn('[이모추API] 코스A 50초 타임아웃 → 폴백 코스 반환');
+          resolve(generateFallbackCourse(ranked, input.duration, input.departure));
+        }, 50_000)
+      ),
+    ]);
+
+    const [course, courseB] = await Promise.all([
+      courseAWithTimeout,
       courseBWithTimeout,
     ]);
 

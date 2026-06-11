@@ -25,14 +25,23 @@ export async function GET(request: NextRequest) {
   const searchStart = new Date(saturday);
   searchStart.setDate(searchStart.getDate() - 60);
 
-  const items = await searchFestival({
-    eventStartDate: formatDateYMD(searchStart),
-    eventEndDate: formatDateYMD(sunday),
-    numOfRows: 100,
-  });
-
   const sunStr = formatDateYMD(sunday);
   const satStr = formatDateYMD(saturday);
+
+  let items: Awaited<ReturnType<typeof searchFestival>>;
+  try {
+    items = await searchFestival({
+      eventStartDate: formatDateYMD(searchStart),
+      eventEndDate: formatDateYMD(sunday),
+      numOfRows: 100,
+    });
+  } catch (err) {
+    console.warn('[이모추API] 축제 TourAPI 조회 실패 (빈 목록 반환):', err);
+    return NextResponse.json(
+      { festivals: [], weekendDates: { saturday: satStr, sunday: sunStr } },
+      { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } },
+    );
+  }
 
   const festivals: FestivalCard[] = items
     .filter(item => {
