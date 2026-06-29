@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useLocation } from '../nav/LocationContext';
 import { useHomeData } from '@/lib/use-home-data';
 import HomeHero from './HomeHero';
+import ThreeAxis from './ThreeAxis';
 import MagazineGrid from './MagazineGrid';
 import WeatherCard from './WeatherCard';
 import FestivalSideList from './FestivalSideList';
@@ -77,7 +78,7 @@ export default function HomeView() {
                 3가지 선택만으로<br />당신만의 주말 코스를
               </h3>
               <p className="text-sm text-ink-3 mt-3 leading-relaxed break-keep">
-                위치 · 동반자 · 기분을 알려주시면 AI가 10초 만에 맞춤 코스를 설계합니다.
+                기분과 동반자, 오늘의 사주 기운까지 반영해 AI가 10초 만에 맞춤 코스를 설계합니다.
               </p>
               <Link
                 href="/course"
@@ -220,6 +221,10 @@ export default function HomeView() {
           </div>
         </div>
       )}
+
+      <Container className="pt-8 lg:pt-12">
+        <ThreeAxis />
+      </Container>
 
       <Container className="py-10 lg:py-14">
         <MagazineGrid main={main} side={side} />

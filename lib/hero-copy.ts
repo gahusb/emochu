@@ -30,6 +30,12 @@ export function getHeroCopy(weather: WeekendWeather | null, date: Date = new Dat
   return '이번 주말, 어디로 떠나볼까요?';
 }
 
+/** 홈 Hero 차별화 태그라인 (감정·동반자·사주 3축) */
+export const HERO_DIFF_TAGLINE = '감정 · 동반자 · 사주로 짜는 주말';
+
+/** 홈 Hero 가치 서브카피 — 차별화를 한 줄로 */
+export const HERO_VALUE_LINE = '기분과 동반자, 오늘의 사주 기운까지 반영해 AI가 코스를 설계해요.';
+
 export function getWeekendLabel(date: Date = new Date()): string {
   const day = date.getDay();
   const satOffset = day === 6 ? 0 : day === 0 ? -1 : 6 - day;
