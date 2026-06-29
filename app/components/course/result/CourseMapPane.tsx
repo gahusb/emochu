@@ -4,12 +4,6 @@ import { useEffect, useRef } from 'react';
 import type { CourseStop } from '@/lib/weekend-types';
 import { getRoleInfo, BRAND_HEX } from '@/lib/course-role';
 
-declare global {
-  interface Window {
-    kakao: any;
-  }
-}
-
 interface Props {
   stops: CourseStop[];
   activeIndex: number | null;
@@ -47,6 +41,7 @@ export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Pro
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
+    // 의도적으로 stops에만 반응: renderMap을 deps에 넣으면 매 렌더 재초기화되어 지도/마커 상태가 리셋됨
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stops]);
 

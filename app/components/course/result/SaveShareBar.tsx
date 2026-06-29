@@ -26,7 +26,7 @@ export default function SaveShareBar({ shareUrl, title, summary, stops }: Props)
   };
 
   const handleKakaoShare = () => {
-    const Kakao = (window as any).Kakao;
+    const Kakao = window.Kakao;
     if (!Kakao?.isInitialized?.()) {
       handleCopy();
       return;
