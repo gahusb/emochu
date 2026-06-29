@@ -16,7 +16,7 @@ export default function KakaoMiniMap({ lat, lng, title }: Props) {
 
     function init() {
       if (!mounted || !containerRef.current) return;
-      const maps = (window as any).kakao?.maps;
+      const maps = window.kakao?.maps;
       if (!maps?.Map) return;
       const center = new maps.LatLng(lat, lng);
       const map = new maps.Map(containerRef.current, { center, level: 4 });
@@ -24,7 +24,7 @@ export default function KakaoMiniMap({ lat, lng, title }: Props) {
     }
 
     function tryInit() {
-      const kakao = (window as any).kakao;
+      const kakao = window.kakao;
       if (!kakao) return;
       // autoload=false → must call kakao.maps.load() to initialize
       if (typeof kakao.maps?.load === 'function') {

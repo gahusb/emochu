@@ -17,8 +17,8 @@ export default function KakaoSDK() {
         src="//developers.kakao.com/sdk/js/kakao.min.js"
         strategy="lazyOnload"
         onLoad={() => {
-          if ((window as any).Kakao && !(window as any).Kakao.isInitialized()) {
-            (window as any).Kakao.init(KAKAO_KEY);
+          if (window.Kakao && !window.Kakao.isInitialized()) {
+            window.Kakao.init(KAKAO_KEY);
           }
         }}
       />
