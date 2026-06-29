@@ -6,8 +6,12 @@ import BottomTabBar from './components/nav/BottomTabBar';
 import LocationModal from './components/nav/LocationModal';
 import LocationPermissionToast from './components/nav/LocationPermissionToast';
 import { LocationProvider } from './components/nav/LocationContext';
+import { getSiteUrl } from '@/lib/site-url';
+
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: '이모추! — 이번 주에 모하지 추천',
     template: '%s | 이모추!',
@@ -31,7 +35,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
-    url: 'https://emochu.vercel.app',
+    url: siteUrl,
     title: '이모추! — 이번 주에 모하지 추천',
     description: '3번의 선택 → AI가 10초 만에 주말 나들이 코스 완성!',
     siteName: '이모추!',

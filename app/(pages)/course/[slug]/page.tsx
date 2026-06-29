@@ -1,10 +1,11 @@
 import CourseResultShell from '@/app/components/course/result/CourseResultShell';
 import type { Metadata } from 'next';
+import { getSiteUrl } from '@/lib/site-url';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://emochu.vercel.app';
+    const baseUrl = getSiteUrl();
     const res = await fetch(`${baseUrl}/api/course/${slug}`, { next: { revalidate: 3600 } });
     if (!res.ok) throw new Error();
     const data = await res.json();

@@ -4,11 +4,10 @@ import SpotDetail from '@/app/components/spot/SpotDetail';
 import type { SpotDetailData } from '@/app/components/spot/SpotDetail';
 import SpotPageBackButton from '@/app/components/spot/SpotPageBackButton';
 import { AlertCircle } from 'lucide-react';
+import { getSiteUrl } from '@/lib/site-url';
 
 async function fetchSpot(contentId: string): Promise<SpotDetailData | null> {
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://emochu.vercel.app');
+  const base = getSiteUrl();
   try {
     const res = await fetch(`${base}/api/spot?contentId=${contentId}`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
