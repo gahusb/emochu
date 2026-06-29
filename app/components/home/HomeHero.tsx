@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import type { WeekendWeather } from '@/lib/weekend-types';
-import { getHeroCopy, getWeekendLabel } from '@/lib/hero-copy';
+import { getHeroCopy, getWeekendLabel, HERO_DIFF_TAGLINE, HERO_VALUE_LINE } from '@/lib/hero-copy';
 import { getCuratedHeroImage } from '@/lib/hero-image';
 import { useLocation } from '../nav/LocationContext';
 
@@ -45,6 +45,10 @@ export default function HomeHero({ weather }: Props) {
 
       <div className="absolute inset-x-0 bottom-0">
         <div className="max-w-7xl mx-auto px-5 lg:px-8 pb-8 lg:pb-12">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur border border-white/25 px-3 py-1 text-xs lg:text-sm font-semibold text-white mb-3">
+            <Sparkles size={13} strokeWidth={2} aria-hidden="true" />
+            {HERO_DIFF_TAGLINE}
+          </span>
           <p className="text-sm lg:text-base font-semibold text-white/80 mb-2">
             {weekendLabel} · {locationLabel}
           </p>
@@ -55,6 +59,9 @@ export default function HomeHero({ weather }: Props) {
           >
             {copy}
           </h1>
+          <p className="text-sm lg:text-lg text-white/85 mt-3 max-w-xl break-keep leading-relaxed">
+            {HERO_VALUE_LINE}
+          </p>
           <div className="flex flex-wrap items-center gap-3 mt-6">
             <Link
               href="/course"
