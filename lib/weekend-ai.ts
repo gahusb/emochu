@@ -15,6 +15,11 @@ import type {
   CourseSaju,
 } from './weekend-types';
 
+// 개발 환경에서만 출력되는 디버그 로그 (프로덕션 로깅 노이즈·비용 방지)
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') console.log(...args);
+};
+
 // ─── 타입 ───
 
 export interface CompanionFacilities {
@@ -996,7 +1001,7 @@ export async function generateCourse(
     // 최대 2회 시도 (JSON 파싱 실패 시 1회 재시도)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        console.log(`[이모추AI] ${modelId} variant=${variant} 시도 (attempt ${attempt + 1})`);
+        debugLog(`[이모추AI] ${modelId} variant=${variant} 시도 (attempt ${attempt + 1})`);
 
         const model = genAI.getGenerativeModel({
           model: modelId,
@@ -1039,7 +1044,7 @@ export async function generateCourse(
         // order 재정렬
         course.stops.forEach((s, i) => { s.order = i + 1; });
 
-        console.log(`[이모추AI] ${modelId} 성공 — ${course.stops.length}개 장소`);
+        debugLog(`[이모추AI] ${modelId} 성공 — ${course.stops.length}개 장소`);
         return course;
 
       } catch (err: unknown) {

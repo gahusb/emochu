@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 다중 lockfile 환경에서 워크스페이스 루트를 이 프로젝트로 고정 (루트 오추론 경고 해소)
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     remotePatterns: [
       { protocol: 'http', hostname: 'tong.visitkorea.or.kr' },
