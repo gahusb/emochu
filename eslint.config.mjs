@@ -20,6 +20,11 @@ const eslintConfig = [
       ],
     },
   },
+  {
+    // 테스트는 모킹 특성상 any 허용
+    files: ['tests/**/*.ts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
+  },
 ];
 
 export default eslintConfig;
