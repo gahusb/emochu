@@ -10,11 +10,6 @@ function getServiceKey(): string {
   return key;
 }
 
-interface TourApiBaseParams {
-  numOfRows?: number;
-  pageNo?: number;
-}
-
 async function callTourApi<T>(
   endpoint: string,
   params: Record<string, string | number | undefined>,

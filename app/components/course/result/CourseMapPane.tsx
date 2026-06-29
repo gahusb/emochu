@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any -- Kakao 지도 SDK는 공식 타입이 없어 map/overlay/polyline 참조에 any 불가피 */
 
 import { useEffect, useRef } from 'react';
 import type { CourseStop } from '@/lib/weekend-types';
