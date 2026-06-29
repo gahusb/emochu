@@ -666,7 +666,7 @@ import { detailIntro } from './tour-api';
 /** detailIntro에서 편의시설 정보를 추출 */
 function parseCompanionFacilities(
   intro: Record<string, string>,
-  contentTypeId: number,
+  _contentTypeId: number,
 ): CompanionFacilities {
   const f: CompanionFacilities = {};
 

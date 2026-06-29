@@ -2,11 +2,13 @@ import { Sun, Cloud, CloudRain, CloudSnow, Droplets } from 'lucide-react';
 import type { DayWeather, WeekendWeather } from '@/lib/weekend-types';
 import Card from '../ui/Card';
 
-function dayIcon(day: DayWeather) {
-  if (day.precipitation === 'snow') return CloudSnow;
-  if (day.precipitation === 'rain' || day.precipitation === 'mixed') return CloudRain;
-  if (day.sky === 'clear') return Sun;
-  return Cloud;
+// 모듈 스코프 컴포넌트로 선언 (render 중 컴포넌트 생성 방지 — react-hooks/static-components)
+function DayWeatherIcon({ day }: { day: DayWeather }) {
+  const props = { size: 28, className: 'text-info', strokeWidth: 1.6 } as const;
+  if (day.precipitation === 'snow') return <CloudSnow {...props} />;
+  if (day.precipitation === 'rain' || day.precipitation === 'mixed') return <CloudRain {...props} />;
+  if (day.sky === 'clear') return <Sun {...props} />;
+  return <Cloud {...props} />;
 }
 
 interface Props {
@@ -17,8 +19,6 @@ export default function WeatherCard({ weather }: Props) {
   if (!weather) return null;
   const sat = weather.saturday;
   const sun = weather.sunday;
-  const SatIcon = dayIcon(sat);
-  const SunIcon = dayIcon(sun);
 
   return (
     <Card className="p-5">
@@ -32,7 +32,7 @@ export default function WeatherCard({ weather }: Props) {
         <div>
           <p className="text-xs text-ink-3 mb-2">토요일</p>
           <div className="flex items-center gap-2">
-            <SatIcon size={28} className="text-info" strokeWidth={1.6} />
+            <DayWeatherIcon day={sat} />
             <p className="text-2xl font-bold text-ink-1">{sat.tempMax}°</p>
           </div>
           <p className="text-xs text-ink-3 mt-1">
@@ -47,7 +47,7 @@ export default function WeatherCard({ weather }: Props) {
         <div>
           <p className="text-xs text-ink-3 mb-2">일요일</p>
           <div className="flex items-center gap-2">
-            <SunIcon size={28} className="text-info" strokeWidth={1.6} />
+            <DayWeatherIcon day={sun} />
             <p className="text-2xl font-bold text-ink-1">{sun.tempMax}°</p>
           </div>
           <p className="text-xs text-ink-3 mt-1">

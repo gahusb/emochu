@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     }
 
     // detailIntro는 contenttypeid가 필요
-    let introFields: { label: string; value: string }[] = [];
+    const introFields: { label: string; value: string }[] = [];
     const ctId = common.contenttypeid;
 
     try {

@@ -171,7 +171,7 @@ export async function getWeekendForecast(params: {
 
   // 오늘 사용 가능한 최신 발표 시간 (발표 후 약 1시간 마진)
   let baseTime = '0200';
-  let baseDay = new Date(now);
+  const baseDay = new Date(now);
   const availableHour = hour >= 1 ? hour - 1 : 0; // 발표 후 약 1시간 마진
   const availableHHMM = `${String(availableHour).padStart(2, '0')}00`;
 

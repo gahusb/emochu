@@ -42,7 +42,7 @@ import type {
   MoodType,
   CourseSaju,
 } from '@/lib/weekend-types';
-import { MOOD_OPTIONS, CITY_OPTIONS, FEELING_OPTIONS } from '@/lib/weekend-types';
+import { MOOD_OPTIONS, CITY_OPTIONS } from '@/lib/weekend-types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
