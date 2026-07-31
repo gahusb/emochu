@@ -523,8 +523,16 @@ export async function POST(request: NextRequest) {
 
     // 1.5. 편의시설 정보 보강 (detailIntro 병렬 조회, 상위 20개)
     // family 동행자는 유모차/키즈시설 정보가 핵심, 그 외에도 주차 정보 유용
+    // 외부 API 지연이 maxDuration(60s)을 잠식하지 않도록 상한을 둔다. 초과 시 보강 없이 진행.
+    const ENRICH_TIMEOUT_MS = 8_000;
     try {
-      await enrichWithFacilities(candidates, 20);
+      await Promise.race([
+        enrichWithFacilities(candidates, 20),
+        new Promise<void>((resolve) => setTimeout(() => {
+          console.warn('[이모추API] 편의시설 보강 타임아웃 → 보강 없이 진행');
+          resolve();
+        }, ENRICH_TIMEOUT_MS)),
+      ]);
     } catch (enrichErr) {
       console.warn('[이모추API] 편의시설 조회 실패 (무시):', enrichErr);
     }
