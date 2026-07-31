@@ -69,7 +69,7 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
             {label}
           </span>
           {stop.openStatus === 'open' && (
-            <span className="ml-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+            <span className="ml-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-success bg-success-soft border border-success/30 px-2 py-0.5 rounded-md">
               영업 확인
             </span>
           )}
