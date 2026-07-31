@@ -46,6 +46,36 @@ describe('parseRestDate', () => {
   it('[회귀] 쉼표로 묶인 복수 요일 축약형을 처리', () => {
     expect(parseRestDate('매주 월,화요일 휴무')).toEqual([1, 2]);
   });
+
+  it('[회귀] 쉼표+공백/가운뎃점/슬래시로 묶인 축약 선행 요일을 놓치지 않는다', () => {
+    expect(parseRestDate('토, 일요일 휴무')).toEqual([0, 6]);
+    expect(parseRestDate('토·일요일 휴무')).toEqual([0, 6]);
+    expect(parseRestDate('토/일요일 휴무')).toEqual([0, 6]);
+  });
+
+  it('[회귀] 요일 범위 표기는 사이 요일까지 확장한다', () => {
+    expect(parseRestDate('금~일요일 휴무')).toEqual([0, 5, 6]);
+    expect(parseRestDate('금요일 ~ 일요일 휴무')).toEqual([0, 5, 6]);
+    expect(parseRestDate('매주 수요일-목요일 휴관')).toEqual([3, 4]);
+    expect(parseRestDate('토~일요일 휴무')).toEqual([0, 6]);
+  });
+
+  it('요일 접미사가 전혀 없으면 여전히 null (보수적 판정)', () => {
+    expect(parseRestDate('토,일 휴무')).toBeNull();
+    expect(parseRestDate('토·일 휴무')).toBeNull();
+    expect(parseRestDate('토 휴무')).toBeNull();
+  });
+
+  it('다른 단어의 일부인 요일 문자가 섞이면 전체를 판정 불가로 (거짓 휴무 방지)', () => {
+    // "공휴일"의 '일'이 구분자로 이어져 일요일로 오독되면 안 된다
+    expect(parseRestDate('공휴일, 월요일 휴무')).toBeNull();
+    // 단독으로 등장하는 '일'(공휴일)은 무시하고 명확한 요일만 추출
+    expect(parseRestDate('매주 월요일 휴무, 공휴일 정상운영')).toEqual([1]);
+  });
+
+  it('7일 전체가 휴무로 나오면 판정 불가 (운영일 표기 오독 방지)', () => {
+    expect(parseRestDate('월~일요일')).toBeNull();
+  });
 });
 
 describe('visitDayToIndex', () => {
@@ -61,11 +91,11 @@ const CLEAR: WeekendWeather = {
   recommendation: '둘 다 좋아요',
 };
 
-function spot(id: string, closedWeekdays: number[] | null | undefined): ScoredSpot {
+function spot(id: string, closedWeekdays: number[] | null | undefined, overview?: string): ScoredSpot {
   return {
     contentId: id, contentTypeId: 12, title: `장소${id}`, addr1: '서울',
     cat1: 'A01', cat2: 'A0101', cat3: '', latitude: 37.5, longitude: 127.0,
-    distanceKm: 5, score: 0, closedWeekdays,
+    distanceKm: 5, score: 0, closedWeekdays, overview,
   };
 }
 
@@ -135,5 +165,48 @@ describe('replaceClosedStops', () => {
     const ranked = [spot('1', [0]), spot('9', [])];
     const result = replaceClosedStops(stops, ranked, 'sun');
     expect(result.replaced).toBe(0);
+  });
+
+  it('[회귀] 교체된 stop은 옛 장소의 설명·후크·이유·팁을 물려받지 않는다', () => {
+    const old: CourseStop = {
+      ...stop('1', 1),
+      description: '옛 장소의 근사한 설명',
+      hook: '옛 후크',
+      whyNow: '지금 옛 장소에 가야 하는 이유',
+      tip: '옛 장소 주차 팁',
+      facilities: { parking: true },
+      images: ['https://example.com/old.jpg'],
+    };
+    const ranked = [spot('1', [0]), spot('9', [])];
+    const result = replaceClosedStops([old], ranked, 'sun');
+
+    expect(result.replaced).toBe(1);
+    const next = result.stops[0];
+    expect(next.contentId).toBe('9');
+    expect(next.description).not.toBe('옛 장소의 근사한 설명');
+    expect(next.description).toBe('장소9');   // overview 없으면 새 장소 이름으로
+    expect(next.hook).toBeUndefined();
+    expect(next.whyNow).toBeUndefined();
+    expect(next.tip).toBe('');
+    expect(next.facilities).toBeUndefined();
+    expect(next.images).toBeUndefined();
+    expect(next.order).toBe(1);               // 시간표 골격은 유지
+    expect(next.timeStart).toBe('10:00');
+  });
+
+  it('[회귀] 교체 후보에 overview가 있으면 새 장소의 설명을 쓴다', () => {
+    const old: CourseStop = { ...stop('1', 1), description: '옛 장소의 설명' };
+    const ranked = [spot('1', [0]), spot('9', [], '새 장소의 소개 문구')];
+    const result = replaceClosedStops([old], ranked, 'sun');
+    expect(result.stops[0].description).toBe('새 장소의 소개 문구');
+  });
+
+  it('교체되지 않은 stop의 카피는 그대로 유지된다', () => {
+    const kept: CourseStop = { ...stop('1', 1), hook: '유지되는 후크', whyNow: '유지되는 이유' };
+    const ranked = [spot('1', [])];
+    const result = replaceClosedStops([kept], ranked, 'sun');
+    expect(result.replaced).toBe(0);
+    expect(result.stops[0].hook).toBe('유지되는 후크');
+    expect(result.stops[0].whyNow).toBe('유지되는 이유');
   });
 });
