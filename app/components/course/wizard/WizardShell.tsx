@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { RotateCcw, X, History } from 'lucide-react';
 import type {
   Duration, Companion, Preference, Feeling,
-  DestinationType, MoodType, CityOption,
+  DestinationType, MoodType, CityOption, VisitDay,
 } from '@/lib/weekend-types';
 import type { SajuResult } from '@/lib/saju';
 import { useCourseGeneration } from '@/lib/use-course-generation';
@@ -33,6 +33,7 @@ export interface WizardState {
   userLocation: { lat: number; lng: number } | null;
   gpsLoading: boolean;
   saju: SajuResult | null;
+  visitDay: VisitDay | null;
 }
 
 export type WizardAction =
@@ -47,6 +48,7 @@ export type WizardAction =
   | { type: 'TOGGLE_PREFERENCE'; value: Preference }
   | { type: 'SET_USER_LOCATION'; value: { lat: number; lng: number } | null }
   | { type: 'SET_GPS_LOADING'; value: boolean }
+  | { type: 'SET_VISIT_DAY'; value: VisitDay }
   | { type: 'RESTORE_DRAFT'; value: Partial<WizardState> };
 
 const INITIAL: WizardState = {
@@ -61,6 +63,7 @@ const INITIAL: WizardState = {
   userLocation: null,
   gpsLoading: false,
   saju: null,
+  visitDay: 'sat',
 };
 
 function reducer(state: WizardState, action: WizardAction): WizardState {
@@ -76,7 +79,12 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
     case 'SET_MOOD': return { ...state, selectedMood: action.value };
     case 'SET_FEELING': return { ...state, feeling: action.value };
     case 'SET_SAJU': return { ...state, saju: action.value };
-    case 'SET_DURATION': return { ...state, duration: action.value };
+    case 'SET_DURATION': {
+      // 1박2일은 토·일 모두 방문하므로 요일 선택을 무의미하게 만든다 → 토요일로 고정
+      if (action.value === 'overnight') return { ...state, duration: action.value, visitDay: 'sat' };
+      return { ...state, duration: action.value };
+    }
+    case 'SET_VISIT_DAY': return { ...state, visitDay: action.value };
     case 'SET_COMPANION': return { ...state, companion: action.value };
     case 'TOGGLE_PREFERENCE': {
       const exists = state.preferences.includes(action.value);
@@ -101,7 +109,7 @@ interface DraftPayload {
 const STEP_META = [
   { title: '목적지', question: '어디로 떠나볼까요?', sub: '가고 싶은 스타일을 골라주세요.' },
   { title: '기분', question: '오늘 기분이 어때요?', sub: '기분에 맞는 코스를 AI가 맞춰드릴게요.' },
-  { title: '시간', question: '얼마나 놀 수 있어요?', sub: '시간 여유에 맞게 코스를 짜드릴게요.' },
+  { title: '일정', question: '언제, 얼마나 놀 수 있어요?', sub: '방문하는 날에 맞춰 문 여는 곳만 골라드려요.' },
   { title: '동반자', question: '누구랑 가요?', sub: '함께하는 사람에 따라 추천이 달라져요.' },
   { title: '취향', question: '뭐가 끌려요?', sub: '여러 개 골라도 좋아요.' },
 ];
@@ -146,6 +154,7 @@ export default function WizardShell() {
           duration: state.duration,
           companion: state.companion,
           preferences: state.preferences,
+          visitDay: state.visitDay,
         },
         savedAt: Date.now(),
       };
@@ -230,6 +239,7 @@ export default function WizardShell() {
         cityAreaCode: state.selectedCity?.areaCode != null ? String(state.selectedCity.areaCode) : undefined,
         mood: state.selectedMood,
         saju: state.saju ?? undefined,
+        visitDay: state.duration === 'overnight' ? undefined : state.visitDay ?? undefined,
       });
     }
   };
@@ -252,7 +262,9 @@ export default function WizardShell() {
       : state.destinationType === 'mood' ? MOOD_OPTIONS.find(m => m.type === state.selectedMood)?.label ?? null
       : null,
     feelingLabel,
-    durationLabel,
+    durationLabel && state.duration !== 'overnight' && state.visitDay
+      ? `${state.visitDay === 'sat' ? '토' : '일'} · ${durationLabel}`
+      : durationLabel,
     companionLabel,
     state.preferences.length > 0 ? `${state.preferences.length}개 선택` : null,
   ];

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { CourseResponse, Duration, Companion, Preference, Feeling, DestinationType } from './weekend-types';
+import type { CourseResponse, Duration, Companion, Preference, Feeling, DestinationType, VisitDay } from './weekend-types';
 import type { SajuResult } from './saju';
 
 export interface GenerateParams {
@@ -16,6 +16,7 @@ export interface GenerateParams {
   cityAreaCode?: string;
   mood?: string | null;
   saju?: SajuResult;
+  visitDay?: VisitDay;
 }
 
 const LOADING_MESSAGES = [
@@ -60,6 +61,7 @@ export function useCourseGeneration() {
           cityAreaCode: params.cityAreaCode,
           mood: params.mood,
           saju: params.saju,
+          visitDay: params.visitDay,
         }),
       });
       const data: CourseResponse = await res.json();
