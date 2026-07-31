@@ -341,6 +341,41 @@ export const PREFERENCE_CAT_MAP: Record<string, {
   photo:    { contentTypeIds: [12, 14],  cat1: ['A01', 'A02'] },
 };
 
+/**
+ * 여러 번의 목록 조회 결과(`Promise.allSettled`)를 **라운드로빈으로 교차 배치**하며 합친다.
+ *
+ * 타입별 결과를 그냥 이어붙이면 배열 앞부분이 첫 번째 타입으로만 채워진다.
+ * 뒤 단계에서 "상위 N개만" 처리하는 로직(예: `enrichWithFacilities`의 detailIntro 보강)이
+ * 있으면 나머지 타입은 통째로 누락된다. 교차 배치하면 **추가 API 호출 없이** 순서만 바꿔
+ * 타입별로 고르게 앞자리를 차지하게 만든다.
+ *
+ * - 실패한(rejected) 조회는 빈 목록으로 취급한다 (allSettled 내성 유지).
+ * - `getId` 기준 중복만 제거하며, 그 외에는 **어떤 항목도 버리지 않는다**.
+ */
+export function interleaveResults<T>(
+  results: PromiseSettledResult<T[]>[],
+  getId: (item: T) => string,
+): T[] {
+  const lists = results.map(r => (r.status === 'fulfilled' ? r.value : []));
+  const maxLength = lists.reduce((max, list) => Math.max(max, list.length), 0);
+
+  const merged: T[] = [];
+  const seenIds = new Set<string>();
+
+  for (let i = 0; i < maxLength; i++) {
+    for (const list of lists) {
+      const item = list[i];
+      if (!item) continue;
+      const id = getId(item);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      merged.push(item);
+    }
+  }
+
+  return merged;
+}
+
 /** YYYYMMDD 포맷 */
 export function formatDateYMD(date: Date): string {
   const y = date.getFullYear();

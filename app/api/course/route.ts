@@ -11,6 +11,7 @@ import {
   searchStay,
   formatDateYMD,
   getNextWeekend,
+  interleaveResults,
   type SpotItem,
   type FestivalItem,
   type StayItem,
@@ -201,6 +202,23 @@ function festivalItemToCandidate(item: FestivalItem): FestivalCandidate {
 
 // ─── 후보 수집 ───
 
+/**
+ * 타입별 조회 결과를 라운드로빈으로 합친다 (`interleaveResults`).
+ *
+ * 이유: `enrichWithFacilities(candidates, 20)`는 배열 앞 20개만 detailIntro를 조회한다.
+ * 타입별 결과를 이어붙이면 앞 20개가 전부 관광지(12)가 되어 문화시설(14)·음식점(39)·
+ * 레포츠(28)의 `restdate`를 한 번도 못 가져온다 → 배지가 전부 "운영시간 확인 필요".
+ * 교차 배치하면 **API 호출 수를 늘리지 않고** 타입별 상위 몇 개씩을 고루 보강한다.
+ * 항목은 버리지 않고 순서만 바뀌며, 이후 `scoreAndRankCandidates`가 점수순으로
+ * 재정렬하므로 순서 변경은 안전하다.
+ */
+const mergeByType = (
+  results: PromiseSettledResult<SpotItem[]>[],
+  lat: number,
+  lng: number,
+): ScoredSpot[] =>
+  interleaveResults(results, item => item.contentid).map(item => spotItemToScored(item, lat, lng));
+
 async function collectCandidatesNearby(
   lat: number,
   lng: number,
@@ -228,21 +246,7 @@ async function collectCandidatesNearby(
     )
   );
 
-  const spots: ScoredSpot[] = [];
-  const seenIds = new Set<string>();
-
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      for (const item of result.value) {
-        if (!seenIds.has(item.contentid)) {
-          seenIds.add(item.contentid);
-          spots.push(spotItemToScored(item, lat, lng));
-        }
-      }
-    }
-  }
-
-  return spots;
+  return mergeByType(results, lat, lng);
 }
 
 async function collectCandidatesByArea(
@@ -263,21 +267,7 @@ async function collectCandidatesByArea(
     )
   );
 
-  const spots: ScoredSpot[] = [];
-  const seenIds = new Set<string>();
-
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      for (const item of result.value) {
-        if (!seenIds.has(item.contentid)) {
-          seenIds.add(item.contentid);
-          spots.push(spotItemToScored(item, centerLat, centerLng));
-        }
-      }
-    }
-  }
-
-  return spots;
+  return mergeByType(results, centerLat, centerLng);
 }
 
 async function collectCandidatesByMood(
@@ -320,22 +310,13 @@ async function collectCandidatesByMood(
     })
   );
 
+  // 여기도 교차 배치한다. 이어붙이면 상위 20개가 핵심 장소 + 음식점으로만 차서
+  // 문화시설(14)·레포츠(28)의 restdate를 못 가져온다(= 배지 미표시).
+  // 목록 순서가 [핵심 → 음식점 → 문화 → 레포츠 → 보강]이므로 교차 후에도 핵심 장소가
+  // 각 라운드의 맨 앞에 오고, 어느 항목도 버려지지 않는다.
   const results = await Promise.allSettled([...primaryTasks, ...supportTasks, ...extraTasks]);
-  const spots: ScoredSpot[] = [];
-  const seenIds = new Set<string>();
 
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      for (const item of result.value) {
-        if (!seenIds.has(item.contentid)) {
-          seenIds.add(item.contentid);
-          spots.push(spotItemToScored(item, centerLat, centerLng));
-        }
-      }
-    }
-  }
-
-  return spots;
+  return mergeByType(results, centerLat, centerLng);
 }
 
 async function collectCandidates(
