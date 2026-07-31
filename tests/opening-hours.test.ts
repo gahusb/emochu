@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parseRestDate, visitDayToIndex } from '@/lib/opening-hours';
+import { parseRestDate, visitDayToIndex, replaceClosedStops } from '@/lib/opening-hours';
 import { scoreAndRankCandidates } from '@/lib/weekend-ai';
 import type { ScoredSpot } from '@/lib/weekend-ai';
 import type { WeekendWeather } from '@/lib/weekend-types';
+import type { CourseStop } from '@/lib/weekend-types';
 
 describe('parseRestDate', () => {
   it('연중무휴 계열은 빈 배열 (휴무 없음)', () => {
@@ -93,5 +94,46 @@ describe('휴무일 페널티', () => {
   it('휴무 spot도 후보 목록에서 제거되지는 않는다', () => {
     const ranked = scoreAndRankCandidates([spot('1', [0])], ['nature'], 'solo', 'half_day', CLEAR, undefined, 'sun');
     expect(ranked).toHaveLength(1);
+  });
+});
+
+function stop(contentId: string, order: number): CourseStop {
+  return {
+    order, contentId, title: `장소${contentId}`, timeStart: '10:00', durationMin: 60,
+    description: '설명', tip: '', latitude: 37.5, longitude: 127.0, isFestival: false,
+    contentTypeId: '12',
+  };
+}
+
+describe('replaceClosedStops', () => {
+  it('일요일 휴무 stop을 같은 역할의 영업 후보로 교체한다', () => {
+    const stops = [stop('1', 1)];
+    const ranked = [spot('1', [0]), spot('9', [])];
+    const result = replaceClosedStops(stops, ranked, 'sun');
+    expect(result.replaced).toBe(1);
+    expect(result.stops[0].contentId).toBe('9');
+    expect(result.stops[0].order).toBe(1);   // order는 유지
+  });
+
+  it('대체 후보가 없으면 원본을 유지한다 (코스 붕괴 방지)', () => {
+    const stops = [stop('1', 1)];
+    const ranked = [spot('1', [0])];
+    const result = replaceClosedStops(stops, ranked, 'sun');
+    expect(result.replaced).toBe(0);
+    expect(result.stops[0].contentId).toBe('1');
+  });
+
+  it('visitDay 미지정이면 아무것도 하지 않는다', () => {
+    const stops = [stop('1', 1)];
+    const ranked = [spot('1', [0]), spot('9', [])];
+    const result = replaceClosedStops(stops, ranked, undefined);
+    expect(result.replaced).toBe(0);
+  });
+
+  it('이미 코스에 있는 장소로는 교체하지 않는다', () => {
+    const stops = [stop('1', 1), stop('9', 2)];
+    const ranked = [spot('1', [0]), spot('9', [])];
+    const result = replaceClosedStops(stops, ranked, 'sun');
+    expect(result.replaced).toBe(0);
   });
 });

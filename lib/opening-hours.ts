@@ -1,4 +1,4 @@
-import type { VisitDay } from './weekend-types';
+import type { VisitDay, CourseStop } from './weekend-types';
 
 /** 요일 문자 → JS getDay() 인덱스 (0=일 … 6=토) */
 const WEEKDAY_INDEX: Record<string, number> = {
@@ -49,4 +49,62 @@ export function parseRestDate(raw: string | undefined): number[] | null {
 /** 방문일 → JS getDay() 인덱스 */
 export function visitDayToIndex(visitDay: VisitDay): number {
   return visitDay === 'sun' ? 0 : 6;
+}
+
+/** 교체 후보 판정에 필요한 최소 형태 (ScoredSpot 구조적 부분집합) */
+interface ReplacementCandidate {
+  contentId: string;
+  contentTypeId: number;
+  title: string;
+  latitude: number;
+  longitude: number;
+  firstImage?: string;
+  overview?: string;
+  closedWeekdays?: number[] | null;
+}
+
+/**
+ * 방문일에 휴무인 stop을 같은 contentTypeId의 영업 후보로 교체한다.
+ * 대체 후보가 없으면 원본을 유지한다 — 코스에서 제거하면 시간표가 붕괴하기 때문.
+ */
+export function replaceClosedStops<T extends ReplacementCandidate>(
+  stops: CourseStop[],
+  ranked: T[],
+  visitDay: VisitDay | undefined,
+): { stops: CourseStop[]; replaced: number } {
+  if (!visitDay) return { stops, replaced: 0 };
+
+  const dayIndex = visitDayToIndex(visitDay);
+  const isClosed = (closed: number[] | null | undefined) =>
+    closed != null && closed.includes(dayIndex);
+
+  const used = new Set(stops.map(s => s.contentId));
+  let replaced = 0;
+
+  const next = stops.map(stop => {
+    const current = ranked.find(c => c.contentId === stop.contentId);
+    if (!current || !isClosed(current.closedWeekdays)) return stop;
+
+    const alt = ranked.find(c =>
+      c.contentId !== stop.contentId &&
+      !used.has(c.contentId) &&
+      c.contentTypeId === current.contentTypeId &&
+      !isClosed(c.closedWeekdays)
+    );
+    if (!alt) return stop;
+
+    used.add(alt.contentId);
+    replaced++;
+    return {
+      ...stop,
+      contentId: alt.contentId,
+      title: alt.title,
+      latitude: alt.latitude,
+      longitude: alt.longitude,
+      imageUrl: alt.firstImage,
+      description: alt.overview?.slice(0, 100) ?? stop.description,
+    };
+  });
+
+  return { stops: next, replaced };
 }

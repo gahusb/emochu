@@ -30,6 +30,7 @@ import {
   type StayCandidate,
   type CourseGenerationInput,
 } from '@/lib/weekend-ai';
+import { replaceClosedStops } from '@/lib/opening-hours';
 import type {
   CourseRequest,
   CourseResponse,
@@ -561,6 +562,7 @@ export async function POST(request: NextRequest) {
       stays,
       weather,
       saju: req.saju,
+      visitDay: req.visitDay,
     };
 
     // A/B 코스 병렬 생성 (B는 20초 타임아웃, A는 50초 타임아웃으로 504 방지)
@@ -587,6 +589,19 @@ export async function POST(request: NextRequest) {
       courseAWithTimeout,
       courseBWithTimeout,
     ]);
+
+    // 4-0. 방문일 휴무 stop 교체 (AI가 프롬프트 지시를 어긴 경우의 최종 안전망)
+    if (req.visitDay) {
+      const fixedA = replaceClosedStops(course.stops, ranked, req.visitDay);
+      course.stops = fixedA.stops;
+      if (courseB) {
+        const fixedB = replaceClosedStops(courseB.stops, ranked, req.visitDay);
+        courseB.stops = fixedB.stops;
+      }
+      if (fixedA.replaced > 0) {
+        console.warn(`[이모추API] 휴무 stop 교체: ${fixedA.replaced}건 (visitDay=${req.visitDay})`);
+      }
+    }
 
     // 4. 이미지 URL 보강 + contentTypeId fallback (A/B 모두 적용)
     const enrichStops = (stops: CourseStop[]) => {
