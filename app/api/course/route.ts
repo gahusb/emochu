@@ -41,6 +41,7 @@ import type {
   DestinationType,
   MoodType,
   CourseSaju,
+  VisitDay,
 } from '@/lib/weekend-types';
 import { MOOD_OPTIONS, CITY_OPTIONS } from '@/lib/weekend-types';
 
@@ -92,6 +93,7 @@ const VALID_PREFERENCES: Preference[] = ['nature', 'food', 'culture', 'cafe', 'a
 const VALID_DESTINATION_TYPES: DestinationType[] = ['nearby', 'city', 'mood'];
 const VALID_MOODS: MoodType[] = ['mountain', 'sea', 'valley', 'urban', 'countryside'];
 const VALID_FEELINGS: Feeling[] = ['tired', 'excited', 'romantic', 'healing', 'adventurous', 'foodie'];
+const VALID_VISIT_DAYS: VisitDay[] = ['sat', 'sun'];
 
 function validateRequest(body: unknown): CourseRequest {
   const b = body as Record<string, unknown>;
@@ -136,6 +138,11 @@ function validateRequest(body: unknown): CourseRequest {
     throw new Error('기분 선택이 올바르지 않습니다.');
   }
 
+  const visitDay = b.visitDay as VisitDay | undefined;
+  if (visitDay && !VALID_VISIT_DAYS.includes(visitDay)) {
+    throw new Error('방문 요일 선택이 올바르지 않습니다.');
+  }
+
   let saju: CourseSaju | undefined;
   const rawSaju = b.saju as Record<string, unknown> | undefined;
   if (
@@ -155,7 +162,7 @@ function validateRequest(body: unknown): CourseRequest {
     };
   }
 
-  return { lat, lng, duration, companion, preferences, feeling, destinationType, cityAreaCode, mood, saju };
+  return { lat, lng, duration, companion, preferences, feeling, destinationType, cityAreaCode, mood, saju, visitDay };
 }
 
 // ─── TourAPI → ScoredSpot 변환 ───
@@ -529,6 +536,7 @@ export async function POST(request: NextRequest) {
       req.duration,
       weather,
       req.feeling,
+      req.visitDay,
     );
 
     // 3. AI 코스 생성

@@ -62,6 +62,7 @@ export interface WeekendWeather {
 // ─── 코스 생성 ───
 
 export type Duration = 'half_day' | 'full_day' | 'leisurely' | 'overnight';
+export type VisitDay = 'sat' | 'sun';
 export type Companion = 'solo' | 'couple' | 'family' | 'friends';
 export type Preference = 'nature' | 'food' | 'culture' | 'cafe' | 'activity' | 'photo';
 
@@ -179,6 +180,7 @@ export interface CourseRequest {
   cityAreaCode?: number;
   mood?: MoodType;
   saju?: CourseSaju;
+  visitDay?: VisitDay;   // 방문 요일. 미지정 시 토요일 기준(하위호환)
 }
 
 // ─── 편의시설 정보 ───

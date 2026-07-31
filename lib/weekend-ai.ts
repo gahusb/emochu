@@ -13,6 +13,7 @@ import type {
   Feeling,
   WeekendWeather,
   CourseSaju,
+  VisitDay,
 } from './weekend-types';
 
 // 개발 환경에서만 출력되는 디버그 로그 (프로덕션 로깅 노이즈·비용 방지)
@@ -335,10 +336,12 @@ function companionScore(spot: ScoredSpot, companion: Companion): number {
   return score;
 }
 
-function weatherScore(spot: ScoredSpot, weather: WeekendWeather): number {
+function weatherScore(spot: ScoredSpot, weather: WeekendWeather, visitDay?: VisitDay): number {
   const isOutdoor = ['A01', 'A03'].includes(spot.cat1);
   const isIndoor = ['A02', 'A05'].includes(spot.cat1);
-  const rainy = weather.saturday.pop > 50;
+  // visitDay 미지정 시 토요일 기준 (하위호환)
+  const day = visitDay === 'sun' ? weather.sunday : weather.saturday;
+  const rainy = day.pop > 50;
 
   if (rainy && isOutdoor) return 0.2;
   if (rainy && isIndoor) return 0.9;
@@ -396,13 +399,14 @@ export function scoreAndRankCandidates(
   duration: Duration,
   weather: WeekendWeather,
   feeling?: Feeling,
+  visitDay?: VisitDay,
 ): ScoredSpot[] {
   const month = new Date().getMonth() + 1;
 
   const scored = candidates.map(spot => {
     const pScore = preferenceScore(spot, preferences) * 35;
     const cScore = companionScore(spot, companion) * 20;
-    const wScore = weatherScore(spot, weather) * 15;
+    const wScore = weatherScore(spot, weather, visitDay) * 15;
     const dScore = distanceScore(spot.distanceKm, duration) * 20;
     const sBonus = seasonBonus(spot, month) * 10;
     const fBonus = facilityBonus(spot, companion);
