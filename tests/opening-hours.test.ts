@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parseRestDate, visitDayToIndex } from '@/lib/opening-hours';
+import { scoreAndRankCandidates } from '@/lib/weekend-ai';
+import type { ScoredSpot } from '@/lib/weekend-ai';
+import type { WeekendWeather } from '@/lib/weekend-types';
 
 describe('parseRestDate', () => {
   it('연중무휴 계열은 빈 배열 (휴무 없음)', () => {
@@ -48,5 +51,47 @@ describe('visitDayToIndex', () => {
   it('토=6, 일=0', () => {
     expect(visitDayToIndex('sat')).toBe(6);
     expect(visitDayToIndex('sun')).toBe(0);
+  });
+});
+
+const CLEAR: WeekendWeather = {
+  saturday: { date: '2026-08-01', sky: 'clear', precipitation: 'none', tempMin: 18, tempMax: 24, pop: 10, summary: '맑음' },
+  sunday:   { date: '2026-08-02', sky: 'clear', precipitation: 'none', tempMin: 18, tempMax: 24, pop: 10, summary: '맑음' },
+  recommendation: '둘 다 좋아요',
+};
+
+function spot(id: string, closedWeekdays: number[] | null | undefined): ScoredSpot {
+  return {
+    contentId: id, contentTypeId: 12, title: `장소${id}`, addr1: '서울',
+    cat1: 'A01', cat2: 'A0101', cat3: '', latitude: 37.5, longitude: 127.0,
+    distanceKm: 5, score: 0, closedWeekdays,
+  };
+}
+
+describe('휴무일 페널티', () => {
+  it('일요일 휴무 spot은 일요일 방문 시 점수가 크게 깎인다', () => {
+    const closedSun = spot('1', [0]);
+    const open = spot('2', []);
+    const ranked = scoreAndRankCandidates([closedSun, open], ['nature'], 'solo', 'half_day', CLEAR, undefined, 'sun');
+    const a = ranked.find(r => r.contentId === '1')!;
+    const b = ranked.find(r => r.contentId === '2')!;
+    expect(a.score).toBeLessThan(0);
+    expect(b.score).toBeGreaterThan(a.score);
+  });
+
+  it('일요일 휴무 spot도 토요일 방문이면 감점 없다', () => {
+    const ranked = scoreAndRankCandidates([spot('1', [0])], ['nature'], 'solo', 'half_day', CLEAR, undefined, 'sat');
+    expect(ranked[0].score).toBeGreaterThan(0);
+  });
+
+  it('판정 불가(null)는 감점하지 않는다', () => {
+    const unknown = scoreAndRankCandidates([spot('1', null)], ['nature'], 'solo', 'half_day', CLEAR, undefined, 'sun');
+    const known = scoreAndRankCandidates([spot('2', [])], ['nature'], 'solo', 'half_day', CLEAR, undefined, 'sun');
+    expect(unknown[0].score).toBe(known[0].score);
+  });
+
+  it('휴무 spot도 후보 목록에서 제거되지는 않는다', () => {
+    const ranked = scoreAndRankCandidates([spot('1', [0])], ['nature'], 'solo', 'half_day', CLEAR, undefined, 'sun');
+    expect(ranked).toHaveLength(1);
   });
 });

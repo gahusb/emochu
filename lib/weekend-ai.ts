@@ -15,6 +15,7 @@ import type {
   CourseSaju,
   VisitDay,
 } from './weekend-types';
+import { parseRestDate, visitDayToIndex } from './opening-hours';
 
 // 개발 환경에서만 출력되는 디버그 로그 (프로덕션 로깅 노이즈·비용 방지)
 const debugLog = (...args: unknown[]) => {
@@ -47,6 +48,8 @@ export interface ScoredSpot {
   score: number;
   facilities?: CompanionFacilities;   // detailIntro에서 조회한 편의시설 정보
   usetime?: string;                   // 운영시간 (detailIntro에서 조회)
+  restdate?: string;                  // 쉬는날 원문 (detailIntro)
+  closedWeekdays?: number[] | null;   // 파싱된 휴무 요일. null=판정 불가
 }
 
 export interface FestivalCandidate {
@@ -392,6 +395,16 @@ const ROLE_SLOTS: Record<Duration, Record<SpotRole, number>> = {
   overnight: { attraction: 5, restaurant: 4, cafe: 3, activity: 3, culture: 3 },
 };
 
+/** 방문일 휴무 페널티. 최대 획득 가능 점수(약 134)를 단독으로 상회해 사실상 배제한다. */
+const CLOSED_PENALTY = -200;
+
+function closedPenalty(spot: ScoredSpot, visitDay?: VisitDay): number {
+  if (!visitDay) return 0;                       // 방문일 미지정 → 판정 불가
+  const closed = spot.closedWeekdays;
+  if (closed == null) return 0;                  // null = 판정 불가 → 감점 없음
+  return closed.includes(visitDayToIndex(visitDay)) ? CLOSED_PENALTY : 0;
+}
+
 export function scoreAndRankCandidates(
   candidates: ScoredSpot[],
   preferences: Preference[],
@@ -411,8 +424,9 @@ export function scoreAndRankCandidates(
     const sBonus = seasonBonus(spot, month) * 10;
     const fBonus = facilityBonus(spot, companion);
     const feelBonus = feelingScore(spot, feeling);
+    const closed = closedPenalty(spot, visitDay);
 
-    return { ...spot, score: pScore + cScore + wScore + dScore + sBonus + fBonus + feelBonus };
+    return { ...spot, score: pScore + cScore + wScore + dScore + sBonus + fBonus + feelBonus + closed };
   });
 
   return diversifyByRole(scored, duration, feeling);
@@ -736,6 +750,22 @@ export async function enrichWithFacilities(
           .replace(/&nbsp;/g, ' ')
           .trim()
           .slice(0, 120); // 프롬프트 토큰 절약
+      }
+
+      // 쉬는날 추출 + 요일 파싱 (contentTypeId별 필드명이 다름)
+      const rawRest = intro.restdate ?? intro.restdatefood ?? intro.restdateculture ?? '';
+      if (rawRest.trim()) {
+        const cleaned = rawRest
+          .replace(/<br\s*\/?>/gi, ', ')
+          .replace(/<[^>]*>/g, '')
+          .replace(/&amp;/g, '&')
+          .replace(/&nbsp;/g, ' ')
+          .trim()
+          .slice(0, 120);
+        targets[i].restdate = cleaned;
+        targets[i].closedWeekdays = parseRestDate(cleaned);
+      } else {
+        targets[i].closedWeekdays = null;   // 정보 없음 = 판정 불가
       }
     }
   }
