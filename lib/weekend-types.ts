@@ -213,6 +213,8 @@ export interface CourseStop {
   facilities?: FacilityInfo;
   transitInfo?: string;         // "차로 15분 (4.2km)"
   contentTypeId?: string;  // Phase 2: "12"|"14"|"15"|"28"|"32"|"39" — optional (기존 저장 코스 하위호환)
+  openStatus?: 'open' | 'unknown';   // 방문일 영업 확인 여부
+  restdate?: string;                 // 쉬는날 원문 (툴팁·보조 표시용)
 }
 
 export type CourseDifficulty = 'easy' | 'moderate' | 'active';

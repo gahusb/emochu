@@ -35,7 +35,9 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
       <button
         type="button"
         onClick={() => { if (isActive) router.push(`/spot/${stop.contentId}`); else onActivate(); }}
-        aria-label={`${stop.order}번째 코스: ${stop.title}, ${timeRange}, ${label}${isActive ? '. 다시 눌러 상세 보기' : ''}`}
+        aria-label={`${stop.order}번째 코스: ${stop.title}, ${timeRange}, ${label}${
+          stop.openStatus === 'open' ? ', 방문일 영업 확인됨' : stop.openStatus === 'unknown' ? ', 운영시간 확인 필요' : ''
+        }${isActive ? '. 다시 눌러 상세 보기' : ''}`}
         className={`flex-1 text-left bg-surface-elevated rounded-lg border overflow-hidden mb-4 transition-all hover:border-ink-4 ${
           isActive ? 'border-brand ring-2 ring-brand/20' : 'border-line'
         }`}
@@ -66,6 +68,19 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
           >
             {label}
           </span>
+          {stop.openStatus === 'open' && (
+            <span className="ml-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+              영업 확인
+            </span>
+          )}
+          {stop.openStatus === 'unknown' && (
+            <span
+              className="ml-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-ink-3 bg-surface-sunken border border-line px-2 py-0.5 rounded-md"
+              title={stop.restdate ? `쉬는날: ${stop.restdate}` : undefined}
+            >
+              운영시간 확인 필요
+            </span>
+          )}
           <h3 className="text-base font-semibold text-ink-1">{stop.title}</h3>
           <p className="text-xs text-ink-3">{timeRange} · {stop.durationMin}분</p>
           {stop.whyNow && (

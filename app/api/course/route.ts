@@ -30,7 +30,7 @@ import {
   type StayCandidate,
   type CourseGenerationInput,
 } from '@/lib/weekend-ai';
-import { replaceClosedStops } from '@/lib/opening-hours';
+import { replaceClosedStops, visitDayToIndex } from '@/lib/opening-hours';
 import type {
   CourseRequest,
   CourseResponse,
@@ -613,6 +613,18 @@ export async function POST(request: NextRequest) {
         if (!stop.contentTypeId && stop.contentId) {
           const candidate = candidates.find(c => c.contentId === stop.contentId);
           if (candidate?.contentTypeId) stop.contentTypeId = String(candidate.contentTypeId);
+        }
+        const cand = candidates.find(c => c.contentId === stop.contentId);
+        if (cand) {
+          if (cand.restdate) stop.restdate = cand.restdate;
+          if (req.visitDay) {
+            // 판정 불가(null/undefined)거나, 교체에 실패해 휴무인 채로 남은 stop → 'unknown'
+            // 방문일에 영업이 확인된 경우만 'open'
+            stop.openStatus =
+              cand.closedWeekdays != null && !cand.closedWeekdays.includes(visitDayToIndex(req.visitDay))
+                ? 'open'
+                : 'unknown';
+          }
         }
       }
     };
