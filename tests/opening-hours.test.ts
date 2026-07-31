@@ -33,6 +33,15 @@ describe('parseRestDate', () => {
   it('중복 요일은 한 번만', () => {
     expect(parseRestDate('월요일 휴무, 매주 월요일 정기휴무')).toEqual([1]);
   });
+
+  it('[회귀] 무휴 표현이 섞여 있어도 명확한 요일 정보를 추출', () => {
+    expect(parseRestDate('매주 월요일 휴무(공휴일 무휴)')).toEqual([1]);
+    expect(parseRestDate('매주 월요일 휴무, 공휴일 무휴')).toEqual([1]);
+  });
+
+  it('[회귀] 쉼표로 묶인 복수 요일 축약형을 처리', () => {
+    expect(parseRestDate('매주 월,화요일 휴무')).toEqual([1, 2]);
+  });
 });
 
 describe('visitDayToIndex', () => {

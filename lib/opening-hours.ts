@@ -20,18 +20,30 @@ export function parseRestDate(raw: string | undefined): number[] | null {
   const text = raw.replace(/\s+/g, ' ').trim();
   if (!text) return null;
 
-  if (NO_REST_PATTERN.test(text)) return [];
-
-  // "X요일" 형태만 신뢰한다. "토,일"처럼 요일 글자가 단독으로 쓰인 경우는
-  // 날짜·기타 표현과 구분이 어려워 판정 불가로 둔다(안전 측).
-  const matches = text.matchAll(/([월화수목금토일])요일/g);
+  // "X요일" 형태(단일 또는 쉼표 구분)를 먼저 추출한다.
+  // 패턴: "월요일" 또는 "월,화요일" 등 — "요일" 접미사가 필수.
+  // "토,일"처럼 "요일"이 없으면 안전상 배제(판정 불가).
+  const pattern = /([월화수목금토일](?:,[월화수목금토일])*)요일/g;
   const days = new Set<number>();
-  for (const m of matches) {
-    days.add(WEEKDAY_INDEX[m[1]]);
+  for (const match of text.matchAll(pattern)) {
+    const group = match[1];
+    // 각 문자를 순회하며 요일 추출 (쉼표 무시)
+    for (const char of group) {
+      if (char in WEEKDAY_INDEX) {
+        days.add(WEEKDAY_INDEX[char]);
+      }
+    }
   }
 
-  if (days.size === 0) return null;
-  return [...days].sort((a, b) => a - b);
+  // 요일 정보를 찾으면 즉시 반환 (다른 "무휴" 표현이 있어도 무시)
+  if (days.size > 0) {
+    return [...days].sort((a, b) => a - b);
+  }
+
+  // 요일 정보가 없으면 "연중무휴" 등의 표현 확인
+  if (NO_REST_PATTERN.test(text)) return [];
+
+  return null;
 }
 
 /** 방문일 → JS getDay() 인덱스 */
