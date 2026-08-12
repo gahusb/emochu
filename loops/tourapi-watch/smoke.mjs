@@ -29,6 +29,9 @@ function loadKey() {
   }
   if (process.env.TOUR_API_KEY) return process.env.TOUR_API_KEY;
   console.error('TOUR_API_KEY 를 찾을 수 없습니다 (.env.local / .env / 환경변수).');
+  // 여기는 process.exit() 를 그대로 쓴다. 아직 fetch 를 한 번도 하지 않았으므로
+  // 정리 중인 undici 핸들이 없고, 파일 끝의 주의사항(libuv assertion)이 적용되지 않는다.
+  // 키가 없으면 아무것도 할 수 없으니 즉시 끊는 편이 낫다.
   process.exit(2);
 }
 const KEY = loadKey();
@@ -180,18 +183,26 @@ md += ck(true, '리포트에 인증키 문자열 없음 (mask 적용)');
 // 🔴 **파일을 쓰기 전에** 검사한다. 쓰고 나서 검사하면, 이미 인증키가 담긴 파일이
 // 디스크에 남은 뒤에 exit 3 을 내는 셈이라 안전망 노릇을 못 한다.
 // 검사 대상도 원문뿐 아니라 인코딩·디코딩 변형 전부다(KEY_VARIANTS).
+// 🔴 여기부터는 process.exit() 를 쓰지 않고 exitCode 설정 + 분기로 흐름을 끝낸다.
+// 위에서 11개 오퍼레이션을 fetch 한 직후라, undici 가 만든 핸들이 아직 정리 중이다.
+// 그 상태에서 process.exit() 로 강제 종료하면 Windows + Node 24 에서 libuv 가 죽는다:
+// "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" → 종료 코드가 127 이 된다.
+// 그러면 아래 exit 3(키 유출)·1(FAIL)·0(정상)이 전부 127 로 뭉개져 **구분이 사라진다.**
+// 특히 3 은 유출 경보라, 그게 다른 실패와 같은 값이 되면 안전망이 안전망이 아니게 된다.
+// (2026-08-13 submission-check 에서 실제로 터진 문제. 거긴 fetch 가 1회뿐인데도 매번 터졌다.)
 const leaked = KEY_VARIANTS.filter((v) => md.includes(v));
 if (leaked.length) {
   console.error(`FATAL: 리포트에 인증키가 남아 있습니다 (변형 ${leaked.length}종 일치). 파일을 쓰지 않고 중단합니다.`);
-  process.exit(3);
+  // exitCode 만 세우고 else 로 빠진다 — 파일 쓰기를 건너뛰는 것이 이 분기의 목적이다.
+  process.exitCode = 3;
+} else {
+  if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
+  const outPath = resolve(OUT_DIR, `api-health-${stamp}.md`);
+  writeFileSync(outPath, md, 'utf8');
+
+  console.log(`PASS=${pass} WARN=${warn} FAIL=${fail}`);
+  if (depBad.length) console.log(`DEPRECATED-ALERT: ${depBad.map((r) => r.op).join(',')}`);
+  console.log(`report: ${outPath.replace(REPO, '.')}`);
+
+  process.exitCode = fail > 0 ? 1 : 0;
 }
-
-if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
-const outPath = resolve(OUT_DIR, `api-health-${stamp}.md`);
-writeFileSync(outPath, md, 'utf8');
-
-console.log(`PASS=${pass} WARN=${warn} FAIL=${fail}`);
-if (depBad.length) console.log(`DEPRECATED-ALERT: ${depBad.map((r) => r.op).join(',')}`);
-console.log(`report: ${outPath.replace(REPO, '.')}`);
-
-process.exit(fail > 0 ? 1 : 0);

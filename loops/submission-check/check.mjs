@@ -282,4 +282,13 @@ writeFileSync(outPath, md, 'utf8');
 console.log(`${done}/${results.length} 충족 · D-${daysLeft}`);
 for (const t of todo) console.log(`  TODO ${t.id}: ${t.detail}`);
 console.log(`report: ${outPath.replace(REPO, '.')}`);
-process.exit(todo.length === 0 ? 0 : 1);
+
+// 🔴 process.exit() 를 쓰지 않는다. checkServiceUrl 이 fetch 를 하고 나면 undici 가
+// 만든 핸들이 아직 정리 중인데, 그 상태에서 강제 종료하면 Windows + Node 24 에서
+// libuv 가 죽는다: "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)".
+// 그러면 종료 코드가 0/1 이 아니라 127 이 되어, exit code 로 판정하는 Loop 가
+// "미충족 1건"과 "스크립트 붕괴"를 구분하지 못한다.
+// (2026-08-13 실측: serviceUrl 이 비어 fetch 를 건너뛸 땐 안 터지고, 채우자마자 매번 터졌다.
+//  응답 body 를 소비해도 소용없었다 — 원인은 body 가 아니라 process.exit() 자체다.)
+// exitCode 만 설정하고 이벤트 루프가 스스로 비도록 둔다(실측 종료까지 ~300ms).
+process.exitCode = todo.length === 0 ? 0 : 1;

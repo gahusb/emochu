@@ -42,12 +42,20 @@ You are a verifier for one of this repo's Loops.
 | **C4** | `PROGRESS.md` 의 `Last Run` 이 **이번 실행으로 갱신**됐고, 손 실행 횟수(N/5)가 올라갔다 |
 
 ```bash
-grep -rnE "serviceKey=[^<]" loops/*/outputs/ loops/*/PROGRESS.md
+grep -rnE "serviceKey=[A-Za-z0-9%+/=_-]{20,}" loops/*/outputs/ loops/*/PROGRESS.md
 grep -rniE "(api[_-]?key|secret|token)[\"']?\s*[=:]\s*[\"']?[A-Za-z0-9_+/%=-]{16,}" loops/*/outputs/ loops/*/PROGRESS.md
 ```
 
-> 🔴 **검사 대상을 `loops/` 전체로 넓히지 마라.** `gate.mjs` 의 마스킹 정규식(`/serviceKey=[^&\s"']+/`)과 `smoke.mjs` 의 키 처리 코드가 그대로 걸려, **매번 유출로 오판**한다. 검사할 것은 **스크립트가 만들어낸 산출물**이지 스크립트 자신이 아니다.
-> `serviceKey=<KEY>`·`serviceKey=<REDACTED>` 는 마스킹이 정상 작동한 흔적이므로 위 패턴(`[^<]`)이 일부러 제외한다.
+이 패턴은 **두 종류의 오탐**을 일부러 피한다. 둘 다 실제로 밟은 것이다.
+
+| 걸리면 안 되는 것 | 왜 안 걸리나 |
+|---|---|
+| `gate.mjs` 의 마스킹 정규식·`smoke.mjs` 의 키 처리 코드 | 검사 대상이 `outputs/` 와 `PROGRESS.md` 뿐이다 — **스크립트 자신은 보지 않는다** |
+| `serviceKey=<KEY>` · `serviceKey=<REDACTED>` | `<` 가 문자 클래스에 없다. 마스킹이 정상 작동한 흔적이다 |
+| 문서에 인용된 패턴 자체 (`serviceKey=[^&\s"']+`, `grep -r "serviceKey=" …`) | `[` 와 `"` 가 클래스에 없다 |
+
+> 🔴 **검사 대상을 `loops/` 전체로 넓히지 마라.** 스크립트 소스가 걸려 매번 유출로 오판한다.
+> 🔴 **패턴을 `serviceKey=[^<]` 처럼 느슨하게 되돌리지 마라.** 그러면 이 문서와 `PROGRESS.md` 에 **적힌 설명 문장 자체**가 걸린다 — 비밀 스캔의 패턴을 문서에 인용하는 순간 스캔이 그 문서를 잡는 자기 참조가 생긴다. 실제 키는 20자 이상의 URL-safe 문자열이므로 길이로 가른다.
 
 ## Loop 별 추가 검사
 

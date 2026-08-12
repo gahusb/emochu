@@ -2,7 +2,7 @@
   "_doc": "1차 심사자료 제출 항목. 사람이 손으로 편집한다. kind:manual 만 아래 done 값을 그대로 읽는다.",
   "_doc_auto": "kind:auto 항목에는 done 을 쓰지 않는다 — check.mjs 가 매번 기계 검사로 판정하므로 여기 적은 값은 읽히지 않는다. 손으로 done 을 넣어도 리포트는 바뀌지 않는다.",
   "deadline": "2026-09-21T16:00:00+09:00",
-  "serviceUrl": "",
+  "serviceUrl": "https://emochu.vercel.app",
   "items": [
     { "id": "team-info",      "kind": "manual", "label": "팀 정보 — 팀명(변경불가)·최종 팀원 확정 입력", "done": false, "note": "팀원 전원 사전 회원가입 필요" },
     { "id": "service-info",   "kind": "manual", "label": "서비스 정보 — 서비스명·개요·유형(웹)·지역특화 유무", "done": false, "note": "이모추는 전국 단위 → 지역특화 '무'" },
