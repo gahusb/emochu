@@ -106,23 +106,25 @@ Create `.claude/hooks/lint-changed.mjs`:
 // 에러에만 발화한다(경고는 통과) — `npm run lint` 와 같은 기준
 // 🔴 --fix 를 쓰지 않는다: 마감 전에 코드를 자동 변형시키지 않는다. 보고만 한다.
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 // stdin 을 끝까지 읽는다. 비었거나 JSON 이 아니면 조용히 통과한다.
-async function readStdin() {
-  const chunks = [];
-  for await (const c of process.stdin) chunks.push(c);
-  return Buffer.concat(chunks).toString('utf8');
+function readFilePathFromStdin() {
+  let raw;
+  try {
+    raw = readFileSync(0, 'utf8');        // fd 0 = stdin. 훅은 파이프로 받으므로 즉시 EOF
+  } catch {
+    return undefined;
+  }
+  if (!raw || !raw.trim()) return undefined;
+  try {
+    return JSON.parse(raw)?.tool_input?.file_path;
+  } catch {
+    return undefined;                      // 예기치 못한 입력에 죽지 않는다
+  }
 }
 
-let file;
-try {
-  const raw = (await readStdin()).trim();
-  if (!raw) process.exit(0);
-  file = JSON.parse(raw)?.tool_input?.file_path;
-} catch {
-  process.exit(0);   // 예기치 못한 입력에 죽지 않는다
-}
+const file = readFilePathFromStdin();
 
 // 대상이 아니면 조용히 통과
 if (!file || !existsSync(file)) process.exit(0);
