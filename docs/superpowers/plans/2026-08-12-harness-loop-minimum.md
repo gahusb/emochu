@@ -96,22 +96,40 @@ Run: `cat .claude/settings.json`
 
 Create `.claude/hooks/lint-changed.mjs`:
 
+> 🔴 **2026-08-12 정정 — 이 계획서의 초판 코드가 틀렸었다.** `process.env.CLAUDE_FILE_PATH`를 읽게 써놨으나 **그런 환경변수는 존재하지 않는다.** PostToolUse 훅은 **stdin으로 JSON**을 받고 경로는 `tool_input.file_path`에 있다(공식 문서 *"For command hooks, input arrives on stdin."*). 초판대로 두면 첫 가드에서 항상 빠져나가 **영구 무동작**이 된다. 아래가 수정본이다.
+
 ```javascript
 #!/usr/bin/env node
 // PostToolUse(Edit|Write) 훅 — 방금 수정된 파일만 lint 한다.
 // 좋은 Hook은 성공할 때 조용하고, 실패할 때만 크게 말한다.
+// 입력은 stdin JSON: { tool_input: { file_path } }  ← 환경변수가 아니다
+// 에러에만 발화한다(경고는 통과) — `npm run lint` 와 같은 기준
 // 🔴 --fix 를 쓰지 않는다: 마감 전에 코드를 자동 변형시키지 않는다. 보고만 한다.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 
-const file = process.env.CLAUDE_FILE_PATH;
+// stdin 을 끝까지 읽는다. 비었거나 JSON 이 아니면 조용히 통과한다.
+async function readStdin() {
+  const chunks = [];
+  for await (const c of process.stdin) chunks.push(c);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+let file;
+try {
+  const raw = (await readStdin()).trim();
+  if (!raw) process.exit(0);
+  file = JSON.parse(raw)?.tool_input?.file_path;
+} catch {
+  process.exit(0);   // 예기치 못한 입력에 죽지 않는다
+}
 
 // 대상이 아니면 조용히 통과
 if (!file || !existsSync(file)) process.exit(0);
 if (!/\.(ts|tsx|mjs|js|jsx)$/.test(file)) process.exit(0);
 if (/[\\/](node_modules|\.next|loops[\\/][^\\/]+[\\/]outputs)[\\/]/.test(file)) process.exit(0);
 
-const res = spawnSync('npx', ['eslint', '--max-warnings', '0', file], {
+const res = spawnSync('npx', ['eslint', file], {
   encoding: 'utf8',
   shell: process.platform === 'win32',
 });
@@ -122,8 +140,10 @@ if (res.status === 0) process.exit(0);   // 조용히
 console.error(`[lint-changed] ${file} 에 lint 문제가 있습니다.`);
 console.error((res.stdout || '').trim());
 if (res.stderr) console.error(res.stderr.trim());
-process.exit(2);   // PostToolUse: 비영점 종료 → 에이전트에게 전달
+process.exit(2);   // PostToolUse: exit 2 → stderr 가 에이전트에게 전달된다
 ```
+
+> ⚠️ **`--max-warnings 0`을 쓰지 않는다** (2026-08-12 결정). 이 저장소엔 **기존 경고 12건 / 7파일**이 있고 `npm run lint`는 그걸 허용해 exit 0이며, `eslint.config.mjs`가 `react-hooks/set-state-in-effect`를 *"Next SSR 환경에서 관용적 패턴"*이라며 **의도적으로 warn으로 낮춰** 뒀다. 훅이 그 결정을 뒤엎으면 **매 편집마다 발화**해 *"성공할 때 조용하다"*를 깨뜨린다.
 
 - [ ] **Step 3: Hook을 settings.json에 등록**
 
@@ -172,24 +192,38 @@ Modify `.claude/settings.json` — 기존 `permissions`는 그대로 두고 `hoo
 
 - [ ] **Step 4: 🔴 red 확인 — Hook이 실제로 발화하는가**
 
-일부러 lint 에러가 있는 임시 파일을 만들어 스크립트를 직접 돌린다:
+**실제 훅과 같은 방식(stdin JSON)으로** 돌린다. 환경변수로 테스트하면 실사용 경로를 검증하지 못한다.
 
 ```bash
-printf 'const x = 1\nexport function f() { return y }\n' > loops/_hooktest.mjs
-CLAUDE_FILE_PATH=loops/_hooktest.mjs node .claude/hooks/lint-changed.mjs; echo "exit=$?"
+printf 'export const broken = ;\n' > loops/_hooktest.mjs
+echo '{"hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{"file_path":"loops/_hooktest.mjs"}}' \
+  | node .claude/hooks/lint-changed.mjs; echo "exit=$?"
+rm -f loops/_hooktest.mjs
 ```
 
-Expected: **exit=2** + `[lint-changed] … lint 문제가 있습니다` 출력
+Expected: **exit=2** + `[lint-changed] … lint 문제가 있습니다` + `Parsing error: Expression expected`
 
-> 실측(2026-08-12): `eslint`가 `loops/*.mjs`를 검사하고 `'x' is assigned a value but never used` **warning**을 낸다. `--max-warnings 0` 때문에 **warning도 exit 1**이 되어 Hook이 exit 2로 발화한다. *경고를 0으로 막는 이 설정이 Gate를 실제로 실패시키는 장치다.*
+> **경고가 아니라 에러여야 발화한다.** 파스 에러는 eslint가 항상 error로 보고하므로 red 재료로 안전하다.
 
-- [ ] **Step 5: green 확인 — 정상 파일은 조용한가**
+- [ ] **Step 5: green 확인 — 경고가 있는 파일도 통과하는가**
 
 ```bash
-CLAUDE_FILE_PATH=loops/tourapi-watch/smoke.mjs node .claude/hooks/lint-changed.mjs; echo "exit=$?"
+echo '{"hook_event_name":"PostToolUse","tool_name":"Edit","tool_input":{"file_path":"loops/tourapi-watch/smoke.mjs"}}' \
+  | node .claude/hooks/lint-changed.mjs; echo "exit=$?"
 ```
 
-Expected: **exit=0**, 출력 없음
+Expected: **exit=0**, 출력 없음 — `smoke.mjs:94`에 알려진 unused-`e` **경고가 있는데도** 통과해야 한다. 이게 *"경고는 통과"* 결정이 실제로 반영됐다는 증거다.
+
+- [ ] **Step 5b: 잘못된 입력에 죽지 않는가**
+
+```bash
+echo 'not json'            | node .claude/hooks/lint-changed.mjs; echo "exit=$?"
+printf ''                  | node .claude/hooks/lint-changed.mjs; echo "exit=$?"
+echo '{"tool_input":{}}'   | node .claude/hooks/lint-changed.mjs; echo "exit=$?"
+echo '{"tool_input":{"file_path":"CLAUDE.md"}}' | node .claude/hooks/lint-changed.mjs; echo "exit=$?"
+```
+
+Expected: **전부 exit=0, 출력 없음.** 훅이 예기치 못한 입력에 죽으면 모든 편집이 시끄러워진다.
 
 - [ ] **Step 6: 임시 파일 정리**
 

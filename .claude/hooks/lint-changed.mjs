@@ -7,10 +7,37 @@
 //  예: eslint.config.mjs가 react-hooks/set-state-in-effect를 Next SSR 관용구로 보고
 //  일부러 warn으로 낮춰둔 룰이 있다. --max-warnings 0을 쓰면 그 결정을 Hook이 뒤엎고
 //  해당 파일을 고칠 때마다 매번 시끄러워진다 — "성공 시 조용히"라는 원칙에 위배된다.)
+//
+// 입력 계약: PostToolUse 커맨드 훅은 대상 파일 경로를 환경변수로 받지 않는다.
+// Claude Code는 stdin으로 JSON을 흘려보낸다 — { tool_input: { file_path: "..." }, ... }.
+// (https://code.claude.com/docs/en/hooks.md — "For command hooks, input arrives on stdin.")
+// (2026-08-12 Fix round 2: 이전 버전은 존재하지 않는 CLAUDE_FILE_PATH 환경변수를 읽어
+//  항상 조용히 통과하는 죽은 코드였다. stdin JSON 파싱으로 교체한다.
+//  stdin이 비어있거나/JSON이 아니거나/file_path가 없으면 그냥 조용히 통과한다 —
+//  예상치 못한 입력에 죽는 Hook은 아무것도 안 하는 Hook보다 나쁘다.)
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
-const file = process.env.CLAUDE_FILE_PATH;
+function readFilePathFromStdin() {
+  let raw;
+  try {
+    raw = readFileSync(0, 'utf8');
+  } catch {
+    return undefined; // stdin 자체를 못 읽으면 조용히 포기
+  }
+  if (!raw || !raw.trim()) return undefined; // 빈 입력
+
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return undefined; // JSON이 아니면 조용히 포기
+  }
+
+  return payload?.tool_input?.file_path;
+}
+
+const file = readFilePathFromStdin();
 
 // 대상이 아니면 조용히 통과
 if (!file || !existsSync(file)) process.exit(0);
