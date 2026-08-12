@@ -31,40 +31,111 @@ function walk(dir, exts, acc = []) {
   return acc;
 }
 
+// 정규식 기반 근사치 주석 제거기(완전한 파서는 아님 — 문자열 안의 "/*"·"//" 같은
+// 드문 경계 케이스는 놓칠 수 있다). 목적은 "죽은 코드/주석에 적힌 문구가 검사를
+// 통과시키는" 실패 모드를 막는 것이지, 완벽한 TS 파싱이 아니다.
+function stripComments(src) {
+  let out = src.replace(/\/\*[\s\S]*?\*\//g, '');
+  out = out
+    .split('\n')
+    .map((line) => {
+      let inStr = null;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inStr) {
+          if (ch === '\\') { i++; continue; }
+          if (ch === inStr) inStr = null;
+          continue;
+        }
+        if (ch === '"' || ch === "'" || ch === '`') { inStr = ch; continue; }
+        if (ch === '/' && line[i + 1] === '/') return line.slice(0, i);
+      }
+      return line;
+    })
+    .join('\n');
+  return out;
+}
+
+// app/ 아래만 스캔한다. 최상위 components/ 는 이 저장소에 없다 —
+// 실제 컴포넌트는 app/components 아래에 있고 위 walk 이 이미 재귀적으로 포함한다.
 function grepUi(pattern) {
-  const files = walk(resolve(REPO, 'app'), ['.tsx', '.ts'])
-    .concat(walk(resolve(REPO, 'components'), ['.tsx', '.ts']));
+  const files = walk(resolve(REPO, 'app'), ['.tsx', '.ts']);
   for (const f of files) {
-    if (pattern.test(readFileSync(f, 'utf8'))) return f.replace(REPO, '.');
+    const stripped = stripComments(readFileSync(f, 'utf8'));
+    const m = pattern.exec(stripped);
+    if (m) {
+      const line = stripped.slice(0, m.index).split('\n').length;
+      return { file: f.replace(REPO, '.'), line };
+    }
   }
   return null;
 }
 
+const SERVICE_URL_TIMEOUT_MS = 10_000;
+
 async function checkServiceUrl(url) {
   if (!url) return { ok: false, detail: 'submission.json 의 serviceUrl 이 비어 있음' };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SERVICE_URL_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-    return { ok: res.status === 200, detail: `HTTP ${res.status}` };
+    const res = await fetch(url, { method: 'GET', cache: 'no-store', signal: controller.signal });
+    if (res.status === 200) return { ok: true, detail: `HTTP ${res.status}` };
+    return { ok: false, detail: `배포 응답 이상 — HTTP ${res.status} (200 아님)` };
   } catch (e) {
-    return { ok: false, detail: `요청 실패: ${String(e.message).slice(0, 80)}` };
+    const reason = e.name === 'AbortError'
+      ? `타임아웃 ${SERVICE_URL_TIMEOUT_MS / 1000}s`
+      : String(e.message).slice(0, 80);
+    return {
+      ok: false,
+      detail: `응답 없음(타임아웃/네트워크: ${reason}) — 배포 중단인지 일시 장애인지 사람이 확인`,
+    };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
+// 활용 API 목록의 "단일 소스" — 제출 서류에 적을 11개와 정확히 같아야 한다.
+// 개수만 비교하면 하나가 다른 걸로 바뀌어도(모양만 맞으면) 조용히 통과한다 — 그래서 이름 집합으로 비교한다.
+const EXPECTED_APIS = new Set([
+  'searchFestival2', 'locationBasedList2', 'areaBasedList2', 'searchKeyword2', 'searchStay2',
+  'detailCommon2', 'detailIntro2', 'detailInfo2', 'detailImage2', 'areaCode2', 'categoryCode2',
+]);
+
 function checkApiList() {
-  const src = readFileSync(resolve(REPO, 'lib', 'tour-api.ts'), 'utf8');
-  const ops = new Set((src.match(/'(?:area|category|location|search|detail)[A-Za-z0-9]*2'/g) || []));
-  return { ok: ops.size === 11, detail: `lib/tour-api.ts 에서 ${ops.size}개 검출 (기대 11)` };
+  const stripped = stripComments(readFileSync(resolve(REPO, 'lib', 'tour-api.ts'), 'utf8'));
+  const found = new Set(
+    (stripped.match(/'(?:area|category|location|search|detail)[A-Za-z0-9]*2'/g) || [])
+      .map((s) => s.slice(1, -1)),
+  );
+  const missing = [...EXPECTED_APIS].filter((n) => !found.has(n));
+  const extra = [...found].filter((n) => !EXPECTED_APIS.has(n));
+  const ok = missing.length === 0 && extra.length === 0;
+  const detail = ok
+    ? `lib/tour-api.ts — 11개 전부 일치(주석 제외)`
+    : `lib/tour-api.ts 불일치(주석 제외) — 누락: ${missing.length ? missing.join(', ') : '없음'} / 초과: ${extra.length ? extra.join(', ') : '없음'}`;
+  return { ok, detail };
 }
 
+// 출처 표기 허용 형태: ⓒ(U+24D2) / ©(U+00A9) / &copy; 모두 인정. 구분자·개행은 자유.
+// ⚠️ 이 검사는 "주석이 아닌 소스에 매칭 문자열이 존재한다"만 증명한다.
+// "실제로 화면에 렌더링된다"의 증거가 아니다 — 그건 사람이 페이지를 열어 봐야 안다.
+const ATTRIBUTION_STRICT = /출처\s*[:：]?\s*(?:ⓒ|©|&copy;)\s*한국관광(?:공사|콘텐츠랩)/;
+const ATTRIBUTION_LOOSE = /(?:ⓒ|©|&copy;)\s*한국관광/;
+
 function checkAttribution() {
-  const hit = grepUi(/출처\s*[:：]?\s*ⓒ\s*한국관광(공사|콘텐츠랩)/);
-  if (hit) return { ok: true, detail: `발견: ${hit}` };
-  const loose = grepUi(/ⓒ\s*한국관광/);
+  const hit = grepUi(ATTRIBUTION_STRICT);
+  if (hit) {
+    return {
+      ok: true,
+      detail: `발견: ${hit.file}:${hit.line} (주석 제외) — ⚠️ 문자열 존재만 확인함. 실제 렌더링 여부는 사람이 페이지를 열어 확인할 것`,
+    };
+  }
+  const loose = grepUi(ATTRIBUTION_LOOSE);
   return {
     ok: false,
     detail: loose
-      ? `느슨한 표기만 발견(${loose}) — "출처: ⓒ한국관광공사" 형식 필요`
-      : 'UI 에 출처 표기 없음 — 규정상 필수. "출처: ⓒ한국관광공사" 추가 필요',
+      ? `느슨한 표기만 발견(${loose.file}:${loose.line}) — "출처: ⓒ한국관광공사" 형식 필요`
+      : 'UI 에 출처 표기 없음(주석 제외) — 규정상 필수. "출처: ⓒ한국관광공사" 추가 필요',
   };
 }
 
