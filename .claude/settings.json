@@ -15,13 +15,13 @@
       "Bash(git log:*)"
     ],
     "ask": [
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [
       "Read(./.env.local)",
       "Read(./.env)",
       "Bash(rm -rf:*)",
-      "Bash(git push:*)",
       "Bash(npx vercel:*)"
     ]
   },

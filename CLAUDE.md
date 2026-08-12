@@ -155,4 +155,4 @@ docs/
 - `loops/release-green/` — test·lint·build 배포 가능 상태 (`node loops/release-green/gate.mjs`)
 - `loops/submission-check/` — 1차 제출 항목 9종 (`node loops/submission-check/check.mjs`)
 - 공통: 스크립트가 **검사 단일 경유점**. 권한 **사다리 1단계**(읽기+리포트). 소스 수정·commit·push 금지
-- ⚠️ **권한 정책 (2026-08-13)**: `.claude/settings.json` 에서 `git commit` 은 **deny 가 아니라 ask** 다. 예전엔 deny 라 레포의 **모든** 세션이 커밋을 못 했다(Loop 세션만이 아니다). Loop 의 커밋 금지는 이제 각 `LOOP_INSTRUCTIONS.md` 의 Safety Rules 가 지킨다 — 도구가 대신 막아주지 않는다. `git push` 는 여전히 **deny**(푸시하면 Vercel 배포가 트리거된다)
+- ⚠️ **권한 정책 (2026-08-13)**: `.claude/settings.json` 에서 `git commit`·`git push` 는 **deny 가 아니라 ask** 다. 예전엔 deny 라 레포의 **모든** 세션이 막혔다(Loop 세션만이 아니다). 이제 실행은 되지만 **매번 사람 승인**을 거친다 — 🔴 특히 `git push` 는 **Vercel 배포를 트리거**하므로 프롬프트를 습관적으로 넘기지 말 것. Loop 의 commit·push 금지는 각 `LOOP_INSTRUCTIONS.md` 의 Safety Rules 가 지킨다 — 도구가 대신 막아주지 않는다

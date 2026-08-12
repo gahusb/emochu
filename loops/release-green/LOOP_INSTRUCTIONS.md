@@ -29,7 +29,7 @@
 
 - 실패해도 **소스를 고치지 않는다.** 이 Loop는 진단만 한다
 - `outputs/` 와 `PROGRESS.md` 외에는 쓰지 않는다
-- 🔴 `git commit` / `git push` / 배포를 하지 않는다 — **2026-08-13 부터 `git commit` 은 `.claude/settings.json` 에서 차단(deny)이 아니라 확인(ask)이다.** 도구가 대신 막아주지 않으므로 이 규칙이 유일한 방어선이다
+- 🔴 `git commit` / `git push` / 배포를 하지 않는다 — **2026-08-13 부터 `git commit`·`git push` 는 `.claude/settings.json` 에서 차단(deny)이 아니라 확인(ask)이다.** 도구가 대신 막아주지 않으므로 이 규칙이 유일한 방어선이다. 승인 프롬프트가 떴다는 건 이미 규칙을 어긴 뒤다
 - 허용 여부가 애매하면 멈추고 물어본다
 
 ## Verification Checklist
