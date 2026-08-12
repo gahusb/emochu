@@ -354,6 +354,14 @@ console.log(`report: ${outPath.replace(REPO, '.')}`);
 process.exit(failed.length === 0 ? 0 : 1);
 ```
 
+> 🔴 **2026-08-12 구현 중 이 초안이 세 군데 부족한 것으로 판명됐다. 실제 정본은 `loops/release-green/gate.mjs`다.**
+>
+> 1. **판정은 4계층이어야 한다** — `GREEN`(전부 통과 + 테스트 ≥ 61) / `WARN`(전부 통과했으나 **테스트 개수 회귀**) / `RED`(검사 실패) / **`LEAK`**(리포트에 비밀값 잔존). **GREEN만 exit 0**, 나머지는 전부 exit 1. 위 초안은 `testCount`를 계산만 하고 판정에 쓰지 않아, **테스트가 61→10으로 사라져도 ✅ GREEN + exit 0**을 냈다.
+> 2. **`- [x] 리포트에 비밀값 없음`을 하드코딩하지 않는다.** 그건 *"scrub이 돌았다"*를 *"비밀이 없다"*로 바꿔 말하는 것이다. `.env.local` 실제 값을 스크립트 안에서만 읽어 **완성된 본문과 대조**하고, 걸리면 본문을 마스킹한 뒤 **`LEAK`로 확정하고 exit 1**을 낸다. *안전 검사가 게이트를 실패시키지 못하면 게이트가 아니다.*
+> 3. 🔴 **`NEXT_PUBLIC_*`는 비밀 대상에서 제외한다.** 브라우저로 나가는 값이라 비밀이 아니다(이 저장소에 **9건**). 포함하면 RED 경로에서 **진짜 빌드 오류의 진단문을 오탐 마스킹**해, 실패 상세가 존재하는 이유를 없앤다.
+>
+> `scrub()`도 이름에 KEY/SECRET이 없는 비밀을 놓쳤다 → URL 내 자격증명(`//user:pass@`)과 `Bearer` 토큰 패턴을 추가했다.
+
 - [ ] **Step 2: Loop Contract 3파일 작성**
 
 Create `loops/release-green/TASK.md`:
@@ -491,7 +499,7 @@ Create `loops/release-green/PROGRESS.md`:
 Run: `node loops/release-green/gate.mjs; echo "exit=$?"`
 Expected: `GREEN` · `tests=61 (기준선 61)` · **exit=0**
 
-> Step 1의 `1 * 0` 표현이 실제로 `0`을 내는지 여기서 확인된다. 확인 후 코드를 `process.exit(failed.length === 0 ? 0 : 1)`로 단순화하고 다시 실행한다.
+> 실측(2026-08-12): `GREEN` · `tests=61 (기준선 61)` · **exit 0**.
 
 - [ ] **Step 4: 🔴 red 확인 — 실패를 주입하면 exit 1**
 
