@@ -31,28 +31,66 @@ function walk(dir, exts, acc = []) {
   return acc;
 }
 
-// 정규식 기반 근사치 주석 제거기(완전한 파서는 아님 — 문자열 안의 "/*"·"//" 같은
-// 드문 경계 케이스는 놓칠 수 있다). 목적은 "죽은 코드/주석에 적힌 문구가 검사를
-// 통과시키는" 실패 모드를 막는 것이지, 완벽한 TS 파싱이 아니다.
+// 한 글자씩 훑는 단일 패스 상태기계(완전한 TS 파서는 아니지만, 문자열/템플릿 리터럴
+// 상태를 파일 전체에 걸쳐 유지한다 — 줄 단위로 끊어 처리하면 여러 줄짜리 템플릿
+// 리터럴 안의 "//" 처럼 보이는 내용(예: URL)에 뒤가 통째로 잘려나간다).
+// 불변식: 주석은 공백으로 치환하되 줄 구조는 보존한다 — file:line 보고가 정확해야
+// 하므로, 개행 문자는 (블록 주석 내부를 포함해) 절대 지우지 않는다.
+// 그래서 stripComments(src).length === src.length 가 항상 성립해야 한다.
 function stripComments(src) {
-  let out = src.replace(/\/\*[\s\S]*?\*\//g, '');
-  out = out
-    .split('\n')
-    .map((line) => {
-      let inStr = null;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (inStr) {
-          if (ch === '\\') { i++; continue; }
-          if (ch === inStr) inStr = null;
-          continue;
-        }
-        if (ch === '"' || ch === "'" || ch === '`') { inStr = ch; continue; }
-        if (ch === '/' && line[i + 1] === '/') return line.slice(0, i);
+  const n = src.length;
+  let out = '';
+  let state = 'code'; // code | line | block | sq | dq | tpl
+  for (let i = 0; i < n; i++) {
+    const ch = src[i];
+    const next = i + 1 < n ? src[i + 1] : '';
+
+    if (state === 'code') {
+      if (ch === '/' && next === '/') { state = 'line'; out += ' '; continue; }
+      if (ch === '/' && next === '*') { state = 'block'; out += ' '; continue; }
+      if (ch === "'") { state = 'sq'; out += ch; continue; }
+      if (ch === '"') { state = 'dq'; out += ch; continue; }
+      if (ch === '`') { state = 'tpl'; out += ch; continue; }
+      out += ch;
+      continue;
+    }
+
+    if (state === 'line') {
+      if (ch === '\n') { state = 'code'; out += '\n'; continue; }
+      out += ' ';
+      continue;
+    }
+
+    if (state === 'block') {
+      if (ch === '*' && next === '/') {
+        out += '  '; // "*/" 두 글자를 한 번에 공백 처리하고 같이 건너뛴다
+        i++;
+        state = 'code';
+        continue;
       }
-      return line;
-    })
-    .join('\n');
+      out += ch === '\n' ? '\n' : ' ';
+      continue;
+    }
+
+    // sq(작은따옴표) | dq(큰따옴표) | tpl(템플릿 리터럴) — 문자열 내용은 그대로 보존한다.
+    // 출처 표기 문구가 여기 들어있으므로 공백으로 지우면 안 되고, 안에서는
+    // "//"·"/*" 를 주석 시작으로 오인해서도 안 된다.
+    {
+      const quote = state === 'sq' ? "'" : state === 'dq' ? '"' : '`';
+      if (ch === '\\' && next !== '') {
+        out += ch + next; // 이스케이프 문자는 다음 글자와 함께 그대로 보존(따옴표 오판 방지)
+        i++;
+        continue;
+      }
+      if (ch === quote) { state = 'code'; out += ch; continue; }
+      out += ch;
+    }
+  }
+
+  if (out.length !== src.length) {
+    // 길이가 어긋나면 file:line 계산이 조용히 틀어진다 — 틀린 줄 번호를 보고하느니 즉시 죽는다.
+    throw new Error(`stripComments 불변식 위반: out.length=${out.length} !== src.length=${src.length}`);
+  }
   return out;
 }
 
