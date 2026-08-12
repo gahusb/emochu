@@ -3,8 +3,10 @@
 // release-green — 배포 가능 상태 Gate
 // test / lint / build 를 순서대로 돌리고 결과를 리포트로 남긴다.
 // 이 스크립트가 검사의 단일 경유점이다. 에이전트는 실행하고 판정만 한다.
-// 판정 3단계: GREEN(전부 통과 + 테스트 기준선 이상) / WARN(전부 통과했지만 테스트 개수 회귀) / RED(하나라도 실패)
-// 종료 코드: 0 = GREEN만 / 1 = WARN·RED 둘 다 (테스트가 조용히 사라지는 걸 "성공"으로 읽으면 안 된다)
+// 판정 4단계: LEAK(비밀값 유출 감지 — 다른 무엇보다 우선) / RED(하나라도 실패) /
+//            WARN(전부 통과했지만 테스트 개수 회귀) / GREEN(전부 통과 + 테스트 기준선 이상)
+// 종료 코드: 0 = GREEN만 / 1 = LEAK·WARN·RED 전부
+//   (비밀값이 새거나 테스트가 조용히 사라지는 걸 "성공"으로 읽으면 안 된다)
 // ============================================================
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -64,34 +66,29 @@ const regressed = testCount === null || testCount < BASELINE;
 // GREEN: 3종 전부 통과 + 테스트 기준선 이상
 // WARN : 3종 전부 통과했지만 테스트 개수가 null 이거나 기준선 미만 (테스트가 삭제·skip 됐을 수 있다)
 // RED  : 하나라도 실패
+// (비밀값 유출 여부는 아래에서 따로 검사한 뒤, 발견되면 이 tier를 덮어쓰고 LEAK로 확정한다)
 const tier = failed.length > 0 ? 'RED' : regressed ? 'WARN' : 'GREEN';
 
-let md = `# release-green — ${stamp}\n\n`;
-md += `> \`node loops/release-green/gate.mjs\` 산출물. 배포 가능 상태 판정.\n\n`;
-if (tier === 'GREEN') {
-  md += `## ✅ GREEN — 배포 가능\n\n`;
-} else if (tier === 'WARN') {
-  md += `## 🟡 WARN — 테스트 개수 회귀 의심\n\n`;
-} else {
-  md += `## 🔴 RED — ${failed.map((f) => f.label).join(', ')} 실패\n\n`;
-}
-md += `| 검사 | 판정 | exit | 소요(ms) |\n|---|---|---|---|\n`;
+// ── 리포트 본문(헤딩 제외)을 먼저 조립한다 ──
+// 비밀값 유출 검사는 "완성된 리포트 본문"을 대상으로 해야 하므로, 헤딩을 확정하기 전에
+// 본문부터 만들고 그 문자열을 스캔한다. 유출이 있으면 헤딩 자체를 LEAK로 바꾼다.
+let body = `| 검사 | 판정 | exit | 소요(ms) |\n|---|---|---|---|\n`;
 for (const r of rows) {
-  md += `| ${r.label} | ${r.pass ? '✅ PASS' : '🔴 FAIL'} | ${r.status} | ${r.ms} |\n`;
+  body += `| ${r.label} | ${r.pass ? '✅ PASS' : '🔴 FAIL'} | ${r.status} | ${r.ms} |\n`;
 }
-md += `\n- 테스트 개수: **${testCount ?? '판독 실패'}** (기준선 ${BASELINE} — 줄었으면 회귀를 의심한다)\n`;
+body += `\n- 테스트 개수: **${testCount ?? '판독 실패'}** (기준선 ${BASELINE} — 줄었으면 회귀를 의심한다)\n`;
 
 if (failed.length) {
-  md += `\n## 실패 상세 (마지막 6줄)\n`;
+  body += `\n## 실패 상세 (마지막 6줄)\n`;
   for (const f of failed) {
-    md += `\n### ${f.label}\n\n\`\`\`\n${f.tail}\n\`\`\`\n`;
+    body += `\n### ${f.label}\n\n\`\`\`\n${f.tail}\n\`\`\`\n`;
   }
 }
 
-md += `\n## 검증 체크리스트\n\n`;
-md += `- [${rows.length === 3 ? 'x' : ' '}] 검사 3종 전부 실행됨\n`;
-md += `- [${failed.length === 0 ? 'x' : ' '}] 전부 통과\n`;
-md += `- [${!regressed ? 'x' : ' '}] 테스트 개수 ${BASELINE} 이상 (현재 ${testCount ?? '?'})\n`;
+body += `\n## 검증 체크리스트\n\n`;
+body += `- [${rows.length === 3 ? 'x' : ' '}] 검사 3종 전부 실행됨\n`;
+body += `- [${failed.length === 0 ? 'x' : ' '}] 전부 통과\n`;
+body += `- [${!regressed ? 'x' : ' '}] 테스트 개수 ${BASELINE} 이상 (현재 ${testCount ?? '?'})\n`;
 
 // ── 비밀값 유출 검사 ──
 // "scrub 적용"은 "스크립트가 지우기를 시도했다"는 주장일 뿐, "실제로 안 남았다"는 증거가 아니었다.
@@ -100,11 +97,18 @@ md += `- [${!regressed ? 'x' : ' '}] 테스트 개수 ${BASELINE} 이상 (현재
 function loadSecretValues() {
   const envPath = resolve(REPO, '.env.local');
   if (!existsSync(envPath)) return null; // .env.local 없음 — 대조 불가
-  const raw = readFileSync(envPath, 'utf8');
+  let raw;
+  try {
+    raw = readFileSync(envPath, 'utf8');
+  } catch {
+    return null; // 권한 문제 등으로 못 읽어도 스크립트를 죽이지 말고 "대조 불가"로 degrade
+  }
   const values = [];
   for (const line of raw.split('\n')) {
     const mm = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
     if (!mm) continue;
+    const name = mm[1];
+    if (name.startsWith('NEXT_PUBLIC_')) continue; // 브라우저로 나가는 값이라 비밀이 아니다 — 오탐(특히 실패 상세의 진단 텍스트 마스킹) 방지
     let val = mm[2].trim();
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
@@ -115,35 +119,52 @@ function loadSecretValues() {
 }
 
 const secretValues = loadSecretValues();
+let leaks = 0;
 let secretRow;
 if (secretValues === null) {
-  secretRow = `- [ ] 비밀값 대조 불가 — \`.env.local\` 없음\n`;
+  secretRow = `- [ ] 비밀값 대조 불가 — \`.env.local\` 없음 또는 읽기 실패\n`;
 } else {
-  let leaks = 0;
   for (const v of secretValues) {
-    if (md.includes(v)) {
+    if (body.includes(v)) {
       leaks++;
-      md = md.split(v).join('<REDACTED>');
+      body = body.split(v).join('<REDACTED>');
     }
   }
   if (leaks > 0) {
     secretRow = `- [ ] 리포트에서 비밀값 ${leaks}건 발견 — 마스킹함\n`;
     console.error(`LEAK: 리포트에서 비밀값 ${leaks}건 발견 — 마스킹함`);
   } else {
-    secretRow = `- [x] .env.local 값 ${secretValues.length}건 대조, 유출 0건\n`;
+    secretRow = `- [x] .env.local 값 ${secretValues.length}건 대조 (NEXT_PUBLIC_* 제외), 유출 0건\n`;
   }
 }
-md += secretRow;
+body += secretRow;
+
+// 유출이 있으면 tier가 뭐였든 LEAK로 덮어쓴다 — 안전 검사는 게이트를 실패시키지 못하면 게이트가 아니다.
+const outcome = leaks > 0 ? 'LEAK' : tier;
+
+let md = `# release-green — ${stamp}\n\n`;
+md += `> \`node loops/release-green/gate.mjs\` 산출물. 배포 가능 상태 판정.\n\n`;
+if (outcome === 'LEAK') {
+  md += `## 🔴 LEAK — 리포트에서 비밀값 ${leaks}건 발견, 마스킹함\n\n`;
+} else if (outcome === 'GREEN') {
+  md += `## ✅ GREEN — 배포 가능\n\n`;
+} else if (outcome === 'WARN') {
+  md += `## 🟡 WARN — 테스트 개수 회귀 의심\n\n`;
+} else {
+  md += `## 🔴 RED — ${failed.map((f) => f.label).join(', ')} 실패\n\n`;
+}
+md += body;
 
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
 const outPath = resolve(OUT_DIR, `green-${stamp}.md`);
 writeFileSync(outPath, md, 'utf8');
 
 const tierLine =
-  tier === 'GREEN' ? 'GREEN' :
-  tier === 'WARN' ? `WARN: tests=${testCount ?? '?'} (기준선 ${BASELINE})` :
+  outcome === 'LEAK' ? `LEAK: 비밀값 ${leaks}건 발견 (마스킹함)` :
+  outcome === 'GREEN' ? 'GREEN' :
+  outcome === 'WARN' ? `WARN: tests=${testCount ?? '?'} (기준선 ${BASELINE})` :
   `RED: ${failed.map((f) => f.id).join(',')}`;
 console.log(tierLine);
 console.log(`tests=${testCount ?? '?'} (기준선 ${BASELINE})`);
 console.log(`report: ${outPath.replace(REPO, '.')}`);
-process.exit(tier === 'GREEN' ? 0 : 1);
+process.exit(outcome === 'GREEN' ? 0 : 1);
