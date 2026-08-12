@@ -3,6 +3,7 @@ import './globals.css';
 import KakaoSDK from './components/KakaoSDK';
 import GlobalHeader from './components/nav/GlobalHeader';
 import BottomTabBar from './components/nav/BottomTabBar';
+import SiteFooter from './components/nav/SiteFooter';
 import LocationModal from './components/nav/LocationModal';
 import LocationPermissionToast from './components/nav/LocationPermissionToast';
 import { LocationProvider } from './components/nav/LocationContext';
@@ -64,7 +65,8 @@ export default function RootLayout({
         <LocationProvider>
           <div className="min-h-[100dvh] bg-surface-base text-ink-2 flex flex-col">
             <GlobalHeader />
-            <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
             <BottomTabBar />
             <LocationModal />
             <LocationPermissionToast />
