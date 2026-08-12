@@ -3,12 +3,13 @@
 ## Before You Start
 
 1. `TASK.md`, `PROGRESS.md` 를 읽는다 (특히 `Do Not Repeat`)
-2. 오늘 날짜 리포트가 `outputs/` 에 이미 있으면 **중복 실행하지 않는다**
+2. **하루에 여러 번 돌려도 된다.** 배포 가능 상태는 하루 안에서도 바뀐다 — 오전 RED 를 고친 뒤 오후에 재확인하는 것이 이 Loop 의 정상 사용법이다. 리포트 파일명에 시각이 들어가므로(`green-YYYY-MM-DD-HHMM.md`) 오전의 실패 증거가 덮어써지지 않는다
+   > 🔴 단, **소스가 바뀌지 않았는데 실패한 검사를 재시도하지 마라.** 입력이 같으면 결과도 같다 — 아래 `Failure Policy` 를 따른다
 
 ## What You Should Do
 
 1. `node loops/release-green/gate.mjs` 실행 — **직접 npm 명령을 조합하지 않는다**
-2. `outputs/green-YYYY-MM-DD.md` 를 읽고 판정
+2. 방금 만들어진 `outputs/green-YYYY-MM-DD-HHMM.md` 를 읽고 판정 (스크립트가 마지막 줄에 경로를 출력한다)
 3. `PROGRESS.md` 갱신
 
 ## 판정 규칙
@@ -18,7 +19,7 @@
 | 3종 전부 exit 0 + 테스트 ≥ 61 + 유출 없음 | ✅ GREEN | **0** |
 | 3종 전부 exit 0 + **테스트 < 61** (또는 판독 실패) + 유출 없음 | 🟡 WARN — 회귀 의심 | **1** |
 | 하나라도 exit ≠ 0 (유출 없음) | 🔴 RED | **1** |
-| `.env.local` 값이 리포트 본문에서 발견됨 | 🔴 LEAK — 다른 판정보다 **우선** | **1** |
+| `.env.local`·`.env` 값이 리포트 본문에서 발견됨 | 🔴 LEAK — 다른 판정보다 **우선** | **1** |
 
 > 🔴 **테스트 개수가 줄었는데 전부 통과했다고 GREEN으로 넘기지 마라.** 테스트가 삭제됐거나 skip 됐을 수 있다.
 > 🔴 **WARN·LEAK도 exit 1이다.** GREEN만 exit 0 — gate.mjs 자체가 이 넷을 구분해서 종료 코드를 낸다. exit 코드만 보고 GREEN이라 단정하지 말고, 리포트 헤딩(GREEN/WARN/RED/LEAK)을 반드시 확인한다.
@@ -28,7 +29,7 @@
 
 - 실패해도 **소스를 고치지 않는다.** 이 Loop는 진단만 한다
 - `outputs/` 와 `PROGRESS.md` 외에는 쓰지 않는다
-- `git commit`/`push`/배포 금지
+- 🔴 `git commit` / `git push` / 배포를 하지 않는다 — **2026-08-13 부터 `git commit` 은 `.claude/settings.json` 에서 차단(deny)이 아니라 확인(ask)이다.** 도구가 대신 막아주지 않으므로 이 규칙이 유일한 방어선이다
 - 허용 여부가 애매하면 멈추고 물어본다
 
 ## Verification Checklist

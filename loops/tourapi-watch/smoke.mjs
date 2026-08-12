@@ -32,8 +32,26 @@ function loadKey() {
   process.exit(2);
 }
 const KEY = loadKey();
-const mask = (s) =>
-  String(s).replaceAll(KEY, '<KEY>').replaceAll(encodeURIComponent(KEY), '<KEY>');
+
+// 키는 세 가지 모습으로 새어나갈 수 있다. TourAPI 인증키는 애초에 인코딩본·디코딩본이
+// 따로 발급되고(공모전에도 둘 다 제출한다), URL 에 실리면서 한 번 더 인코딩된다.
+// 원문만 지우면 `%2F`·`%2B` 가 섞인 변형이 그대로 남는다 — mask() 와 최종 안전망이
+// 같은 목록을 봐야 "지웠다"와 "안 남았다"가 어긋나지 않는다.
+const KEY_VARIANTS = (() => {
+  const set = new Set([KEY, encodeURIComponent(KEY)]);
+  try {
+    set.add(decodeURIComponent(KEY)); // 이미 인코딩된 키가 들어온 경우의 원문
+  } catch {
+    // 잘못된 % 시퀀스 — 디코딩 변형은 존재하지 않는다고 보고 넘어간다
+  }
+  return [...set].filter((v) => v.length >= 8); // 빈 값·짧은 값으로 전체를 치환하는 사고 방지
+})();
+
+const mask = (s) => {
+  let out = String(s);
+  for (const v of KEY_VARIANTS) out = out.replaceAll(v, '<KEY>');
+  return out;
+};
 
 // ─── 날짜 ───
 const today = new Date();
@@ -158,6 +176,16 @@ md += ck(warn === 0, `결과 항목 수가 0인 오퍼레이션 없음 (WARN ${w
 md += ck(depBad.length === 0, '폐기 예정 오퍼레이션 생존 확인');
 md += ck(true, '리포트에 인증키 문자열 없음 (mask 적용)');
 
+// 마지막 안전망: 그래도 키가 남았으면 실패시킨다.
+// 🔴 **파일을 쓰기 전에** 검사한다. 쓰고 나서 검사하면, 이미 인증키가 담긴 파일이
+// 디스크에 남은 뒤에 exit 3 을 내는 셈이라 안전망 노릇을 못 한다.
+// 검사 대상도 원문뿐 아니라 인코딩·디코딩 변형 전부다(KEY_VARIANTS).
+const leaked = KEY_VARIANTS.filter((v) => md.includes(v));
+if (leaked.length) {
+  console.error(`FATAL: 리포트에 인증키가 남아 있습니다 (변형 ${leaked.length}종 일치). 파일을 쓰지 않고 중단합니다.`);
+  process.exit(3);
+}
+
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
 const outPath = resolve(OUT_DIR, `api-health-${stamp}.md`);
 writeFileSync(outPath, md, 'utf8');
@@ -166,9 +194,4 @@ console.log(`PASS=${pass} WARN=${warn} FAIL=${fail}`);
 if (depBad.length) console.log(`DEPRECATED-ALERT: ${depBad.map((r) => r.op).join(',')}`);
 console.log(`report: ${outPath.replace(REPO, '.')}`);
 
-// 마지막 안전망: 그래도 키가 남았으면 실패시킨다
-if (md.includes(KEY)) {
-  console.error('FATAL: 리포트에 인증키가 남아 있습니다.');
-  process.exit(3);
-}
 process.exit(fail > 0 ? 1 : 0);

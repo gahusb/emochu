@@ -39,5 +39,11 @@ next-env.d.ts
 # superpowers
 .superpowers/
 
+# loop 리포트 — 실행할 때마다 쌓인다(41일이면 100개 이상).
+# 추적하면 매 실행마다 작업 트리가 더러워지는데 Loop 는 커밋 권한이 없어 정리도 못 한다.
+# 리포트는 로컬 진단물이지 제출 증거가 아니다 — 호출 이력의 근거는 TourAPI 서버 쪽이다.
+loops/*/outputs/*
+!loops/*/outputs/.gitkeep
+
 # temp files
 patch-wizard.js

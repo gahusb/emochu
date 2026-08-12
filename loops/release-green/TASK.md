@@ -11,7 +11,7 @@
 
 ## Expected Output
 
-- `loops/release-green/outputs/green-YYYY-MM-DD.md`
+- `loops/release-green/outputs/green-YYYY-MM-DD-HHMM.md` (파일명에 시각 포함 — 하루 여러 번 실행해도 이전 결과를 덮어쓰지 않는다)
 - `loops/release-green/PROGRESS.md`
 
 ## Scope

@@ -17,6 +17,10 @@ const ASSET_DIR = resolve(HERE, 'assets');      // 대표/상세 이미지·기�
 const pad = (n) => String(n).padStart(2, '0');
 const now = new Date();
 const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+const clock = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+// 파일명에 시각을 넣는다 — 제출 항목은 하루에도 여러 번 바뀐다(자산 추가, 출처 표기
+// 반영 등). 날짜만 쓰면 직전 실행 리포트가 덮어써져 "언제부터 충족됐나"를 잃는다.
+const fileStamp = `${stamp}-${pad(now.getHours())}${pad(now.getMinutes())}`;
 
 const cfg = JSON.parse(readFileSync(resolve(HERE, 'submission.json'), 'utf8'));
 
@@ -122,19 +126,25 @@ function stripComments(src) {
 function grepUi(pattern, unscannable) {
   const apiDir = resolve(REPO, 'app', 'api');
   const files = walk(resolve(REPO, 'app'), ['.tsx', '.ts'], [], [apiDir]);
+  let hit = null;
   for (const f of files) {
     const { text, balanced } = stripComments(readFileSync(f, 'utf8'));
     if (!balanced) {
       if (unscannable) unscannable.add(f.replace(REPO, '.'));
       continue;
     }
+    // 히트를 찾은 뒤에도 루프를 끝까지 돈다. 예전엔 첫 히트에서 즉시 반환해서,
+    // 그 뒤에 있는 파싱 실패 파일이 unscannable 에 누적되지 않았다 — 판정은 맞아도
+    // "무엇을 못 봤는지"를 사람에게 절반만 알려주는 셈이었다.
+    // 판정 자체는 첫 히트로 고정되므로 결과는 이전과 동일하다.
+    if (hit) continue;
     const m = pattern.exec(text);
     if (m) {
       const line = text.slice(0, m.index).split('\n').length;
-      return { file: f.replace(REPO, '.'), line };
+      hit = { file: f.replace(REPO, '.'), line };
     }
   }
-  return null;
+  return hit;
 }
 
 const SERVICE_URL_TIMEOUT_MS = 10_000;
@@ -253,7 +263,7 @@ const done = results.filter((r) => r.ok).length;
 const todo = results.filter((r) => !r.ok);
 const daysLeft = Math.ceil((new Date(cfg.deadline) - now) / 86400000);
 
-let md = `# 제출 준비 상태 — ${stamp}\n\n`;
+let md = `# 제출 준비 상태 — ${stamp} ${clock}\n\n`;
 md += `> \`node loops/submission-check/check.mjs\` 산출물. 마감 **${cfg.deadline}** (D-${daysLeft})\n\n`;
 md += `## 요약\n\n**${done} / ${results.length} 충족** · 남은 항목 ${todo.length}건\n\n`;
 md += `| 항목 | 종류 | 상태 | 상세 |\n|---|---|---|---|\n`;
@@ -266,7 +276,7 @@ if (todo.length) {
 }
 
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
-const outPath = resolve(OUT_DIR, `submission-${stamp}.md`);
+const outPath = resolve(OUT_DIR, `submission-${fileStamp}.md`);
 writeFileSync(outPath, md, 'utf8');
 
 console.log(`${done}/${results.length} 충족 · D-${daysLeft}`);

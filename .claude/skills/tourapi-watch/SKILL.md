@@ -32,7 +32,7 @@ when_to_use: 일일 API 헬스체크를 돌릴 때, TourAPI 응답이 이상하�
 
 - 소스 파일(`app/`·`lib/`·`components/`·`tests/`) 수정
 - 파일 삭제·이름 변경, `git commit`/`push`, 배포
-- 🔴 인증키를 리포트·로그에 남기기 (`.env.local` 은 `settings.json` 에서 읽기 deny)
+- 🔴 인증키를 리포트·로그에 남기기 — `settings.json` 의 `Read(./.env.local)` deny 는 **에이전트가 키를 컨텍스트에 들이지 못하게** 막는 것이다. 파일이 잠긴 게 아니라 `smoke.mjs` 는 이 파일을 읽는다(값은 마스킹). 키는 스크립트가 다루고 에이전트는 판정만 한다
 
 ## 에스컬레이션
 

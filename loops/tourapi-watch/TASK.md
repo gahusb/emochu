@@ -36,7 +36,7 @@ Claude가 **하면 안 되는 것**:
 - `app/`·`lib/`·`components/`·`tests/` 등 **소스 파일 수정**
 - 파일 삭제·이름 변경
 - `git commit` / `git push` / 배포
-- 🔴 **인증키·좌표 등 민감값을 리포트나 로그에 기록** — `.env.local`은 읽기 자체가 금지돼 있다(`.claude/settings.json`)
+- 🔴 **인증키·좌표 등 민감값을 리포트나 로그에 기록** — `.claude/settings.json` 이 `Read(./.env.local)` 을 deny 한다. 이 deny 가 지키는 것은 **에이전트의 컨텍스트**다(키가 대화에 들어오면 리포트·로그로 흘러나갈 수 있다). 파일 자체가 잠긴 게 아니라서, allow 된 `smoke.mjs`·`gate.mjs` 는 실제로 이 파일을 읽는다 — 다만 값은 마스킹해서 출력한다. **키를 다루는 건 스크립트의 일이지 에이전트의 일이 아니다.**
 
 ## Stop condition
 

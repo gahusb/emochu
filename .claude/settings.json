@@ -14,12 +14,14 @@
       "Bash(git diff:*)",
       "Bash(git log:*)"
     ],
+    "ask": [
+      "Bash(git commit:*)"
+    ],
     "deny": [
       "Read(./.env.local)",
       "Read(./.env)",
       "Bash(rm -rf:*)",
       "Bash(git push:*)",
-      "Bash(git commit:*)",
       "Bash(npx vercel:*)"
     ]
   },
@@ -28,7 +30,7 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node .claude/hooks/lint-changed.mjs" }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-changed.mjs\"" }
         ]
       }
     ]

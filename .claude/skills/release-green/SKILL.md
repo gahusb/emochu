@@ -20,7 +20,7 @@ when_to_use: 제출 전 상태 확인, 배포 전 점검, 큰 변경 후 회귀 
 | 3종 exit 0 + 테스트 ≥ 61 + 유출 없음 | ✅ GREEN | **0** |
 | 3종 exit 0 + 테스트 < 61 (또는 판독 실패) + 유출 없음 | 🟡 WARN (회귀 의심) | **1** |
 | 하나라도 exit ≠ 0 (유출 없음) | 🔴 RED | **1** |
-| `.env.local` 값이 리포트 본문에서 발견됨 | 🔴 LEAK — **다른 판정보다 우선** | **1** |
+| `.env.local`·`.env` 값이 리포트 본문에서 발견됨 | 🔴 LEAK — **다른 판정보다 우선** | **1** |
 
 > WARN·LEAK도 exit 1이다 — GREEN만 exit 0. 종료 코드만으로 GREEN 단정하지 말고 리포트 헤딩(GREEN/WARN/RED/LEAK)을 확인한다.
 > LEAK은 test/lint/build 통과 여부와 무관하게 최우선으로 덮어쓴다.

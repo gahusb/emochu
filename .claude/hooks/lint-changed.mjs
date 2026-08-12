@@ -17,8 +17,20 @@
 //  예상치 못한 입력에 죽는 Hook은 아무것도 안 하는 Hook보다 나쁘다.)
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function readFilePathFromStdin() {
+  // 훅으로 실행될 때 stdin 은 항상 파이프다. TTY 에 붙어 있다는 건 사람이 손으로
+  // 이 스크립트를 돌렸다는 뜻인데, 그 상태로 readFileSync(0) 을 하면 입력이 올 때까지
+  // 블록된다 — 디버깅하려던 사람이 멈춘 터미널을 보게 된다. 먼저 빠져나온다.
+  if (process.stdin.isTTY) {
+    console.error('[lint-changed] 이 스크립트는 PostToolUse 훅 전용입니다. stdin 으로 JSON 을 받아야 합니다.');
+    console.error('  손으로 확인하려면: echo \'{"tool_input":{"file_path":"app/layout.tsx"}}\' | node .claude/hooks/lint-changed.mjs');
+    process.exit(0);
+  }
   let raw;
   try {
     raw = readFileSync(0, 'utf8');
@@ -44,9 +56,20 @@ if (!file || !existsSync(file)) process.exit(0);
 if (!/\.(ts|tsx|mjs|js|jsx)$/.test(file)) process.exit(0);
 if (/[\\/](node_modules|\.next|loops[\\/][^\\/]+[\\/]outputs)[\\/]/.test(file)) process.exit(0);
 
-const res = spawnSync('npx', ['eslint', file], {
+// eslint 를 shell 없이 직접 실행한다. 예전엔 `spawnSync('npx', [...], {shell:true})`
+// 였는데, shell:true 와 인자 배열을 함께 쓰면 인자가 이스케이프되지 않는다(Node DEP0190).
+// 여기서 `file` 은 편집된 파일 경로 — 즉 외부에서 들어온 값이다. 공백이나 셸 메타문자가
+// 섞인 경로 하나면 임의 명령이 실행될 수 있다. node 로 eslint 진입점을 직접 부르면
+// 셸이 아예 개입하지 않으므로 이스케이프 문제 자체가 사라진다.
+const ESLINT_BIN = resolve(REPO, 'node_modules', 'eslint', 'bin', 'eslint.js');
+if (!existsSync(ESLINT_BIN)) {
+  console.error('[lint-changed] eslint 를 찾을 수 없습니다 — npm install 이 필요합니다.');
+  process.exit(0); // 의존성 미설치는 코드 문제가 아니다. 조용히 통과시킨다
+}
+
+const res = spawnSync(process.execPath, [ESLINT_BIN, file], {
+  cwd: REPO,
   encoding: 'utf8',
-  shell: process.platform === 'win32',
 });
 
 if (res.status === 0) process.exit(0);   // 조용히

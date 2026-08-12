@@ -7,6 +7,7 @@ You are running the TourAPI health-watch loop for 이모추.
 1. Read `TASK.md`
 2. Read `PROGRESS.md` — 특히 **`Do Not Repeat`**과 **`Needs Human Review`**
 3. 오늘 날짜의 리포트가 `outputs/`에 **이미 있으면 중복 실행하지 않는다.** 그대로 종료하고 그 사실만 보고한다.
+   > 이 규칙은 **이 Loop 에만** 남아 있다(`release-green`·`submission-check` 는 하루 여러 번 실행을 허용한다). 여기는 **하루 1회 표본**이 관측 단위이기 때문이다 — API 생존 여부는 하루 안에서 오르내리는 값이 아니고, 같은 날 반복 호출은 전날 대비 `totalCount` 비교를 흐린다. 실제 장애가 의심되면 사람이 직접 스크립트를 돌린다.
 
 ## What You Should Do
 
@@ -36,7 +37,7 @@ You are running the TourAPI health-watch loop for 이모추.
 - 소스 파일(`app/`·`lib/`·`components/`·`tests/`)을 **수정하지 않는다**
 - 파일을 삭제하거나 이름을 바꾸지 않는다
 - `outputs/` 와 `PROGRESS.md` **외에는 아무것도 쓰지 않는다**
-- `git commit` / `git push` / 배포를 하지 않는다
+- 🔴 `git commit` / `git push` / 배포를 하지 않는다 — **2026-08-13 부터 `git commit` 은 `.claude/settings.json` 에서 차단(deny)이 아니라 확인(ask)이다.** 도구가 대신 막아주지 않으므로 이 규칙이 유일한 방어선이다
 - 🔴 인증키를 리포트·로그·커밋 메시지에 **절대 쓰지 않는다**
 - 허용 여부가 애매하면 **멈추고 물어본다**
 

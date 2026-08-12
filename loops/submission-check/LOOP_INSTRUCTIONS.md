@@ -3,12 +3,13 @@
 ## Before You Start
 
 1. `TASK.md`, `PROGRESS.md` 를 읽는다
-2. 오늘 리포트가 `outputs/` 에 이미 있으면 중복 실행하지 않는다
+2. **하루에 여러 번 돌려도 된다.** 제출 항목은 하루에도 바뀐다(자산 추가, 출처 표기 반영, `submission.json` 편집). 리포트 파일명에 시각이 들어가므로(`submission-YYYY-MM-DD-HHMM.md`) 이전 실행 결과가 덮어써지지 않는다
+   > 🔴 단, **아무것도 바뀌지 않았는데 같은 검사를 반복하지 마라.** 미충족 항목은 사람이 움직여야 낫는다 — 아래 `Failure Policy` 를 따른다
 
 ## What You Should Do
 
 1. `node loops/submission-check/check.mjs` 실행 — **직접 검사 로직을 만들지 않는다**
-2. 리포트를 읽고 **남은 항목과 D-day** 를 확인
+2. 방금 만들어진 리포트를 읽고 **남은 항목과 D-day** 를 확인 (스크립트가 마지막 줄에 경로를 출력한다)
 3. `PROGRESS.md` 갱신 — 특히 `Needs Human Review` 에 사람이 해야 할 항목을 옮겨 적는다
 4. `attribution` 이 이번 실행에서 **처음으로** 🔴 → ✅ 로 바뀌었으면, `Needs Human Review` 최상단에 리포트의 `file:line` 을 적고 "사람이 페이지를 열어 실제 렌더링 확인 필요"라고 남긴다(아래 판정 규칙의 attribution 의미 참고)
 
@@ -27,6 +28,7 @@
 - 🔴 **출처 표기 누락을 발견해도 코드를 고치지 않는다.** 리포트에 적고 사람에게 넘긴다
 - 🔴 **`submission.json` 의 `done` 을 바꾸지 않는다.** 사람만 바꾼다
 - `outputs/` 와 `PROGRESS.md` 외에는 쓰지 않는다
+- 🔴 `git commit` / `git push` / 배포를 하지 않는다 — **2026-08-13 부터 `git commit` 은 `.claude/settings.json` 에서 차단(deny)이 아니라 확인(ask)이다.** 도구가 대신 막아주지 않으므로 이 규칙이 유일한 방어선이다
 - 리포트에 인증키·좌표를 남기지 않는다
 - 허용 여부가 애매하면 멈추고 물어본다
 
