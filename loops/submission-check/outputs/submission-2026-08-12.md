@@ -1,6 +1,6 @@
 # 제출 준비 상태 — 2026-08-12
 
-> `node loops/submission-check/check.mjs` 산출물. 마감 **2026-09-21T16:00:00+09:00** (D-41)
+> `node loops/submission-check/check.mjs` 산출물. 마감 **2026-09-21T16:00:00+09:00** (D-40)
 
 ## 요약
 

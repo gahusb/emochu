@@ -14,17 +14,17 @@
 
 | 오퍼레이션 | 판정 | HTTP | resultCode | 항목 | totalCount | 응답(ms) | 비고 |
 |---|---|---|---|---|---|---|---|
-| `searchFestival2` | ✅ PASS | 200 | 0000 | 3 | 115 | 225 |  |
+| `searchFestival2` | ✅ PASS | 200 | 0000 | 3 | 115 | 186 |  |
 | `locationBasedList2` | ✅ PASS | 200 | 0000 | 3 | 800 | 143 |  |
-| `areaBasedList2` | ✅ PASS | 200 | 0000 | 3 | 419 | 177 |  |
-| `searchKeyword2` | ✅ PASS | 200 | 0000 | 3 | 10 | 202 |  |
-| `searchStay2` | ✅ PASS | 200 | 0000 | 3 | 239 | 131 |  |
-| `detailCommon2` | ✅ PASS | 200 | 0000 | 1 | 1 | 92 |  |
-| `detailIntro2` | ✅ PASS | 200 | 0000 | 1 | 1 | 95 |  |
-| `detailInfo2` | ✅ PASS | 200 | 0000 | 3 | 3 | 90 |  |
-| `detailImage2` | ✅ PASS | 200 | 0000 | 6 | 6 | 100 |  |
-| `areaCode2` | ✅ PASS | 200 | 0000 | 5 | 17 | 107 | **폐기 예정** |
-| `categoryCode2` | ✅ PASS | 200 | 0000 | 5 | 7 | 84 | **폐기 예정** |
+| `areaBasedList2` | ✅ PASS | 200 | 0000 | 3 | 419 | 178 |  |
+| `searchKeyword2` | ✅ PASS | 200 | 0000 | 3 | 10 | 216 |  |
+| `searchStay2` | ✅ PASS | 200 | 0000 | 3 | 239 | 134 |  |
+| `detailCommon2` | ✅ PASS | 200 | 0000 | 1 | 1 | 82 |  |
+| `detailIntro2` | ✅ PASS | 200 | 0000 | 1 | 1 | 89 |  |
+| `detailInfo2` | ✅ PASS | 200 | 0000 | 3 | 3 | 88 |  |
+| `detailImage2` | ✅ PASS | 200 | 0000 | 6 | 6 | 90 |  |
+| `areaCode2` | ✅ PASS | 200 | 0000 | 5 | 17 | 97 | **폐기 예정** |
+| `categoryCode2` | ✅ PASS | 200 | 0000 | 5 | 7 | 87 | **폐기 예정** |
 
 ## 검증 체크리스트
 

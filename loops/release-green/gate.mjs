@@ -39,6 +39,25 @@ const scrub = (s) =>
     .replace(/\/\/[^/\s:@]+:[^/\s@]+@/g, '//<REDACTED>@')        // postgres://user:pass@host
     .replace(/(Bearer\s+)[A-Za-z0-9._~+/-]{16,}=*/gi, '$1<REDACTED>');
 
+// timeout·maxBuffer 없이 spawnSync 를 돌리면 두 가지 실전 장애가 생긴다:
+//  1) next build 가 멈춰버리면 이 프로세스도 무한정 블록되고, 리포트는 세 검사가
+//     전부 끝난 뒤에야 쓰이므로 아무 파일도 남지 않는다 — 새벽에 사람이 볼 게 없다.
+//  2) 빌드 출력이 기본 버퍼(1MB)를 넘으면 Node 가 자식을 죽이고 res.status 는
+//     null 이 된다 — 이걸 그냥 "exit null" 로 찍으면 "실패했다"만 보이고 왜
+//     실패했는지(환경 문제 vs 실제 실패)를 사람이 알 수 없다.
+// 그래서 명시적으로 timeout 을 걸고, res.error 로 원인을 구분해 렌더링한다.
+const SPAWN_TIMEOUT_MS = 600_000;      // 10분
+const SPAWN_MAX_BUFFER = 20 * 1024 * 1024; // 20MB
+
+// res.error 를 사람이 읽을 한 줄로 바꾼다. 타임아웃/버퍼초과는 "실패"가 아니라
+// "환경 문제" 다 — bare exit code 로 뭉개지 않고 별도 문구로 드러낸다.
+function describeSpawnError(res) {
+  if (!res.error) return null;
+  if (res.error.code === 'ETIMEDOUT') return `시간 초과(${SPAWN_TIMEOUT_MS / 60000}분)`;
+  if (res.error.code === 'ENOBUFS') return '출력 과다';
+  return `실행 오류(${res.error.code ?? res.error.message ?? '알 수 없음'})`;
+}
+
 const rows = [];
 for (const c of CHECKS) {
   const t0 = Date.now();
@@ -46,11 +65,16 @@ for (const c of CHECKS) {
     cwd: REPO,
     encoding: 'utf8',
     shell: process.platform === 'win32',
+    timeout: SPAWN_TIMEOUT_MS,
+    maxBuffer: SPAWN_MAX_BUFFER,
   });
   const ms = Date.now() - t0;
+  const spawnError = describeSpawnError(res);
   const out = scrub(`${res.stdout ?? ''}\n${res.stderr ?? ''}`).trim();
-  const tail = out.split('\n').slice(-6).join('\n');
-  rows.push({ ...c, status: res.status, ms, tail, pass: res.status === 0 });
+  const tail = spawnError ?? out.split('\n').slice(-6).join('\n');
+  // spawnError 가 있으면(=res.status 가 null) pass 는 당연히 false 다 — 이 값은
+  // 아래 렌더링에서 "exit null" 대신 spawnError 문구를 보여주는 데 쓰인다.
+  rows.push({ ...c, status: res.status, ms, tail, pass: res.status === 0, spawnError });
   process.stdout.write(res.status === 0 ? '.' : 'X');
 }
 process.stdout.write('\n');
@@ -74,14 +98,21 @@ const tier = failed.length > 0 ? 'RED' : regressed ? 'WARN' : 'GREEN';
 // 본문부터 만들고 그 문자열을 스캔한다. 유출이 있으면 헤딩 자체를 LEAK로 바꾼다.
 let body = `| 검사 | 판정 | exit | 소요(ms) |\n|---|---|---|---|\n`;
 for (const r of rows) {
-  body += `| ${r.label} | ${r.pass ? '✅ PASS' : '🔴 FAIL'} | ${r.status} | ${r.ms} |\n`;
+  // res.status 가 null 인 건 두 가지 경우다: 우리가 건 timeout/maxBuffer 에 걸렸거나
+  // (spawnError 있음), 아니면 다른 이유로 신호에 죽었거나. "exit null" 을 그대로
+  // 찍으면 사람이 원인을 못 읽으므로, spawnError 가 있으면 그 문구를 exit 칸에 쓴다.
+  const exitCell = r.spawnError ?? r.status;
+  body += `| ${r.label} | ${r.pass ? '✅ PASS' : '🔴 FAIL'} | ${exitCell} | ${r.ms} |\n`;
 }
 body += `\n- 테스트 개수: **${testCount ?? '판독 실패'}** (기준선 ${BASELINE} — 줄었으면 회귀를 의심한다)\n`;
 
 if (failed.length) {
-  body += `\n## 실패 상세 (마지막 6줄)\n`;
+  body += `\n## 실패 상세\n`;
   for (const f of failed) {
-    body += `\n### ${f.label}\n\n\`\`\`\n${f.tail}\n\`\`\`\n`;
+    // spawnError 가 있으면 f.tail 은 이미 "시간 초과(10분)"/"출력 과다" 같은 한 줄
+    // 문구다(출력의 마지막 6줄이 아니다) — 그 사실을 헤딩에서 구분해 보여준다.
+    const heading = f.spawnError ? `${f.label} — ${f.spawnError} (환경 문제, 재시도 없이 기록)` : f.label;
+    body += `\n### ${heading}\n\n\`\`\`\n${f.tail}\n\`\`\`\n`;
   }
 }
 

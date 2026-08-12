@@ -21,12 +21,15 @@ const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate
 const cfg = JSON.parse(readFileSync(resolve(HERE, 'submission.json'), 'utf8'));
 
 // ─── auto 검사기 ───
-function walk(dir, exts, acc = []) {
+// excludeDirs: 재귀에서 통째로 건너뛸 절대경로 디렉터리 목록 (Fix B — app/api 제외용)
+function walk(dir, exts, acc = [], excludeDirs = []) {
   if (!existsSync(dir)) return acc;
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = resolve(dir, e.name);
-    if (e.isDirectory()) walk(p, exts, acc);
-    else if (exts.some((x) => e.name.toLowerCase().endsWith(x))) acc.push(p);
+    if (e.isDirectory()) {
+      if (excludeDirs.includes(p)) continue;
+      walk(p, exts, acc, excludeDirs);
+    } else if (exts.some((x) => e.name.toLowerCase().endsWith(x))) acc.push(p);
   }
   return acc;
 }
@@ -36,7 +39,15 @@ function walk(dir, exts, acc = []) {
 // 리터럴 안의 "//" 처럼 보이는 내용(예: URL)에 뒤가 통째로 잘려나간다).
 // 불변식: 주석은 공백으로 치환하되 줄 구조는 보존한다 — file:line 보고가 정확해야
 // 하므로, 개행 문자는 (블록 주석 내부를 포함해) 절대 지우지 않는다.
-// 그래서 stripComments(src).length === src.length 가 항상 성립해야 한다.
+// 그래서 stripComments(src).text.length === src.length 가 항상 성립해야 한다.
+//
+// 🔴 알려진 맹점: 정규식 리터럴(/.../ )을 별도 상태로 다루지 않는다. 예를 들어
+// `/href="([^"]+)"/` 안의 따옴표 3개는 sq/dq 상태를 오르내리다 파일 끝까지 dq에
+// 갇힐 수 있다 — 그러면 그 뒤의 모든 "주석"이 문자열 취급되어 스트립되지 않고
+// 그대로 남는다(= 주석이 실제 코드로 오인되어 매칭에 잡히는 구멍). 정규식 리터럴을
+// 완전히 파싱하는 비용을 들이는 대신, **파서가 code 상태로 끝나지 않으면(state !==
+// 'code') 그 파일을 신뢰하지 않는다** — 호출자가 balanced 플래그로 이를 감지해
+// 해당 파일을 매칭에서 제외하고 "파싱 실패"로 보고한다.
 function stripComments(src) {
   const n = src.length;
   let out = '';
@@ -94,18 +105,32 @@ function stripComments(src) {
     // 길이가 어긋나면 file:line 계산이 조용히 틀어진다 — 틀린 줄 번호를 보고하느니 즉시 죽는다.
     throw new Error(`stripComments 불변식 위반: out.length=${out.length} !== src.length=${src.length}`);
   }
-  return out;
+  // balanced: 파일 끝에서 code 상태였는가. false 면 sq/dq/tpl/line/block 중 하나에
+  // 갇힌 채 끝난 것 — 정규식 리터럴의 따옴표 등으로 상태가 어긋났을 가능성이 높으므로
+  // 호출자는 이 파일의 stripped 결과를 매칭에 쓰지 말아야 한다.
+  return { text: out, balanced: state === 'code' };
 }
 
 // app/ 아래만 스캔한다. 최상위 components/ 는 이 저장소에 없다 —
 // 실제 컴포넌트는 app/components 아래에 있고 위 walk 이 이미 재귀적으로 포함한다.
-function grepUi(pattern) {
-  const files = walk(resolve(REPO, 'app'), ['.tsx', '.ts']);
+// app/api/ 는 제외한다 — 서버 라우트 핸들러는 렌더링되는 화면이 아니라서, 거기 있는
+// 문자열은 "심사자가 실제로 보는 화면에 출처가 표기됐다"는 증거가 되지 못한다
+// (Fix B). UI 로 렌더링될 수 있는 코드만 봐야 이 검사가 의미가 있다.
+// unscannable: Set<string> — balanced=false 로 나온 파일의 경로를 여기에 누적한다
+// (넘기지 않으면 조용히 스킵만 한다). 그런 파일은 신뢰할 수 없으므로 매칭에 쓰지
+// 않는다(Fix A) — 파서가 code 상태로 끝나지 않으면 그 파일을 신뢰하지 않는다.
+function grepUi(pattern, unscannable) {
+  const apiDir = resolve(REPO, 'app', 'api');
+  const files = walk(resolve(REPO, 'app'), ['.tsx', '.ts'], [], [apiDir]);
   for (const f of files) {
-    const stripped = stripComments(readFileSync(f, 'utf8'));
-    const m = pattern.exec(stripped);
+    const { text, balanced } = stripComments(readFileSync(f, 'utf8'));
+    if (!balanced) {
+      if (unscannable) unscannable.add(f.replace(REPO, '.'));
+      continue;
+    }
+    const m = pattern.exec(text);
     if (m) {
-      const line = stripped.slice(0, m.index).split('\n').length;
+      const line = text.slice(0, m.index).split('\n').length;
       return { file: f.replace(REPO, '.'), line };
     }
   }
@@ -143,9 +168,17 @@ const EXPECTED_APIS = new Set([
 ]);
 
 function checkApiList() {
-  const stripped = stripComments(readFileSync(resolve(REPO, 'lib', 'tour-api.ts'), 'utf8'));
+  const { text, balanced } = stripComments(readFileSync(resolve(REPO, 'lib', 'tour-api.ts'), 'utf8'));
+  if (!balanced) {
+    // 이 검사는 lib/tour-api.ts 딱 한 파일만 읽는다 — 그 하나가 신뢰할 수 없으면
+    // 대체할 다른 소스가 없다. 신뢰 못 할 파싱 결과로 조용히 통과시키느니 실패시킨다(Fix A).
+    return {
+      ok: false,
+      detail: 'lib/tour-api.ts 를 신뢰할 수 없음(주석 제거 파서가 문자열/정규식 리터럴 상태에서 끝남) — 자동판정 불가, 사람이 직접 확인할 것',
+    };
+  }
   const found = new Set(
-    (stripped.match(/'(?:area|category|location|search|detail)[A-Za-z0-9]*2'/g) || [])
+    (text.match(/'(?:area|category|location|search|detail)[A-Za-z0-9]*2'/g) || [])
       .map((s) => s.slice(1, -1)),
   );
   const missing = [...EXPECTED_APIS].filter((n) => !found.has(n));
@@ -164,19 +197,27 @@ const ATTRIBUTION_STRICT = /출처\s*[:：]?\s*(?:ⓒ|©|&copy;)\s*한국관광(
 const ATTRIBUTION_LOOSE = /(?:ⓒ|©|&copy;)\s*한국관광/;
 
 function checkAttribution() {
-  const hit = grepUi(ATTRIBUTION_STRICT);
+  // unscannable: STRICT/LOOSE 두 번의 grepUi 호출에서 balanced=false 로 나온 파일을
+  // 같은 Set에 누적한다(둘 다 같은 파일 목록을 훑으므로 자동 중복 제거된다).
+  const unscannable = new Set();
+  const hit = grepUi(ATTRIBUTION_STRICT, unscannable);
+  const loose = hit ? null : grepUi(ATTRIBUTION_LOOSE, unscannable);
+  // ✅ 로 나오더라도 일부 파일을 못 읽었으면(=매칭 대상에서 제외됐으면) 그 사실을
+  // detail 에 반드시 남긴다 — "찾았다"가 "전체를 봤다"를 의미하지 않는다(Fix A).
+  const skipNote = unscannable.size
+    ? ` (파싱 실패 ${unscannable.size}개 파일 제외: ${[...unscannable].join(', ')})`
+    : '';
   if (hit) {
     return {
       ok: true,
-      detail: `발견: ${hit.file}:${hit.line} (주석 제외) — ⚠️ 문자열 존재만 확인함. 실제 렌더링 여부는 사람이 페이지를 열어 확인할 것`,
+      detail: `발견: ${hit.file}:${hit.line} (주석 제외) — ⚠️ 문자열 존재만 확인함. 실제 렌더링 여부는 사람이 페이지를 열어 확인할 것${skipNote}`,
     };
   }
-  const loose = grepUi(ATTRIBUTION_LOOSE);
   return {
     ok: false,
     detail: loose
-      ? `느슨한 표기만 발견(${loose.file}:${loose.line}) — "출처: ⓒ한국관광공사" 형식 필요`
-      : 'UI 에 출처 표기 없음(주석 제외) — 규정상 필수. "출처: ⓒ한국관광공사" 추가 필요',
+      ? `느슨한 표기만 발견(${loose.file}:${loose.line}) — "출처: ⓒ한국관광공사" 형식 필요${skipNote}`
+      : `UI 에 출처 표기 없음(주석 제외) — 규정상 필수. "출처: ⓒ한국관광공사" 추가 필요${skipNote}`,
   };
 }
 
