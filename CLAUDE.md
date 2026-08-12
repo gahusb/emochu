@@ -149,6 +149,7 @@ docs/
 - 상세: 옵시디언 위키 `프로젝트-이모추`
 
 ## 🔁 Loops
+- 🔖 **하네스 작업을 이어받는다면 `docs/2026-08-13-하네스-작업-인수인계.md` 부터 읽어라** — 남은 일·순서·되풀이하지 말 것이 거기 있다
 - **먼저 해당 Loop 의 `PROGRESS.md` 를 읽어라.** 상태·다음 할 일·`Do Not Repeat` 이 거기 있다
 - `loops/tourapi-watch/` — TourAPI 11개 실호출 감시 + 폐기 예정 API 경보 (`node loops/tourapi-watch/smoke.mjs`)
 - `loops/release-green/` — test·lint·build 배포 가능 상태 (`node loops/release-green/gate.mjs`)
