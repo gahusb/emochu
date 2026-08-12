@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 **이모추!**(이번 주에 모하지 추천)는 한국관광공사 TourAPI와 AI를 활용한 주말 나들이 코스 추천 서비스.
-2026 관광데이터 활용 공모전 출품작 (마감: 2026.5.6)
+2026 관광데이터 활용 공모전 출품작 — 웹·앱 개발 부문 (1차 심사자료 접수 ~2026-09-21 16:00)
 
 ## 개발자
 - 이름: 박재오
@@ -148,8 +148,9 @@ docs/
 - 출처 표기: `출처: ⓒ한국관광공사` (**`TourAPI` 단독 표기 지양**, 로고 불가·텍스트만)
 - 상세: 옵시디언 위키 `프로젝트-이모추`
 
-## 🔁 Loop (tourapi-watch)
-- **먼저 `loops/tourapi-watch/PROGRESS.md`를 읽어라.** 상태·다음 할 일·`Do Not Repeat`이 거기 있다
-- 절차·판정·금지: `loops/tourapi-watch/LOOP_INSTRUCTIONS.md` / Skill: `.claude/skills/tourapi-watch/`
-- 실행: `node loops/tourapi-watch/smoke.mjs` (호출 **단일 경유점**. 직접 fetch 만들지 말 것)
-- 권한 **사다리 1단계**(읽기+리포트). 소스 수정·commit·push 금지
+## 🔁 Loops
+- **먼저 해당 Loop 의 `PROGRESS.md` 를 읽어라.** 상태·다음 할 일·`Do Not Repeat` 이 거기 있다
+- `loops/tourapi-watch/` — TourAPI 11개 실호출 감시 + 폐기 예정 API 경보 (`node loops/tourapi-watch/smoke.mjs`)
+- `loops/release-green/` — test·lint·build 배포 가능 상태 (`node loops/release-green/gate.mjs`)
+- `loops/submission-check/` — 1차 제출 항목 9종 (`node loops/submission-check/check.mjs`)
+- 공통: 스크립트가 **검사 단일 경유점**. 권한 **사다리 1단계**(읽기+리포트). 소스 수정·commit·push 금지
