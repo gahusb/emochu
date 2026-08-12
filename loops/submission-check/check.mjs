@@ -46,8 +46,11 @@ function stripComments(src) {
     const next = i + 1 < n ? src[i + 1] : '';
 
     if (state === 'code') {
-      if (ch === '/' && next === '/') { state = 'line'; out += ' '; continue; }
-      if (ch === '/' && next === '*') { state = 'block'; out += ' '; continue; }
+      // 여는 기호는 두 글자(// 또는 /*)를 한 번에 소비한다 — close 쪽(*/)과 동일하게.
+      // 하나만 소비하면 남은 글자(예: /* 의 '*')가 다음 루프에서 독립적으로 재해석되어
+      // 바로 뒤따르는 '/'와 잘못 짝지어 주석을 너무 일찍 닫아버릴 수 있다(Finding 8).
+      if (ch === '/' && next === '/') { state = 'line'; out += '  '; i++; continue; }
+      if (ch === '/' && next === '*') { state = 'block'; out += '  '; i++; continue; }
       if (ch === "'") { state = 'sq'; out += ch; continue; }
       if (ch === '"') { state = 'dq'; out += ch; continue; }
       if (ch === '`') { state = 'tpl'; out += ch; continue; }
