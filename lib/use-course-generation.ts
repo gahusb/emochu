@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { CourseResponse, Duration, Companion, Preference, Feeling, DestinationType, VisitDay } from './weekend-types';
+import type { CourseResponse, Duration, Companion, Preference, Feeling, DestinationType, VisitDay, AccessibilityNeed } from './weekend-types';
 import type { SajuResult } from './saju';
 
 export interface GenerateParams {
@@ -17,6 +17,8 @@ export interface GenerateParams {
   mood?: string | null;
   saju?: SajuResult;
   visitDay?: VisitDay;
+  /** 미지정 = 접근성 조건 없음 */
+  accessibility?: AccessibilityNeed[];
 }
 
 const LOADING_MESSAGES = [
@@ -60,6 +62,7 @@ export function useCourseGeneration() {
           destinationType: params.destinationType ?? 'nearby',
           cityAreaCode: params.cityAreaCode,
           mood: params.mood,
+          accessibility: params.accessibility,
           saju: params.saju,
           visitDay: params.visitDay,
         }),

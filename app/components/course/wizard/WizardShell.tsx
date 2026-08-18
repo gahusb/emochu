@@ -20,6 +20,8 @@ import StepFeeling from './steps/StepFeeling';
 import StepDuration from './steps/StepDuration';
 import StepCompanion from './steps/StepCompanion';
 import StepPreferences from './steps/StepPreferences';
+import StepAccessibility from './steps/StepAccessibility';
+import type { AccessibilityNeed } from '@/lib/weekend-types';
 
 export interface WizardState {
   step: number;
@@ -34,6 +36,8 @@ export interface WizardState {
   gpsLoading: boolean;
   saju: SajuResult | null;
   visitDay: VisitDay | null;
+  /** 선택 사항. 비어 있으면 무장애 API를 호출조차 하지 않는다. */
+  accessibility: AccessibilityNeed[];
 }
 
 export type WizardAction =
@@ -49,6 +53,7 @@ export type WizardAction =
   | { type: 'SET_USER_LOCATION'; value: { lat: number; lng: number } | null }
   | { type: 'SET_GPS_LOADING'; value: boolean }
   | { type: 'SET_VISIT_DAY'; value: VisitDay }
+  | { type: 'TOGGLE_ACCESSIBILITY'; value: AccessibilityNeed }
   | { type: 'RESTORE_DRAFT'; value: Partial<WizardState> };
 
 const INITIAL: WizardState = {
@@ -64,6 +69,7 @@ const INITIAL: WizardState = {
   gpsLoading: false,
   saju: null,
   visitDay: 'sat',
+  accessibility: [],
 };
 
 function reducer(state: WizardState, action: WizardAction): WizardState {
@@ -85,6 +91,15 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, duration: action.value };
     }
     case 'SET_VISIT_DAY': return { ...state, visitDay: action.value };
+    case 'TOGGLE_ACCESSIBILITY': {
+      const has = state.accessibility.includes(action.value);
+      return {
+        ...state,
+        accessibility: has
+          ? state.accessibility.filter((a) => a !== action.value)
+          : [...state.accessibility, action.value],
+      };
+    }
     case 'SET_COMPANION': return { ...state, companion: action.value };
     case 'TOGGLE_PREFERENCE': {
       const exists = state.preferences.includes(action.value);
@@ -97,7 +112,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
   }
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 const DRAFT_KEY = 'emochu.wizard_draft';
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24시간
 
@@ -112,6 +127,7 @@ const STEP_META = [
   { title: '일정', question: '언제, 얼마나 놀 수 있어요?', sub: '방문하는 날에 맞춰 문 여는 곳만 골라드려요.' },
   { title: '동반자', question: '누구랑 가요?', sub: '함께하는 사람에 따라 추천이 달라져요.' },
   { title: '취향', question: '뭐가 끌려요?', sub: '여러 개 골라도 좋아요.' },
+  { title: '접근성', question: '편하게 다니려면 뭐가 필요해요?', sub: '해당 없으면 그냥 넘어가세요.' },
 ];
 
 export default function WizardShell() {
@@ -207,7 +223,8 @@ export default function WizardShell() {
     (state.step === 1 && state.feeling !== null) ||
     (state.step === 2 && state.duration !== null) ||
     (state.step === 3 && state.companion !== null) ||
-    (state.step === 4 && state.preferences.length > 0);
+    (state.step === 4 && state.preferences.length > 0) ||
+    state.step === 5; // 접근성은 선택 사항 — 고르지 않아도 진행한다
 
   const getRequestLocation = () => {
     if (state.destinationType === 'city' && state.selectedCity) {
@@ -240,6 +257,9 @@ export default function WizardShell() {
         mood: state.selectedMood,
         saju: state.saju ?? undefined,
         visitDay: state.duration === 'overnight' ? undefined : state.visitDay ?? undefined,
+        // 빈 배열이 아니라 undefined 로 보낸다 — 서버가 "조건 없음"을 확실히 알아야
+        // 무장애 API 를 호출조차 하지 않는다.
+        accessibility: state.accessibility.length > 0 ? state.accessibility : undefined,
       });
     }
   };
@@ -267,10 +287,11 @@ export default function WizardShell() {
       : durationLabel,
     companionLabel,
     state.preferences.length > 0 ? `${state.preferences.length}개 선택` : null,
+    state.accessibility.length > 0 ? `${state.accessibility.length}개 선택` : '해당 없음',
   ];
 
   const meta = STEP_META[state.step];
-  const CurrentStep = [StepDestination, StepFeeling, StepDuration, StepCompanion, StepPreferences][state.step];
+  const CurrentStep = [StepDestination, StepFeeling, StepDuration, StepCompanion, StepPreferences, StepAccessibility][state.step];
 
   return (
     <>

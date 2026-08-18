@@ -17,8 +17,10 @@ import {
   type StayItem,
 } from '@/lib/tour-api';
 import { getWeekendForecast } from '@/lib/weather-api';
+import { fetchBarrierFree } from '@/lib/barrier-free-api';
 import {
   generateCourse,
+  filterByAccessibility,
   generateFallbackCourse,
   scoreAndRankCandidates,
   enrichWithFacilities,
@@ -34,6 +36,7 @@ import {
 import { replaceClosedStops, visitDayToIndex } from '@/lib/opening-hours';
 import type {
   CourseRequest,
+  AccessibilityNeed,
   CourseResponse,
   CourseStop,
   Duration,
@@ -97,6 +100,8 @@ const VALID_MOODS: MoodType[] = ['mountain', 'sea', 'valley', 'urban', 'countrys
 const VALID_FEELINGS: Feeling[] = ['tired', 'excited', 'romantic', 'healing', 'adventurous', 'foodie'];
 const VALID_VISIT_DAYS: VisitDay[] = ['sat', 'sun'];
 
+const VALID_ACCESSIBILITY: AccessibilityNeed[] = ['mobility', 'visual', 'hearing', 'infant'];
+
 function validateRequest(body: unknown): CourseRequest {
   const b = body as Record<string, unknown>;
 
@@ -140,6 +145,19 @@ function validateRequest(body: unknown): CourseRequest {
     throw new Error('기분 선택이 올바르지 않습니다.');
   }
 
+  // 접근성은 선택 사항이다. 없거나 빈 배열이면 undefined 로 정규화해서,
+  // 아래 파이프라인이 "조건 없음"을 한 가지 모양으로만 보게 한다.
+  let accessibility: AccessibilityNeed[] | undefined;
+  const rawA11y = b.accessibility;
+  if (Array.isArray(rawA11y) && rawA11y.length > 0) {
+    const filtered = rawA11y.filter((a): a is AccessibilityNeed =>
+      VALID_ACCESSIBILITY.includes(a as AccessibilityNeed));
+    if (filtered.length !== rawA11y.length) {
+      throw new Error('올바르지 않은 접근성 항목이 포함되어 있습니다.');
+    }
+    accessibility = filtered;
+  }
+
   const visitDay = b.visitDay as VisitDay | undefined;
   if (visitDay && !VALID_VISIT_DAYS.includes(visitDay)) {
     throw new Error('방문 요일 선택이 올바르지 않습니다.');
@@ -164,7 +182,7 @@ function validateRequest(body: unknown): CourseRequest {
     };
   }
 
-  return { lat, lng, duration, companion, preferences, feeling, destinationType, cityAreaCode, mood, saju, visitDay };
+  return { lat, lng, duration, companion, preferences, feeling, destinationType, cityAreaCode, mood, saju, visitDay, accessibility };
 }
 
 // ─── TourAPI → ScoredSpot 변환 ───
@@ -548,18 +566,28 @@ export async function POST(request: NextRequest) {
       departureName = moodOpt ? `${moodOpt.label} 추천 지역` : '추천 지역';
     }
 
+    // 접근성 조건이 있을 때만 무장애 정보를 조회한다. 없으면 fetchBarrierFree 가
+    // 빈 배열을 받아 호출조차 하지 않으므로 기존 경로에 지연이 0 이다.
+    // 실패(403·타임아웃·429)해도 빈 Map 이라 코스 생성은 그대로 진행된다.
+    let ranked2 = ranked;
+    if (req.accessibility && req.accessibility.length > 0) {
+      const bfInfo = await fetchBarrierFree(ranked.map(c => c.contentId));
+      ranked2 = filterByAccessibility(ranked, req.accessibility, bfInfo);
+    }
+
     const input: CourseGenerationInput = {
       departure: { name: departureName, lat: req.lat, lng: req.lng },
       duration: req.duration,
       companion: req.companion,
       preferences: req.preferences,
       feeling: req.feeling,
-      candidates: ranked,
+      candidates: ranked2,
       festivals,
       stays,
       weather,
       saju: req.saju,
       visitDay: req.visitDay,
+      accessibility: req.accessibility,
     };
 
     // A/B 코스 병렬 생성 (B는 20초 타임아웃, A는 50초 타임아웃으로 504 방지)
