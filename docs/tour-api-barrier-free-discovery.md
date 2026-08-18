@@ -5,7 +5,69 @@
 - 조사 스크립트: `scripts/probe-barrier-free.mjs`
 - 사용 키: `.env.local`의 `TOUR_API_KEY` (기존 11개 오퍼레이션에 이미 사용 중인 키, 값은 본 문서에 기록하지 않음)
 
-## 판정: 중단
+## ✅ 2026-08-18 갱신 — 활용신청 승인 후 실호출 성공
+
+아래 「판정: 중단」은 **2026-07-31 시점의 기록**이다. 박재오가 상품ID 15101897 활용신청을 완료해 **403 → 200** 으로 바뀌었다. 확정된 사실은 다음과 같다.
+
+### 확정: 엔드포인트
+
+- 서비스ID: **`KorWithService2`** (7월 추정이 맞았다)
+- 오퍼레이션: **`detailWithTour2`**
+- 파라미터: `serviceKey` · `contentId` · `MobileOS` · `MobileApp` · `_type` — `KorService2` 와 동일
+- 🔴 **contentId 체계가 `KorService2` 와 같다.** 경복궁 `126508`, 국립중앙박물관 `129703` 이 그대로 조회됐다 → **교차 대조 가능**(설계 게이트 통과)
+
+### 확정: 응답 필드 29개 — 4개가 아니었다
+
+`contentTypeId` 와 **무관하게 동일한 스키마**다(관광지 12·문화시설 14 확인). 값은 boolean 이 아니라 **자유 텍스트**이며, 정보가 없으면 **빈 문자열**이다.
+
+| 그룹 | 필드 |
+|---|---|
+| 지체(휠체어) | `parking` `wheelchair` `exit` `elevator` `restroom` `auditorium` `room` `handicapetc` `route` |
+| 시각 | `braileblock` `audioguide` `bigprint` `brailepromotion` `guidesystem` `blindhandicapetc` `guidehuman` |
+| 청각 | `signguide` `videoguide` `hearingroom` `hearinghandicapetc` |
+| 영유아 | `stroller` `lactationroom` `babysparechair` `infantsfamilyetc` |
+| 기타 | `contentid` `publictransport` `ticketoffice` `promotion` |
+
+관측된 실제 값 (경복궁 `126508`):
+
+```
+parking   : "장애인 주차장 있음(광화문 우측 옥외 주차장에 9개)_무장애 편의시설"
+wheelchair: "대여가능"
+exit      : "주출입구는 경사로가 있어 휠체어 접근 가능함"
+restroom  : "장애인 화장실 있음"
+audioguide: "음성안내 가이드 있음(티켓박스에서 음성안내기기와 PDA 대여가능)"
+stroller  : "대여가능"
+```
+
+### 🔴 함정 — `wheelchair` 는 "접근 가능"이 아니라 "대여 가능"이다
+
+경복궁의 `wheelchair` 값은 `"대여가능"` 이고, **실제 휠체어 접근성은 `exit`("주출입구는 경사로가 있어 휠체어 접근 가능함")과 `route`("경사로 이용 가능")에 있다.** 필드 이름만 보고 `wheelchair` 를 접근성 판정에 쓰면 **휠체어를 빌려주는 곳**과 **휠체어로 갈 수 있는 곳**을 혼동한다.
+
+커버리지 측정에서도 `wheelchair` 는 관광지 10곳 중 1곳에만 있었던 반면 `route`·`exit` 은 모든 타입에서 상위였다.
+
+### 무장애 정보가 없는 콘텐츠의 응답 형태
+
+**`items` 자체가 없다.** HTTP 200 + `resultCode 0000 OK` 이면서 본문에 항목이 없는 형태다(음식점 `1947036` 에서 관측).
+
+> ⚠️ 이건 `loops/tourapi-watch/PROGRESS.md` 의 `Do Not Repeat` 이 경고한 **"200 + 0000 + 항목 0"** 과 같은 모양이다. 다만 여기서는 **폐기 신호가 아니라 정상적인 "데이터 없음"** 이다 — 무장애 정보는 전수 조사된 것이 아니라서 없는 콘텐츠가 정상적으로 존재한다.
+
+### 커버리지 실측 (2026-08-18, 서울 종로 반경 5km, 타입별 10건 표본)
+
+| 타입 | 조회 | 정보 있음 | 커버리지 |
+|---|---|---|---|
+| 문화시설 | 10 | 8 | **80%** |
+| 숙박 | 10 | 5 | 50% |
+| 관광지 | 10 | 4 | 40% |
+| 음식점 | 10 | 4 | 40% |
+| 레포츠 | 9 | 3 | 33% |
+
+**평균 약 48%.** 이 숫자가 설계 판단 하나를 검증한다 — 무장애 정보가 없는 장소를 후보에서 **제외하지 않기로** 한 결정(`docs/superpowers/specs/2026-08-18-barrier-free-accessibility-design.md` 6.2)이 옳았다. 제외했다면 후보의 절반이 사라져 코스 구성이 자주 실패했을 것이다.
+
+재현: 측정 스크립트는 일회성이라 저장하지 않았다. `locationBasedList2` 로 타입별 10건을 뽑아 각 `contentId` 를 `detailWithTour2` 로 조회하고, `contentid` 를 제외한 필드 중 비어 있지 않은 것이 하나라도 있으면 "정보 있음"으로 셌다.
+
+---
+
+## 판정: 중단 *(2026-07-31 시점 — 위 갱신으로 해소됨)*
 
 **결론부터: Task 9(무장애 정보 엔드포인트 추가)는 스킵한다.** 이유는 "오퍼레이션이 존재하지 않아서"가 아니라 **"존재하는 것으로 보이지만 현재 `TOUR_API_KEY`로는 접근 권한이 없어서(HTTP 403 Forbidden)"**다. 별도의 공공데이터포털 활용신청(승인) 없이는 실호출이 불가능하다는 것이 실제 응답으로 확인됐다.
 
