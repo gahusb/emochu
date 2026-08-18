@@ -122,3 +122,31 @@ export async function fetchBarrierFree(
   }
   return out;
 }
+
+/**
+ * 원시 필드명 → 한글 라벨.
+ *
+ * 이 파일이 원시 필드명을 아는 유일한 곳이라는 원칙을 지키려면 라벨도 여기 있어야 한다.
+ * UI 는 BarrierFreeInfo.details 의 키를 이 표로만 읽는다.
+ */
+export const BARRIER_FREE_LABELS: Record<string, string> = {
+  // 지체
+  route: '접근로', exit: '출입구', elevator: '엘리베이터', restroom: '화장실',
+  parking: '주차', room: '객실', auditorium: '관람석', handicapetc: '기타 편의',
+  // 시각
+  braileblock: '점자블록', audioguide: '음성안내', bigprint: '큰활자 안내',
+  brailepromotion: '점자 안내물', guidesystem: '유도·안내 설비',
+  guidehuman: '안내 도우미', blindhandicapetc: '시각 기타',
+  // 청각
+  signguide: '수어 안내', videoguide: '영상 안내', hearingroom: '청각 안내실',
+  hearinghandicapetc: '청각 기타',
+  // 영유아
+  stroller: '유아차', lactationroom: '수유실', babysparechair: '아기의자',
+  infantsfamilyetc: '영유아 기타',
+  // 표시 전용 — 접근성 판정 근거가 아니다
+  wheelchair: '휠체어 대여', publictransport: '대중교통', ticketoffice: '매표소',
+  promotion: '안내물',
+};
+
+/** UI 표시 순서. GROUP_FIELDS 순서를 따르고 표시 전용 필드를 뒤에 붙인다. */
+export const BARRIER_FREE_DISPLAY_ORDER: readonly string[] = ALL_FIELDS;

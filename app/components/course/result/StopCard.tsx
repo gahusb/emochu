@@ -6,6 +6,7 @@ import { Lightbulb, Route } from 'lucide-react';
 import type { CourseStop } from '@/lib/weekend-types';
 import { getRoleInfo } from '@/lib/course-role';
 import { formatTimeRange } from './formatTime';
+import BarrierFreeNotice from '@/app/components/BarrierFreeNotice';
 
 interface Props {
   stop: CourseStop;
@@ -98,6 +99,7 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
               <span>{stop.tip}</span>
             </p>
           )}
+          <BarrierFreeNotice barrierFree={stop.facilities?.barrierFree} />
         </div>
       </button>
     </div>

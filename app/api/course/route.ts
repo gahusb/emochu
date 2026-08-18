@@ -37,6 +37,7 @@ import { replaceClosedStops, visitDayToIndex } from '@/lib/opening-hours';
 import type {
   CourseRequest,
   AccessibilityNeed,
+  BarrierFreeInfo,
   CourseResponse,
   CourseStop,
   Duration,
@@ -570,8 +571,10 @@ export async function POST(request: NextRequest) {
     // 빈 배열을 받아 호출조차 하지 않으므로 기존 경로에 지연이 0 이다.
     // 실패(403·타임아웃·429)해도 빈 Map 이라 코스 생성은 그대로 진행된다.
     let ranked2 = ranked;
+    // enrichStops 에서 stop 에 붙여야 하므로 스코프를 바깥에 둔다.
+    let bfInfo = new Map<string, BarrierFreeInfo>();
     if (req.accessibility && req.accessibility.length > 0) {
-      const bfInfo = await fetchBarrierFree(ranked.map(c => c.contentId));
+      bfInfo = await fetchBarrierFree(ranked.map(c => c.contentId));
       ranked2 = filterByAccessibility(ranked, req.accessibility, bfInfo);
     }
 
@@ -639,6 +642,11 @@ export async function POST(request: NextRequest) {
           const candidate = candidates.find(c => c.contentId === stop.contentId);
           if (candidate?.contentTypeId) stop.contentTypeId = String(candidate.contentTypeId);
         }
+        // 무장애 정보. bfInfo 에 키가 없으면 붙이지 않는다 —
+        // UI 가 undefined 를 "미확인"으로 표시해야 하므로 빈 객체를 만들면 안 된다.
+        const bf = bfInfo.get(stop.contentId);
+        if (bf) stop.facilities = { ...(stop.facilities ?? {}), barrierFree: bf };
+
         const cand = candidates.find(c => c.contentId === stop.contentId);
         if (cand) {
           if (cand.restdate) stop.restdate = cand.restdate;
