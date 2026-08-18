@@ -66,6 +66,36 @@ export type VisitDay = 'sat' | 'sun';
 export type Companion = 'solo' | 'couple' | 'family' | 'friends';
 export type Preference = 'nature' | 'food' | 'culture' | 'cafe' | 'activity' | 'photo';
 
+// ─── 접근성 ───
+// 동반자(Companion)와 직교하는 독립 축이다. "부모님과 함께인데 휠체어가 필요"는
+// Companion 4종으로 표현할 수 없다.
+// 4그룹은 무장애 여행 정보 API(KorWithService2)가 실제로 데이터를 나누는 방식과
+// 1:1로 맞춘 것이다 — 데이터에 없는 구분을 UI에 만들면 고를 수는 있는데 반영은
+// 안 되는 선택지가 생긴다.
+export type AccessibilityNeed = 'mobility' | 'visual' | 'hearing' | 'infant';
+
+export const ACCESSIBILITY_LABELS: Record<AccessibilityNeed, string> = {
+  mobility: '휠체어·보행 불편',
+  visual: '시각장애',
+  hearing: '청각장애',
+  infant: '영유아 동반',
+};
+
+export interface BarrierFreeInfo {
+  /** 원문 텍스트를 보존한다. 빈 문자열 필드는 담지 않는다.
+   *  "주출입구는 경사로가 있어 휠체어 접근 가능함"을 true로 접으면
+   *  사용자가 실제로 판단할 근거를 버리게 된다 — 경사로가 주출입구에 있는지
+   *  후문에만 있는지는 전혀 다른 정보다. */
+  details: Record<string, string>;
+  /** 그룹별 정보 유무. undefined = 미확인.
+   *  false는 만들지 않는다 — API가 "없음"과 "조사 안 됨"을 구분해 주지 않으므로
+   *  없다고 단정할 근거가 없다. */
+  mobility?: boolean;
+  visual?: boolean;
+  hearing?: boolean;
+  infant?: boolean;
+}
+
 // 목적지 선택 방식
 export type DestinationType = 'nearby' | 'city' | 'mood';
 export type MoodType = 'mountain' | 'sea' | 'valley' | 'urban' | 'countryside';
@@ -181,6 +211,8 @@ export interface CourseRequest {
   mood?: MoodType;
   saju?: CourseSaju;
   visitDay?: VisitDay;   // 방문 요일. 미지정 시 토요일 기준(하위호환)
+  /** 미지정 = 접근성 조건 없음. 이때 무장애 API를 호출조차 하지 않는다. */
+  accessibility?: AccessibilityNeed[];
 }
 
 // ─── 편의시설 정보 ───
@@ -191,6 +223,8 @@ export interface FacilityInfo {
   kidsFacility?: boolean;
   pet?: boolean;
   operatingHours?: string;
+  /** 무장애 정보. 조회하지 않았거나 실패하면 undefined다. */
+  barrierFree?: BarrierFreeInfo;
 }
 
 export interface CourseStop {
