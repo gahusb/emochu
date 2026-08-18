@@ -91,10 +91,21 @@ export interface CourseGenerationInput {
 
 // ─── 상수 ───
 
+// 2026-08-19 실측으로 교체. 같은 코스 생성 태스크를 3회씩 돌린 평균:
+//   gemini-3.5-flash  8,538ms (JSON 3/3)  ← 채택
+//   gemini-3.6-flash 10,467ms (JSON 3/3)
+//   gemini-2.5-flash 12,711ms (JSON 3/3)  ← 이전 1순위
+// 3.5 가 이전보다 33% 빠르다. 코스A 가 50초 타임아웃으로 폴백되던 문제에 직접 도움이 된다.
+//
+// 🔴 gemini-3.7-flash 는 넣지 않았다 — 존재하지만 503 "high demand" 로 응답한다.
+//    폴백 체인은 1순위가 실패했을 때 기대는 곳이라 불안정한 모델을 넣으면 안 된다.
+//    나중에 안정화되면 그때 실측하고 올린다.
+//
+// 폴백은 세대를 섞는다. 같은 세대로만 채우면 그 세대 전체 장애 때 다 같이 죽는다.
 const MODELS = [
+  { id: 'gemini-3.5-flash',      maxTokens: 8192, temp: 0.7 },
+  { id: 'gemini-3.6-flash',      maxTokens: 8192, temp: 0.7 },
   { id: 'gemini-2.5-flash',      maxTokens: 8192, temp: 0.7 },
-  { id: 'gemini-2.5-flash-lite', maxTokens: 8192, temp: 0.7 },
-  { id: 'gemini-2.0-flash',      maxTokens: 8192, temp: 0.7 },
 ] as const;
 
 const DURATION_DETAIL: Record<Duration, string> = {
@@ -935,7 +946,7 @@ export function generateFallbackCourse(
   };
 }
 
-// ─── AI 요약 유틸 (gemini-2.5-flash-lite) ───
+// ─── AI 요약 유틸 (gemini-3.5-flash-lite) ───
 
 async function callGeminiLite(prompt: string, maxTokens = 100): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -944,7 +955,8 @@ async function callGeminiLite(prompt: string, maxTokens = 100): Promise<string> 
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  const models = ['gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+  // 실측(2026-08-19): 3.5-lite 925ms vs 2.5-lite 987ms. 차이는 작지만 세대를 맞춘다.
+  const models = ['gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'];
   for (const modelName of models) {
     try {
       const model = genAI.getGenerativeModel({
