@@ -1171,3 +1171,66 @@ export function generateShareSlug(): string {
   }
   return slug;
 }
+
+// ─── 접근성 ───
+// 무장애 정보는 lib/barrier-free-api.ts 가 조회한다. 여기서는 그 결과로 후보를
+// 정렬하고 Gemini 에 제약을 전달하는 일만 한다.
+import type { AccessibilityNeed, BarrierFreeInfo } from './weekend-types';
+import { ACCESSIBILITY_LABELS } from './weekend-types';
+
+/**
+ * 접근성 요구에 따라 후보를 재정렬한다.
+ *
+ * 🔴 미확인을 **제외하지 않는다.** 커버리지 실측이 평균 48%라(문화시설 80% ~
+ *    레포츠 33%) 하드 제외하면 후보 절반이 사라져 코스 구성이 자주 실패한다.
+ *    확인된 곳을 앞으로 올리고, 미확인은 뒤에 남겨 사용자가 판단하게 한다.
+ *
+ * needs 가 비면 입력을 그대로 돌려준다 — 접근성을 고르지 않은 사용자에게는
+ * 이 함수가 존재하지 않는 것과 같아야 한다.
+ */
+export function filterByAccessibility<T extends { contentId: string }>(
+  spots: T[],
+  needs: AccessibilityNeed[] | undefined,
+  info: Map<string, BarrierFreeInfo>,
+): T[] {
+  if (!needs || needs.length === 0) return spots;
+
+  const confirmed: T[] = [];
+  const unknown: T[] = [];
+  for (const spot of spots) {
+    const bf = info.get(spot.contentId);
+    if (bf === undefined) {
+      unknown.push(spot); // 조회 실패 = 미확인
+      continue;
+    }
+    // AccessibilityNeed 가 BarrierFreeInfo 의 그룹 키와 같은 이름이라 매핑 테이블이 없다.
+    const ok = needs.every((n) => bf[n] === true);
+    if (ok) confirmed.push(spot);
+    else unknown.push(spot); // 정보가 없을 뿐 "불가"로 단정하지 않는다
+  }
+  return [...confirmed, ...unknown];
+}
+
+/**
+ * Gemini 프롬프트에 붙일 접근성 제약을 만든다.
+ *
+ * 필터만으로는 AI 가 접근성을 인지하지 못해 코스 설명문에 드러나지 않는다.
+ * 마지막 두 지시가 이 함수의 존재 이유다 — LLM 은 정보가 없을 때 그럴듯하게
+ * 지어내는데, 접근성에서 그건 사용자를 헛걸음시킨다.
+ */
+export function buildAccessibilityPrompt(
+  needs: AccessibilityNeed[] | undefined,
+): string {
+  if (!needs || needs.length === 0) return ''; // 프롬프트가 기존과 완전히 동일해진다
+
+  const labels = needs.map((n) => ACCESSIBILITY_LABELS[n]).join(', ');
+  return [
+    '',
+    '',
+    '[접근성 요구 — 반드시 지킬 것]',
+    `이용자에게 다음 조건이 있습니다: ${labels}.`,
+    '- 각 장소를 소개할 때 무장애 정보가 확인된 곳은 그 사실을 한 문장으로 밝히세요.',
+    '- 무장애 정보가 확인되지 않은 곳을 넣을 때는 "무장애 정보가 확인되지 않았으니 방문 전 전화 확인을 권합니다"라고 반드시 덧붙이세요.',
+    '- 확인되지 않은 곳을 "접근 가능"이라고 단정하지 마세요.',
+  ].join('\n');
+}

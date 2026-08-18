@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const OUT_DIR = resolve(HERE, 'outputs');
-const BASELINE = 73;
+const BASELINE = 80;
 
 const pad = (n) => String(n).padStart(2, '0');
 const now = new Date();
