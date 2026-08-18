@@ -231,6 +231,33 @@ function checkAttribution() {
   };
 }
 
+// 무장애 여행 정보는 KorService2 의 12번째 오퍼레이션이 아니라 **별개 API 상품**이다
+// (상품ID 15101897, 서비스ID KorWithService2). 그래서 EXPECTED_APIS 11개 집합에
+// 섞지 않고 독립 항목으로 검사한다 — 섞으면 checkApiList 의 "KorService2 11개와
+// 일치"라는 의미가 무너진다.
+function checkBarrierFree() {
+  const p = resolve(REPO, 'lib', 'barrier-free-api.ts');
+  if (!existsSync(p)) {
+    return { ok: false, detail: 'lib/barrier-free-api.ts 없음 — 무장애 API 미연동' };
+  }
+  const { text, balanced } = stripComments(readFileSync(p, 'utf8'));
+  if (!balanced) {
+    return {
+      ok: false,
+      detail: 'lib/barrier-free-api.ts 를 신뢰할 수 없음(주석 제거 파서가 문자열/정규식 상태에서 끝남) — 사람이 직접 확인할 것',
+    };
+  }
+  const hasService = text.includes('KorWithService2');
+  const hasOperation = text.includes('detailWithTour2');
+  const ok = hasService && hasOperation;
+  return {
+    ok,
+    detail: ok
+      ? 'lib/barrier-free-api.ts — KorWithService2/detailWithTour2 연동 확인(주석 제외)'
+      : `lib/barrier-free-api.ts 에서 누락: ${[!hasService && 'KorWithService2', !hasOperation && 'detailWithTour2'].filter(Boolean).join(', ')}`,
+  };
+}
+
 function checkSpecDoc() {
   const pdfs = walk(ASSET_DIR, ['.pdf']);
   return { ok: pdfs.length >= 1, detail: `${ASSET_DIR.replace(REPO, '.')} 에 PDF ${pdfs.length}개` };
@@ -252,6 +279,7 @@ for (const item of cfg.items) {
   let r;
   if (item.id === 'service-url') r = await checkServiceUrl(cfg.serviceUrl);
   else if (item.id === 'api-list') r = checkApiList();
+  else if (item.id === 'barrier-free') r = checkBarrierFree();
   else if (item.id === 'attribution') r = checkAttribution();
   else if (item.id === 'spec-doc') r = checkSpecDoc();
   else if (item.id === 'images') r = checkImages();

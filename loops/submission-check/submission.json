@@ -9,7 +9,8 @@
     { "id": "service-url",    "kind": "auto",   "label": "서비스 URL 이 200 으로 응답" },
     { "id": "test-account",   "kind": "manual", "label": "테스트 계정 — 로그인 방식 선택(개인 계정 제출 불가)", "done": false, "note": "로그인 불필요면 '불필요' 선택" },
     { "id": "api-keys",       "kind": "manual", "label": "OpenAPI 인증키(인코딩·디코딩) 제출", "done": false, "note": "운영계정 신청은 선택 사항. 🔴 실제 키 값을 이 파일에 적지 말 것 — git 추적 대상이다. 제출 완료 표시만 한다" },
-    { "id": "api-list",       "kind": "auto",   "label": "활용 OpenAPI 목록이 11개와 일치" },
+    { "id": "api-list",       "kind": "auto",   "label": "활용 OpenAPI 목록이 11개와 일치 (KorService2)" },
+    { "id": "barrier-free",   "kind": "auto",   "label": "무장애 여행 정보 API 연동 (별도 상품 15101897)" },
     { "id": "attribution",    "kind": "auto",   "label": "UI 에 출처 표기 존재 (ⓒ한국관광공사 / ⓒ한국관광콘텐츠랩)" },
     { "id": "spec-doc",       "kind": "auto",   "label": "기능설명서 PDF 준비 (지정 양식)" },
     { "id": "images",         "kind": "auto",   "label": "대표 이미지 1장 + 상세 이미지 3~5장" }

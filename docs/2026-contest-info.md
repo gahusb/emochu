@@ -182,7 +182,7 @@
 | 저장소 | https://github.com/gahusb/emochu (public) |
 | 지역특화 서비스 유무 | 아니오 |
 | Start-up NEST 선정 여부 | 아니오 |
-| TourAPI 활용 개수 | 11개 (필수 3개 이상 충족 + 어필) |
+| TourAPI 활용 개수 | **KorService2 11개 + 무장애 여행 정보 1개 상품** (필수 3개 이상 충족 + 어필) |
 | 상용 런칭 방법 | 웹서비스 (Vercel) |
 
 ---

@@ -98,7 +98,7 @@ docs/
   weekend-app-design.md · weekend-ai-engine-design.md · weekend-deploy-checklist.md
 ```
 
-## TourAPI 활용 현황 (11개 API)
+## TourAPI 활용 현황 (KorService2 11개 + 무장애 여행 정보 별도 상품)
 | API | 용도 |
 |-----|------|
 | searchFestival2 | 주변 축제 검색 |
@@ -112,6 +112,12 @@ docs/
 | searchStay2 | 숙박 검색 |
 | areaCode2 | 지역 코드 조회 |
 | categoryCode2 | 분류 코드 조회 |
+
+**별도 API 상품** (상품ID 15101897, 서비스ID `KorWithService2`)
+
+| API | 용도 |
+|-----|------|
+| detailWithTour2 | 무장애 여행 정보 — 휠체어·시각·청각·영유아 4그룹 29개 필드 |
 
 ## 콘텐츠 타입 ID
 | ID | 분류 |
