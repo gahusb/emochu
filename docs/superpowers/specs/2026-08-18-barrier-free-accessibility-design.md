@@ -103,29 +103,59 @@ app/components/FacilityBadges.tsx  무장애 뱃지 확장
 
 `lib/tour-api.ts`는 `BASE_URL`이 `KorService2`로 고정된 단일 상품 클라이언트다(`lib/tour-api.ts:5`). 무장애는 **서비스ID가 다른 별개 상품**(`KorWithService2`)이므로 같은 파일에 섞으면 `callTourApi`의 전제가 깨진다. 파일을 나눠야 "두 상품을 교차 활용한다"는 구조가 코드에도 드러난다.
 
-### 5.2 타입 설계
+### 5.2 타입 설계 *(2026-08-18 M0 실측으로 전면 수정)*
+
+> 초판은 응답 필드를 4개 boolean 으로 가정했다. **실제로는 29개이고 값은 자유 텍스트다.** 아래는 실측(`docs/tour-api-barrier-free-discovery.md`) 반영본이다.
 
 ```ts
-// 동반자와 직교한다. "부모님과 함께인데 휠체어가 필요"는 Companion 4종으로 표현 불가능하다.
-export type AccessibilityNeed =
-  | 'wheelchair'   // 휠체어 이용
-  | 'stroller'     // 유아차 동반
-  | 'visual'       // 시각장애 — 점자블록·음성안내
-  | 'senior';      // 어르신 동반 — 계단·경사 최소
+// 동반자와 직교한다. 데이터가 실제로 나뉘는 4그룹과 1:1로 맞춘다 —
+// 데이터에 없는 구분을 UI 에 만들면 고를 수는 있는데 반영은 안 되는 선택지가 생긴다.
+export type AccessibilityNeed = 'mobility' | 'visual' | 'hearing' | 'infant';
 
-// CourseRequest 에 선택적 필드로 추가한다. 미선택 = undefined = 기존 동작 그대로.
-accessibility?: AccessibilityNeed[];
+export const ACCESSIBILITY_LABELS: Record<AccessibilityNeed, string> = {
+  mobility: '휠체어·보행 불편',
+  visual: '시각장애',
+  hearing: '청각장애',
+  infant: '영유아 동반',
+};
+
+export interface BarrierFreeInfo {
+  /** 원문 텍스트를 보존한다. 빈 문자열 필드는 담지 않는다. */
+  details: Record<string, string>;
+  /** 그룹별 정보 유무. undefined = 미확인 (3-state 유지) */
+  mobility?: boolean;
+  visual?: boolean;
+  hearing?: boolean;
+  infant?: boolean;
+}
 ```
 
-`FacilityInfo`(`lib/weekend-types.ts:188`)에 무장애 필드를 더하되, **3-state로 둔다.**
+`CourseRequest` 에 `accessibility?: AccessibilityNeed[]`, `FacilityInfo` 에 `barrierFree?: BarrierFreeInfo` 를 **선택적으로** 추가한다.
 
-```ts
-// true = 확인됨 / false = 없음이 확인됨 / undefined = 미확인
-wheelchairAccessible?: boolean;
-accessibleRestroom?: boolean;
-brailleBlock?: boolean;
-guideDogAllowed?: boolean;
+**왜 텍스트를 보존하는가.** `"주출입구는 경사로가 있어 휠체어 접근 가능함"` 을 `true` 로 접으면 사용자에게 가장 쓸모 있는 문장을 버리게 된다. 뱃지 `✅ 휠체어 접근` 보다 원문이 낫고, 심사에서도 데이터 활용 깊이로 읽힌다.
+
+### 5.3 🔴 `wheelchair` 필드의 함정
+
 ```
+경복궁  wheelchair : "대여가능"                              ← 휠체어를 빌려준다
+        exit       : "주출입구는 경사로가 있어 휠체어 접근 가능함"  ← 휠체어로 갈 수 있다
+문화시설 route      : "경사로 이용 가능"
+```
+
+**`wheelchair` 는 접근성이 아니라 대여 서비스다.** 이름만 보고 접근성 판정에 쓰면 "휠체어를 빌려주는 곳"과 "휠체어로 갈 수 있는 곳"을 혼동한다. 실측에서도 `wheelchair` 는 관광지 10곳 중 1곳뿐인 반면 `route`·`exit` 은 모든 타입에서 상위였다.
+
+→ **접근성 판정 근거는 `route`·`exit`·`elevator`·`restroom`·`parking` 이다.** `wheelchair` 는 `details` 에만 담아 표시한다.
+
+### 5.4 그룹별 판정 필드
+
+| 그룹 | 판정에 쓰는 필드 |
+|---|---|
+| `mobility` | `route` `exit` `elevator` `restroom` `parking` `room` `auditorium` `handicapetc` |
+| `visual` | `braileblock` `audioguide` `bigprint` `brailepromotion` `guidesystem` `guidehuman` `blindhandicapetc` |
+| `hearing` | `signguide` `videoguide` `hearingroom` `hearinghandicapetc` |
+| `infant` | `stroller` `lactationroom` `babysparechair` `infantsfamilyetc` |
+
+그룹 안의 필드 중 **하나라도 비어 있지 않으면** 그 그룹은 `true` 다. 한 곳도 없으면 `undefined`(미확인)이며 `false` 는 만들지 않는다 — API 는 "없음"과 "조사 안 됨"을 구분해 주지 않으므로, 없다고 단정할 근거가 없다.
 
 ---
 

@@ -40,7 +40,7 @@
 추측한 필드명으로 코드를 쓰면 M0 직후 전부 다시 써야 한다. 그래서:
 
 - **Task 1(M0)**: 실호출로 사실을 확보한다. 지금 완전히 실행 가능하다.
-- **Task 2 이후**: 구조·인터페이스·테스트 전략은 지금 확정한다. **원시 필드명이 필요한 단 한 곳**(Task 3의 `RAW_FIELD_MAP`)만 Task 1 산출물에서 가져온다.
+- **Task 2 이후**: 구조·인터페이스·테스트 전략은 지금 확정한다. **원시 필드명이 필요한 단 한 곳**(Task 3의 `GROUP_FIELDS`)만 Task 1 산출물에서 가져온다.
 
 이건 placeholder가 아니라 **명시된 데이터 의존성**이다. Task 1을 끝내면 그 한 곳을 채울 수 있고, 나머지 태스크는 그것과 무관하게 이미 확정돼 있다.
 
@@ -166,24 +166,29 @@ Task 1의 결과와 **무관하게** 지금 확정 가능하다. 우리가 정�
 `lib/weekend-types.ts`의 `Companion`(66행) 바로 아래에 넣는다.
 
 ```ts
-// 동반자와 직교한다. "부모님과 함께인데 휠체어가 필요"는 Companion 4종으로 표현할 수 없다.
-export type AccessibilityNeed = 'wheelchair' | 'stroller' | 'visual' | 'senior';
+// 동반자와 직교한다. 데이터가 실제로 나뉘는 4그룹과 1:1로 맞춘다 —
+// 데이터에 없는 구분을 UI 에 만들면 고를 수는 있는데 반영은 안 되는 선택지가 생긴다.
+export type AccessibilityNeed = 'mobility' | 'visual' | 'hearing' | 'infant';
 
 export const ACCESSIBILITY_LABELS: Record<AccessibilityNeed, string> = {
-  wheelchair: '휠체어 이용',
-  stroller: '유아차 동반',
+  mobility: '휠체어·보행 불편',
   visual: '시각장애',
-  senior: '어르신 동반',
+  hearing: '청각장애',
+  infant: '영유아 동반',
 };
 
-// 3-state 다. undefined 는 "미확인"이며 절대 false 로 접지 않는다 —
-// 정보가 없는 곳을 "접근 불가"로 단정하면 갈 수 있는 곳을 숨기게 되고,
-// true 로 접으면 못 가는 곳을 갈 수 있다고 속이게 된다.
 export interface BarrierFreeInfo {
-  wheelchairAccessible?: boolean;
-  accessibleRestroom?: boolean;
-  brailleBlock?: boolean;
-  guideDogAllowed?: boolean;
+  /** 원문 텍스트를 보존한다. 빈 문자열 필드는 담지 않는다.
+   *  "주출입구는 경사로가 있어 휠체어 접근 가능함" 을 true 로 접으면
+   *  사용자에게 가장 쓸모 있는 문장을 버리게 된다. */
+  details: Record<string, string>;
+  /** 그룹별 정보 유무. undefined = 미확인.
+   *  false 는 만들지 않는다 — API 가 "없음"과 "조사 안 됨"을 구분해 주지 않으므로
+   *  없다고 단정할 근거가 없다. */
+  mobility?: boolean;
+  visual?: boolean;
+  hearing?: boolean;
+  infant?: boolean;
 }
 ```
 
@@ -229,7 +234,7 @@ git commit -m "feat(types): 접근성 축 타입 + 3-state 무장애 정보"
 - Consumes: Task 1의 **필드 매핑 표**, Task 2의 `BarrierFreeInfo`
 - Produces: `normalizeBarrierFree(raw: Record<string, unknown>): BarrierFreeInfo` 와 `fetchBarrierFree(contentIds: string[]): Promise<Map<string, BarrierFreeInfo>>`. Task 4가 후자를 호출한다. 실패한 contentId는 Map에 **키가 없다** — 부재로 "미확인"을 표현해 "조회 성공했으나 정보 없음"(빈 객체)과 구분한다.
 
-> 🔴 **Task 1 Step 4의 매핑 표를 먼저 펼쳐놓고 시작한다.** 아래 `RAW_FIELD_MAP`과 `BASE_URL`, 오퍼레이션명은 그 표를 그대로 옮기는 자리다. 표가 비어 있으면 Task 1이 끝나지 않은 것이다.
+> ✅ **Task 1 완료로 아래 값이 전부 확정됐다.** `docs/tour-api-barrier-free-discovery.md` 의 「2026-08-18 갱신」절이 근거다.
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
@@ -239,24 +244,39 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { normalizeBarrierFree } from '@/lib/barrier-free-api';
 
 describe('normalizeBarrierFree', () => {
-  it('빈 문자열은 "정보 없음"이지 "접근 불가"가 아니다', () => {
-    const result = normalizeBarrierFree({ wheelchair: '' });
-    expect(result.wheelchairAccessible).toBeUndefined();
+  it('빈 문자열 필드는 details 에 담지 않는다', () => {
+    const result = normalizeBarrierFree({ contentid: '1', route: '', exit: '' });
+    expect(result.details).toEqual({});
+    expect(result.mobility).toBeUndefined();
   });
 
-  it('값이 있으면 true 로 읽는다', () => {
-    const result = normalizeBarrierFree({ wheelchair: '경사로 있음' });
-    expect(result.wheelchairAccessible).toBe(true);
+  it('그룹 안에 하나라도 값이 있으면 그 그룹은 true 다', () => {
+    const result = normalizeBarrierFree({ contentid: '1', exit: '경사로 있음' });
+    expect(result.mobility).toBe(true);
+    expect(result.details.exit).toBe('경사로 있음');
   });
 
-  it('키가 아예 없으면 undefined 다', () => {
-    const result = normalizeBarrierFree({});
-    expect(result.wheelchairAccessible).toBeUndefined();
+  it('🔴 wheelchair 는 "대여"라서 mobility 판정에 쓰지 않는다', () => {
+    // 경복궁 실측: wheelchair="대여가능" 은 휠체어를 빌려준다는 뜻이지
+    // 휠체어로 갈 수 있다는 뜻이 아니다
+    const result = normalizeBarrierFree({ contentid: '1', wheelchair: '대여가능' });
+    expect(result.mobility).toBeUndefined();
+    expect(result.details.wheelchair).toBe('대여가능'); // 표시는 한다
+  });
+
+  it('그룹을 서로 섞지 않는다', () => {
+    const result = normalizeBarrierFree({ contentid: '1', braileblock: '있음' });
+    expect(result.visual).toBe(true);
+    expect(result.mobility).toBeUndefined();
+    expect(result.hearing).toBeUndefined();
+  });
+
+  it('contentid 는 details 에 넣지 않는다', () => {
+    const result = normalizeBarrierFree({ contentid: '126508' });
+    expect(result.details).toEqual({});
   });
 });
 ```
-
-> 테스트의 원시 키 `wheelchair`는 Task 1 매핑 표의 실제 값으로 교체한다. 표의 값이 다르면 이 테스트도 함께 고친다.
 
 - [ ] **Step 2: 실패를 확인한다**
 
@@ -267,34 +287,46 @@ Expected: FAIL — `Cannot find module '@/lib/barrier-free-api'`
 
 ```ts
 // lib/barrier-free-api.ts
-import type { BarrierFreeInfo } from './weekend-types';
+import type { AccessibilityNeed, BarrierFreeInfo } from './weekend-types';
 
-// Task 1 Step 4 로 확정한 값으로 교체한다
+// Task 1 실측으로 확정 (docs/tour-api-barrier-free-discovery.md)
 const BASE_URL = 'https://apis.data.go.kr/B551011/KorWithService2';
 const OPERATION = 'detailWithTour2';
 const TIMEOUT_MS = 8_000; // lib/weekend-ai.ts 의 enrich 가드와 같은 값
 
-// 🔴 원시 필드명을 아는 유일한 지점이다. Task 1 매핑 표를 그대로 옮긴다.
-const RAW_FIELD_MAP: Record<keyof BarrierFreeInfo, string> = {
-  wheelchairAccessible: 'wheelchair',
-  accessibleRestroom: 'restroom',
-  brailleBlock: 'braileblock',
-  guideDogAllowed: 'helpdog',
+// 🔴 원시 필드명을 아는 유일한 지점이다.
+// wheelchair 가 여기 없는 것은 실수가 아니다 — 값이 "대여가능" 이라 접근성이 아니라
+// 대여 서비스다. details 에는 담기되 mobility 판정에는 쓰지 않는다.
+const GROUP_FIELDS: Record<AccessibilityNeed, readonly string[]> = {
+  mobility: ['route', 'exit', 'elevator', 'restroom', 'parking', 'room', 'auditorium', 'handicapetc'],
+  visual: ['braileblock', 'audioguide', 'bigprint', 'brailepromotion', 'guidesystem', 'guidehuman', 'blindhandicapetc'],
+  hearing: ['signguide', 'videoguide', 'hearingroom', 'hearinghandicapetc'],
+  infant: ['stroller', 'lactationroom', 'babysparechair', 'infantsfamilyetc'],
 };
 
-/** TourAPI 는 "없음"을 빈 문자열로 준다. 빈 문자열과 미조회를 모두 undefined 로 접는다. */
-function readFlag(raw: Record<string, unknown>, key: string): boolean | undefined {
-  if (!(key in raw)) return undefined;
+// details 에는 담지만 그룹 판정에는 넣지 않는 필드들
+const DISPLAY_ONLY_FIELDS = ['wheelchair', 'publictransport', 'ticketoffice', 'promotion'] as const;
+
+const ALL_FIELDS = [...Object.values(GROUP_FIELDS).flat(), ...DISPLAY_ONLY_FIELDS];
+
+/** 값이 있는지 본다. API 는 정보 없음을 빈 문자열로 준다. */
+function filled(raw: Record<string, unknown>, key: string): string | null {
   const v = raw[key];
-  if (typeof v !== 'string' || v.trim() === '') return undefined;
-  return true;
+  if (typeof v !== 'string' || v.trim() === '') return null;
+  return v.trim();
 }
 
 export function normalizeBarrierFree(raw: Record<string, unknown>): BarrierFreeInfo {
-  const out: BarrierFreeInfo = {};
-  for (const key of Object.keys(RAW_FIELD_MAP) as (keyof BarrierFreeInfo)[]) {
-    const flag = readFlag(raw, RAW_FIELD_MAP[key]);
-    if (flag !== undefined) out[key] = flag;
+  const details: Record<string, string> = {};
+  for (const key of ALL_FIELDS) {
+    const v = filled(raw, key);
+    if (v !== null) details[key] = v;
+  }
+
+  const out: BarrierFreeInfo = { details };
+  for (const group of Object.keys(GROUP_FIELDS) as AccessibilityNeed[]) {
+    // 그룹 안에 하나라도 값이 있으면 true. 없으면 undefined(미확인) — false 는 만들지 않는다.
+    if (GROUP_FIELDS[group].some((f) => filled(raw, f) !== null)) out[group] = true;
   }
   return out;
 }
@@ -421,8 +453,8 @@ const spots = [
   { contentId: '3', title: '조회실패' },
 ];
 const info = new Map<string, BarrierFreeInfo>([
-  ['1', { wheelchairAccessible: true }],
-  ['2', {}], // 조회는 됐으나 휠체어 정보가 없음
+  ['1', { details: { exit: '경사로 있음' }, mobility: true }],
+  ['2', { details: {} }], // 조회는 됐으나 정보가 하나도 없음
 ]);
 // '3' 은 Map 에 아예 없다 = 조회 실패 = 미확인
 
@@ -432,17 +464,26 @@ describe('filterByAccessibility', () => {
     expect(filterByAccessibility(spots, undefined, info)).toEqual(spots);
   });
 
-  it('확인된 접근 가능이 맨 앞에 온다', () => {
-    const out = filterByAccessibility(spots, ['wheelchair'], info);
+  it('확인된 곳이 맨 앞에 온다', () => {
+    const out = filterByAccessibility(spots, ['mobility'], info);
     expect(out[0].contentId).toBe('1');
   });
 
   it('미확인을 제외하지 않는다 (제외하면 결과 0 인 지역이 생긴다)', () => {
-    const out = filterByAccessibility(spots, ['wheelchair'], info);
+    const out = filterByAccessibility(spots, ['mobility'], info);
     const ids = out.map((s) => s.contentId);
     expect(ids).toContain('2');
     expect(ids).toContain('3');
     expect(out).toHaveLength(3);
+  });
+
+  it('여러 그룹을 고르면 전부 충족한 곳만 앞으로 온다', () => {
+    const multi = new Map<string, BarrierFreeInfo>([
+      ['1', { details: {}, mobility: true }],                  // mobility 만
+      ['2', { details: {}, mobility: true, visual: true }],    // 둘 다
+    ]);
+    const out = filterByAccessibility(spots.slice(0, 2), ['mobility', 'visual'], multi);
+    expect(out[0].contentId).toBe('2');
   });
 });
 ```
@@ -458,13 +499,8 @@ Expected: FAIL — `filterByAccessibility is not a function`
 // lib/weekend-ai.ts 에 추가
 import type { AccessibilityNeed, BarrierFreeInfo } from './weekend-types';
 
-const NEED_TO_FIELD: Record<AccessibilityNeed, keyof BarrierFreeInfo> = {
-  wheelchair: 'wheelchairAccessible',
-  stroller: 'wheelchairAccessible', // 유아차는 휠체어와 물리 요건이 같다(경사로·단차)
-  visual: 'brailleBlock',
-  senior: 'wheelchairAccessible',
-};
-
+// AccessibilityNeed 가 BarrierFreeInfo 의 그룹 키와 같은 이름이라 별도 매핑이 없다.
+// 데이터가 나뉘는 방식과 사용자가 고르는 방식을 일치시킨 결과다.
 export function filterByAccessibility<T extends { contentId: string }>(
   spots: T[],
   needs: AccessibilityNeed[] | undefined,
@@ -480,7 +516,7 @@ export function filterByAccessibility<T extends { contentId: string }>(
       unknown.push(spot); // 조회 실패 = 미확인
       continue;
     }
-    const ok = needs.every((n) => bf[NEED_TO_FIELD[n]] === true);
+    const ok = needs.every((n) => bf[n] === true);
     if (ok) confirmed.push(spot);
     else unknown.push(spot); // 정보가 없을 뿐 "불가"로 단정하지 않는다
   }
@@ -589,7 +625,7 @@ sed -n '1,60p' app/components/course/wizard/steps/StepCompanion.tsx
 import type { AccessibilityNeed } from '@/lib/weekend-types';
 import { ACCESSIBILITY_LABELS } from '@/lib/weekend-types';
 
-const NEEDS: AccessibilityNeed[] = ['wheelchair', 'stroller', 'visual', 'senior'];
+const NEEDS: AccessibilityNeed[] = ['mobility', 'visual', 'hearing', 'infant'];
 
 export default function StepAccessibility({
   value,
@@ -668,10 +704,23 @@ cat app/components/FacilityBadges.tsx
 | 상황 | 표시 |
 |---|---|
 | 접근성 미선택 | **아무것도 띄우지 않는다** (기존 화면 그대로) |
-| 선택 + 해당 필드 `true` | ✅ 뱃지 (예: "휠체어 접근 가능") |
-| 선택 + 해당 필드 `undefined` | 회색 "무장애 정보 미확인" 뱃지 |
+| 선택 + 해당 그룹 `true` | ✅ 뱃지 + **`details` 원문을 그대로 노출** |
+| 선택 + 해당 그룹 `undefined` | 회색 "무장애 정보 미확인 — 방문 전 확인 권장" |
 
-`false`는 이 설계에서 만들지 않는다(빈 문자열을 `undefined`로 접으므로). 혹시 들어와도 미확인과 같이 취급한다.
+🔴 **원문을 보여주는 것이 이 태스크의 핵심이다.**
+
+```
+✅ 휠체어·보행 불편
+   주출입구는 경사로가 있어 휠체어 접근 가능함
+   장애인 화장실 있음
+   장애인 주차장 있음(광화문 우측 옥외 주차장에 9개)
+```
+
+`✅ 휠체어 접근 가능` 한 줄로 접으면 사용자가 실제로 판단할 근거가 사라진다. "경사로가 주출입구에 있다"와 "후문에만 있다"는 전혀 다른 정보다.
+
+표시 순서는 선택한 그룹 → 그 그룹의 `GROUP_FIELDS` 순서를 따른다. `wheelchair`(대여) 같은 `DISPLAY_ONLY_FIELDS`는 그룹 뒤에 별도로 붙인다.
+
+`false`는 이 설계에서 만들지 않는다. 혹시 들어와도 미확인과 같이 취급한다.
 
 - [ ] **Step 3: 빌드·린트 후 커밋**
 
