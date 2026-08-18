@@ -22,6 +22,7 @@ import StepCompanion from './steps/StepCompanion';
 import StepPreferences from './steps/StepPreferences';
 import StepAccessibility from './steps/StepAccessibility';
 import type { AccessibilityNeed } from '@/lib/weekend-types';
+import { canProceedAtStep, WIZARD_TOTAL_STEPS } from '@/lib/wizard-steps';
 
 export interface WizardState {
   step: number;
@@ -112,7 +113,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
   }
 }
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = WIZARD_TOTAL_STEPS;
 const DRAFT_KEY = 'emochu.wizard_draft';
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24시간
 
@@ -213,18 +214,9 @@ export default function WizardShell() {
     );
   }, [state.destinationType, state.userLocation]);
 
-  const step0Complete =
-    state.destinationType === 'nearby' ||
-    (state.destinationType === 'city' && state.selectedCity !== null) ||
-    (state.destinationType === 'mood' && state.selectedMood !== null);
-
-  const canProceed =
-    (state.step === 0 && step0Complete) ||
-    (state.step === 1 && state.feeling !== null) ||
-    (state.step === 2 && state.duration !== null) ||
-    (state.step === 3 && state.companion !== null) ||
-    (state.step === 4 && state.preferences.length > 0) ||
-    state.step === 5; // 접근성은 선택 사항 — 고르지 않아도 진행한다
+  // 진행 조건은 lib/wizard-steps.ts 의 순수 함수가 결정한다 —
+  // 컴포넌트 안에 두면 "실제로 진행되는가"를 테스트로 증명할 수 없다.
+  const canProceed = canProceedAtStep(state.step, state);
 
   const getRequestLocation = () => {
     if (state.destinationType === 'city' && state.selectedCity) {
