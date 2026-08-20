@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { validateComposition } from '@/lib/course-composition';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { validateComposition, isCompositionRetryEnabled } from '@/lib/course-composition';
 import type { CourseStop } from '@/lib/weekend-types';
 
 const stop = (over: Partial<CourseStop>): CourseStop => ({
@@ -165,5 +165,29 @@ describe('validateComposition — 후보에 없는 역할은 요구하지 않는
       stop({ order: 5, role: 'attraction', timeStart: '18:00' }),
     ];
     expect(validateComposition(stops, 'full_day').ok).toBe(false);
+  });
+});
+
+describe('isCompositionRetryEnabled', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('기본은 꺼져 있다 (재생성이 429·타임아웃을 유발한 전례가 있다)', () => {
+    vi.stubEnv('COURSE_COMPOSITION_RETRY', '');
+    expect(isCompositionRetryEnabled()).toBe(false);
+  });
+
+  it("'1' 이면 켜진다", () => {
+    vi.stubEnv('COURSE_COMPOSITION_RETRY', '1');
+    expect(isCompositionRetryEnabled()).toBe(true);
+  });
+
+  it("'true' 도 켜진다", () => {
+    vi.stubEnv('COURSE_COMPOSITION_RETRY', 'true');
+    expect(isCompositionRetryEnabled()).toBe(true);
+  });
+
+  it('아무 값이나 켜지지는 않는다', () => {
+    vi.stubEnv('COURSE_COMPOSITION_RETRY', 'yes');
+    expect(isCompositionRetryEnabled()).toBe(false);
   });
 });

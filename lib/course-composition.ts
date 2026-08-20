@@ -92,3 +92,21 @@ export function validateComposition(
 
   return { ok: problems.length === 0, problems };
 }
+
+/**
+ * 구성 위반 시 재생성을 할지 여부. **기본은 꺼짐.**
+ *
+ * 🔴 기본을 끔으로 둔 이유는 2026-08-20 에 실제로 겪었기 때문이다. 재생성은 모델 호출을
+ *    2배로 늘리는데, 그게 429(할당량 초과)와 50초 타임아웃을 유발해 폴백 코스가 나갔다.
+ *    폴백 코스는 hook·whyNow·storyArc 가 전부 없는 최소 코스라, "카페가 빠진 좋은 코스"
+ *    보다 훨씬 나쁘다. 품질을 높이려는 장치가 품질을 무너뜨린 셈이다.
+ *
+ * 끈 상태에서도 검증 자체는 돈다 — 위반은 로그에 남아 관찰할 수 있다.
+ * 실사용에서 재생성이 얼마나 자주 도는지, 시간 여유가 있는지 측정한 뒤 켜는 것이 순서다.
+ *
+ * 켜려면 환경변수 `COURSE_COMPOSITION_RETRY=1` (또는 `true`).
+ */
+export function isCompositionRetryEnabled(): boolean {
+  const v = process.env.COURSE_COMPOSITION_RETRY?.trim().toLowerCase();
+  return v === '1' || v === 'true';
+}

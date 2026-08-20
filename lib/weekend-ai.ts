@@ -21,7 +21,7 @@ import type {
 import { ACCESSIBILITY_LABELS } from './weekend-types';
 import { parseRestDate, visitDayToIndex } from './opening-hours';
 import { buildCourseSchema } from './course-schema';
-import { validateComposition } from './course-composition';
+import { validateComposition, isCompositionRetryEnabled } from './course-composition';
 
 // 개발 환경에서만 출력되는 디버그 로그 (프로덕션 로깅 노이즈·비용 방지)
 const debugLog = (...args: unknown[]) => {
@@ -1106,7 +1106,7 @@ export async function generateCourse(
         const availableRoles = new Set(input.candidates.map(classifySpotRole));
         const composition = validateComposition(course.stops, input.duration, availableRoles);
         const elapsed = Date.now() - startedAt;
-        if (!composition.ok && !compositionRetried && elapsed < RETRY_BUDGET_MS) {
+        if (!composition.ok && isCompositionRetryEnabled() && !compositionRetried && elapsed < RETRY_BUDGET_MS) {
           compositionRetried = true;
           const lines = composition.problems.map(p => `- ${p}`).join('\n');
           compositionHint = `\n\n[직전 응답의 문제 — 반드시 고치세요]\n${lines}`;
@@ -1116,7 +1116,11 @@ export async function generateCourse(
         if (!composition.ok) {
           // 재생성했는데도 남았거나, 시간 예산을 넘겨 재생성을 건너뛴 경우.
           // 그래도 내보낸다 — 카페 없는 코스가 폴백 코스보다 낫다.
-          const why = compositionRetried ? '재생성 후에도 잔존' : `시간 예산 초과(${Math.round(elapsed / 1000)}s)로 재생성 생략`;
+          const why = compositionRetried
+            ? '재생성 후에도 잔존'
+            : !isCompositionRetryEnabled()
+              ? '재생성 비활성(COURSE_COMPOSITION_RETRY 미설정)'
+              : `시간 예산 초과(${Math.round(elapsed / 1000)}s)로 재생성 생략`;
           console.warn(`[이모추AI] 구성 위반 ${why}: ${composition.problems.join(' / ')}`);
         }
 
