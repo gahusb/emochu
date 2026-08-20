@@ -373,12 +373,23 @@ function seasonBonus(spot: ScoredSpot, month: number): number {
 // SpotRole 은 lib/weekend-types.ts 로 옮겼다 — UI·검증도 같은 타입을 본다.
 export type { SpotRole } from './weekend-types';
 
-function classifySpotRole(spot: ScoredSpot): SpotRole {
+/** 카페·전통찻집. TourAPI 음식점(39) 하위 분류 중 유일한 카페 코드다. */
+const CAT3_CAFE = 'A05020900';
+
+export function classifySpotRole(spot: ScoredSpot): SpotRole {
   // 39=음식점
   if (spot.contentTypeId === 39) {
-    // 카페/디저트 구분: cat2 A0502=카페 or 제목에 카페/커피 포함
-    const text = `${spot.title} ${spot.cat2} ${spot.cat3 ?? ''}`.toLowerCase();
-    if (spot.cat2 === 'A0502' || text.includes('카페') || text.includes('커피') || text.includes('디저트') || text.includes('베이커리')) {
+    // 🔴 예전에는 `cat2 === 'A0502'` 를 카페 조건으로 썼는데, A0502 는 카페가 아니라
+    //    **음식점 전체** 분류다. 그래서 한식·양식·일식이 전부 카페로 분류됐고,
+    //    코스에 role='restaurant' 가 한 곳도 안 남아 "밥집이 없는 코스"가 됐다.
+    //    2026-08-20 실호출(종로 3km, 15건): cat2 는 전부 A0502 였고 cat3 로만 갈렸다 —
+    //    한식 A05020100(9) / 양식 A05020200(3) / 일식 A05020300(2) / 카페 A05020900(1).
+    const title = spot.title.toLowerCase();
+    if (
+      spot.cat3 === CAT3_CAFE ||
+      title.includes('카페') || title.includes('커피') ||
+      title.includes('디저트') || title.includes('베이커리')
+    ) {
       return 'cafe';
     }
     return 'restaurant';
