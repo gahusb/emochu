@@ -27,6 +27,10 @@ const baseInput = () =>
     candidates: [
       { contentId: '1', contentTypeId: 12, title: '장소1', addr1: '서울', cat1: '', cat2: '', cat3: '',
         latitude: 37.5, longitude: 127.0, distanceKm: 1, score: 1 },
+      // 구성 검증이 점심(11:30~13:00 restaurant)을 요구하므로 음식점 후보가 필요하다.
+      // 없으면 "유효 응답 → 1회 호출" 테스트가 재생성 때문에 2회가 된다.
+      { contentId: '2', contentTypeId: 39, title: '식당1', addr1: '서울', cat1: '', cat2: '', cat3: '',
+        latitude: 37.5, longitude: 127.0, distanceKm: 1, score: 1 },
     ],
     festivals: [],
     stays: [],
@@ -57,6 +61,7 @@ describe('generateCourse (Gemini 모킹 통합)', () => {
       title: '테스트 코스', summary: '요약',
       stops: [
         { contentId: '1', title: '장소1', timeStart: '10:00', durationMin: 60, latitude: 37.5, longitude: 127.0 },
+        { contentId: '2', title: '식당1', timeStart: '12:00', durationMin: 60, latitude: 37.5, longitude: 127.0 },
       ],
     };
     generateContent.mockResolvedValue({ response: { text: () => JSON.stringify(course) } });

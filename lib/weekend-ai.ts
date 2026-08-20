@@ -16,10 +16,12 @@ import type {
   WeekendWeather,
   CourseSaju,
   VisitDay,
+  SpotRole,
 } from './weekend-types';
 import { ACCESSIBILITY_LABELS } from './weekend-types';
 import { parseRestDate, visitDayToIndex } from './opening-hours';
 import { buildCourseSchema } from './course-schema';
+import { validateComposition } from './course-composition';
 
 // 개발 환경에서만 출력되는 디버그 로그 (프로덕션 로깅 노이즈·비용 방지)
 const debugLog = (...args: unknown[]) => {
@@ -360,7 +362,8 @@ function seasonBonus(spot: ScoredSpot, month: number): number {
 }
 
 // 콘텐츠타입ID → 역할 분류
-export type SpotRole = 'attraction' | 'restaurant' | 'cafe' | 'activity' | 'culture';
+// SpotRole 은 lib/weekend-types.ts 로 옮겼다 — UI·검증도 같은 타입을 본다.
+export type { SpotRole } from './weekend-types';
 
 function classifySpotRole(spot: ScoredSpot): SpotRole {
   // 39=음식점
@@ -1027,6 +1030,17 @@ export async function generateCourse(
     ? MODELS.map(m => ({ ...m, temp: Math.min(parseFloat((m.temp + 0.2).toFixed(1)), 1.0) }))
     : MODELS;
 
+  // 구성 검증에 걸리면 무엇이 왜 틀렸는지 붙여 딱 한 번 다시 만든다.
+  // 🔴 1회로 제한하는 것이 핵심이다. 2회를 허용하면 반나절 18초 + 10초 + 10초로
+  //    코스A 의 50초 타임아웃에 실제로 걸린다.
+  let compositionHint = '';
+  let compositionRetried = false;
+  // 🔴 시간 예산. 재생성이 품질을 높이려다 50초 타임아웃을 유발하면 폴백 코스가 나가
+  //    오히려 품질이 무너진다(2026-08-20 실측). 이미 오래 걸렸으면 재생성을 포기하고
+  //    위반이 있는 채로 내보낸다 — 카페 없는 코스가 폴백 코스보다 낫다.
+  const startedAt = Date.now();
+  const RETRY_BUDGET_MS = 28_000;
+
   for (const { id: modelId, maxTokens, temp } of models) {
     // 최대 2회 시도 (JSON 파싱 실패 시 1회 재시도)
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -1052,7 +1066,7 @@ export async function generateCourse(
           ? '\n\n중요: 반드시 유효한 JSON만 출력하세요. 마크다운이나 설명 텍스트를 포함하지 마세요.'
           : '';
 
-        const result = await model.generateContent(userMessage + retryHint);
+        const result = await model.generateContent(userMessage + retryHint + compositionHint);
         const text = result.response.text();
 
         if (!text || text.trim().length < 50) {
@@ -1078,6 +1092,33 @@ export async function generateCourse(
 
         // order 재정렬
         course.stops.forEach((s, i) => { s.order = i + 1; });
+
+        // AI 가 단 role 을 후보의 실제 분류와 대조한다. 어긋나면 서버 판정을 신뢰한다 —
+        // AI 가 음식점을 "카페"라고 우기면 카페 슬롯이 채워진 것처럼 보이기 때문이다.
+        for (const stop of course.stops) {
+          const cand = input.candidates.find(c => c.contentId === stop.contentId);
+          if (cand) stop.role = classifySpotRole(cand);
+        }
+
+        // 구성 검증 — 카페 슬롯·식사 시간대·같은 역할 3연속
+        // 후보에 실제로 있는 역할만 요구한다. 취향에 따라 음식점이 후보에서
+        // 통째로 빠지는 경우가 있는데(2026-08-20 실측), 그걸 요구하면 재생성이 무의미하다.
+        const availableRoles = new Set(input.candidates.map(classifySpotRole));
+        const composition = validateComposition(course.stops, input.duration, availableRoles);
+        const elapsed = Date.now() - startedAt;
+        if (!composition.ok && !compositionRetried && elapsed < RETRY_BUDGET_MS) {
+          compositionRetried = true;
+          const lines = composition.problems.map(p => `- ${p}`).join('\n');
+          compositionHint = `\n\n[직전 응답의 문제 — 반드시 고치세요]\n${lines}`;
+          debugLog(`[이모추AI] 구성 위반 → 1회 재생성: ${composition.problems.join(' / ')}`);
+          continue; // 같은 모델로 한 번 더
+        }
+        if (!composition.ok) {
+          // 재생성했는데도 남았거나, 시간 예산을 넘겨 재생성을 건너뛴 경우.
+          // 그래도 내보낸다 — 카페 없는 코스가 폴백 코스보다 낫다.
+          const why = compositionRetried ? '재생성 후에도 잔존' : `시간 예산 초과(${Math.round(elapsed / 1000)}s)로 재생성 생략`;
+          console.warn(`[이모추AI] 구성 위반 ${why}: ${composition.problems.join(' / ')}`);
+        }
 
         debugLog(`[이모추AI] ${modelId} 성공 — ${course.stops.length}개 장소`);
         return course;

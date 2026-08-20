@@ -74,6 +74,10 @@ export type Preference = 'nature' | 'food' | 'culture' | 'cafe' | 'activity' | '
 // 안 되는 선택지가 생긴다.
 export type AccessibilityNeed = 'mobility' | 'visual' | 'hearing' | 'infant';
 
+/** 코스에서 이 장소가 맡는 역할. AI 가 직접 달고, 서버가 후보의 실제 분류와 대조한다.
+ *  contentTypeId 로는 구분할 수 없다 — 카페와 음식점이 둘 다 39 다. */
+export type SpotRole = 'attraction' | 'restaurant' | 'cafe' | 'activity' | 'culture';
+
 export const ACCESSIBILITY_LABELS: Record<AccessibilityNeed, string> = {
   mobility: '휠체어·보행 불편',
   visual: '시각장애',
@@ -249,6 +253,8 @@ export interface CourseStop {
   contentTypeId?: string;  // Phase 2: "12"|"14"|"15"|"28"|"32"|"39" — optional (기존 저장 코스 하위호환)
   openStatus?: 'open' | 'unknown';   // 방문일 영업 확인 여부
   restdate?: string;                 // 쉬는날 원문 (툴팁·보조 표시용)
+  /** 코스에서 맡는 역할. 구성 검증(카페 슬롯·식사 시간대)의 근거다. */
+  role?: SpotRole;
   /** 접근성 조건을 선택했을 때 서버가 원본 무장애 정보로 판정한 상태. */
   accessibilityStatus?: 'confirmed' | 'unverified';
   /** 어떤 조건을 기준으로 위 상태를 판정했는지 UI에 전달한다. */

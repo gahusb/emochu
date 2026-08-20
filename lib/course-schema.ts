@@ -48,6 +48,12 @@ export function buildCourseSchema(duration: Duration): ResponseSchema {
             order: { type: SchemaType.NUMBER },
             contentId: { type: SchemaType.STRING, description: '후보 목록의 값을 그대로' },
             title: { type: SchemaType.STRING },
+            role: {
+              type: SchemaType.STRING,
+              enum: ['attraction', 'restaurant', 'cafe', 'activity', 'culture'],
+              format: 'enum',
+              description: '이 장소가 코스에서 맡는 역할. 카페는 cafe, 식사는 restaurant',
+            },
             hook: { type: SchemaType.STRING, description: '15자 이내 후크 카피' },
             whyNow: {
               type: SchemaType.STRING,
@@ -67,7 +73,7 @@ export function buildCourseSchema(duration: Duration): ResponseSchema {
           // 🔴 hook·whyNow 를 required 에 넣는 것이 핵심이다. 이 둘이 이모추의 차별점이고,
           //    optional 로 두면 모델이 조용히 생략한다(2026-08-20 실측).
           required: [
-            'order', 'contentId', 'title', 'hook', 'whyNow',
+            'order', 'contentId', 'title', 'role', 'hook', 'whyNow',
             'timeStart', 'durationMin', 'description', 'tip',
             'latitude', 'longitude', 'isFestival', 'isStay', 'contentTypeId',
             ...(isOvernight ? ['day'] : []),
