@@ -7,6 +7,13 @@ vi.mock('@google/generative-ai', () => ({
   GoogleGenerativeAI: vi.fn(function () {
     return { getGenerativeModel: () => ({ generateContent }) };
   }),
+  // 🔴 SchemaType 도 함께 내보내야 한다. lib/course-schema.ts 가 모듈 로드 시점에
+  //    SchemaType.OBJECT 를 읽는데, 모킹에서 빠뜨리면 undefined 접근으로 터져
+  //    generateContent 가 한 번도 호출되지 않는다(2026-08-20 실측: 호출 0회).
+  SchemaType: {
+    STRING: 'string', NUMBER: 'number', INTEGER: 'integer',
+    BOOLEAN: 'boolean', ARRAY: 'array', OBJECT: 'object',
+  },
 }));
 
 import { generateCourse } from '@/lib/weekend-ai';

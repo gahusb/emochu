@@ -18,6 +18,7 @@ import {
 } from '@/lib/tour-api';
 import { getWeekendForecast } from '@/lib/weather-api';
 import { fetchBarrierFree } from '@/lib/barrier-free-api';
+import { calcSajuFromElements, type Element5 } from '@/lib/saju';
 import {
   generateCourse,
   filterByAccessibility,
@@ -100,6 +101,7 @@ const VALID_DESTINATION_TYPES: DestinationType[] = ['nearby', 'city', 'mood'];
 const VALID_MOODS: MoodType[] = ['mountain', 'sea', 'valley', 'urban', 'countryside'];
 const VALID_FEELINGS: Feeling[] = ['tired', 'excited', 'romantic', 'healing', 'adventurous', 'foodie'];
 const VALID_VISIT_DAYS: VisitDay[] = ['sat', 'sun'];
+const VALID_ELEMENTS: Element5[] = ['wood', 'fire', 'earth', 'metal', 'water'];
 
 const VALID_ACCESSIBILITY: AccessibilityNeed[] = ['mobility', 'visual', 'hearing', 'infant'];
 
@@ -166,20 +168,19 @@ function validateRequest(body: unknown): CourseRequest {
 
   let saju: CourseSaju | undefined;
   const rawSaju = b.saju as Record<string, unknown> | undefined;
-  if (
-    rawSaju &&
-    typeof rawSaju.birthElement === 'string' &&
-    typeof rawSaju.todayElement === 'string' &&
-    typeof rawSaju.relation === 'string' &&
-    typeof rawSaju.headline === 'string' &&
-    typeof rawSaju.message === 'string'
-  ) {
+  if (rawSaju !== undefined) {
+    const birthElement = rawSaju.birthElement as Element5;
+    const todayElement = rawSaju.todayElement as Element5;
+    if (!VALID_ELEMENTS.includes(birthElement) || !VALID_ELEMENTS.includes(todayElement)) {
+      throw new Error('사주 기운 정보가 올바르지 않습니다.');
+    }
+    const trusted = calcSajuFromElements(birthElement, todayElement);
     saju = {
-      birthElement: rawSaju.birthElement,
-      todayElement: rawSaju.todayElement,
-      relation: rawSaju.relation,
-      headline: rawSaju.headline,
-      message: rawSaju.message,
+      birthElement: trusted.birthElement,
+      todayElement: trusted.todayElement,
+      relation: trusted.relation,
+      headline: trusted.headline,
+      message: trusted.message,
     };
   }
 
@@ -575,7 +576,10 @@ export async function POST(request: NextRequest) {
     let bfInfo = new Map<string, BarrierFreeInfo>();
     if (req.accessibility && req.accessibility.length > 0) {
       bfInfo = await fetchBarrierFree(ranked.map(c => c.contentId));
-      ranked2 = filterByAccessibility(ranked, req.accessibility, bfInfo);
+      ranked2 = filterByAccessibility(ranked, req.accessibility, bfInfo).map((spot) => ({
+        ...spot,
+        barrierFree: bfInfo.get(spot.contentId),
+      }));
     }
 
     const input: CourseGenerationInput = {
@@ -646,6 +650,12 @@ export async function POST(request: NextRequest) {
         // UI 가 undefined 를 "미확인"으로 표시해야 하므로 빈 객체를 만들면 안 된다.
         const bf = bfInfo.get(stop.contentId);
         if (bf) stop.facilities = { ...(stop.facilities ?? {}), barrierFree: bf };
+        if (req.accessibility && req.accessibility.length > 0) {
+          stop.accessibilityNeeds = req.accessibility;
+          stop.accessibilityStatus = req.accessibility.every((need) => bf?.[need] === true)
+            ? 'confirmed'
+            : 'unverified';
+        }
 
         const cand = candidates.find(c => c.contentId === stop.contentId);
         if (cand) {

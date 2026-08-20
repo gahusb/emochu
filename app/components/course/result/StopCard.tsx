@@ -38,6 +38,8 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
         onClick={() => { if (isActive) router.push(`/spot/${stop.contentId}`); else onActivate(); }}
         aria-label={`${stop.order}번째 코스: ${stop.title}, ${timeRange}, ${label}${
           stop.openStatus === 'open' ? ', 방문일 영업 확인됨' : stop.openStatus === 'unknown' ? ', 운영시간 확인 필요' : ''
+        }${
+          stop.accessibilityStatus === 'unverified' ? ', 접근성 정보 확인 필요' : ''
         }${isActive ? '. 다시 눌러 상세 보기' : ''}`}
         className={`flex-1 text-left bg-surface-elevated rounded-lg border overflow-hidden mb-4 transition-all hover:border-ink-4 ${
           isActive ? 'border-brand ring-2 ring-brand/20' : 'border-line'
@@ -99,7 +101,11 @@ export default function StopCard({ stop, isLast, isActive, onActivate }: Props) 
               <span>{stop.tip}</span>
             </p>
           )}
-          <BarrierFreeNotice barrierFree={stop.facilities?.barrierFree} />
+          <BarrierFreeNotice
+            barrierFree={stop.facilities?.barrierFree}
+            status={stop.accessibilityStatus}
+            needs={stop.accessibilityNeeds}
+          />
         </div>
       </button>
     </div>

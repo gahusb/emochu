@@ -249,15 +249,19 @@ export interface CourseStop {
   contentTypeId?: string;  // Phase 2: "12"|"14"|"15"|"28"|"32"|"39" — optional (기존 저장 코스 하위호환)
   openStatus?: 'open' | 'unknown';   // 방문일 영업 확인 여부
   restdate?: string;                 // 쉬는날 원문 (툴팁·보조 표시용)
+  /** 접근성 조건을 선택했을 때 서버가 원본 무장애 정보로 판정한 상태. */
+  accessibilityStatus?: 'confirmed' | 'unverified';
+  /** 어떤 조건을 기준으로 위 상태를 판정했는지 UI에 전달한다. */
+  accessibilityNeeds?: AccessibilityNeed[];
 }
 
 export type CourseDifficulty = 'easy' | 'moderate' | 'active';
 
 /** 저장·표시용 사주 컨텍스트 (lib/saju.ts SajuResult가 구조적으로 할당 가능) */
 export interface CourseSaju {
-  birthElement: string;   // 'wood'|'fire'|'earth'|'metal'|'water'
-  todayElement: string;
-  relation: string;       // 'same'|'generates'|'generated'|'controls'|'controlled'
+  birthElement: 'wood' | 'fire' | 'earth' | 'metal' | 'water';
+  todayElement: 'wood' | 'fire' | 'earth' | 'metal' | 'water';
+  relation: 'same' | 'generates' | 'generated' | 'controls' | 'controlled';
   headline: string;
   message: string;
 }

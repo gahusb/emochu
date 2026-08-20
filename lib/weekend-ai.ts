@@ -5,6 +5,8 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type {
+  AccessibilityNeed,
+  BarrierFreeInfo,
   CourseData,
   CourseStop,
   Duration,
@@ -15,7 +17,9 @@ import type {
   CourseSaju,
   VisitDay,
 } from './weekend-types';
+import { ACCESSIBILITY_LABELS } from './weekend-types';
 import { parseRestDate, visitDayToIndex } from './opening-hours';
+import { buildCourseSchema } from './course-schema';
 
 // 개발 환경에서만 출력되는 디버그 로그 (프로덕션 로깅 노이즈·비용 방지)
 const debugLog = (...args: unknown[]) => {
@@ -50,6 +54,8 @@ export interface ScoredSpot {
   usetime?: string;                   // 운영시간 (detailIntro에서 조회)
   restdate?: string;                  // 쉬는날 원문 (detailIntro)
   closedWeekdays?: number[] | null;   // 파싱된 휴무 요일. null=판정 불가
+  /** 접근성 조건을 선택한 요청에서만 채운 한국관광공사 무장애 원본 정보. */
+  barrierFree?: BarrierFreeInfo;
 }
 
 export interface FestivalCandidate {
@@ -207,41 +213,14 @@ const SYSTEM_INSTRUCTION = `당신은 대한민국 최고의 여행 매거진 �
 ### 날씨 대응
 - 비(강수확률 50%+): 실내 위주 (미술관, 박물관, 실내 시장)
 - 맑음: 야외 적극 포함
+- whyNow는 선택한 방문일의 날씨와 모순되지 않아야 하며, 제공되지 않은 비·폭염·눈 같은 기상현상을 창작하지 마세요
 
 ## 출력
-반드시 아래 JSON 구조로만 응답하세요. JSON 외 텍스트는 절대 포함하지 마세요.
-
-\`\`\`
-{
-  "title": "코스 제목 (감성적이고 구체적으로. 예: '성수동 골목 감성 반나절, 커피 한 잔의 여유')",
-  "summary": "코스 한 줄 요약 — 이 코스의 핵심 매력을 한 문장으로 (예: '도심 속 숨은 카페 골목부터 강변 산책까지, 서울의 조용한 오후')",
-  "storyArc": "이 코스를 선택한 이유와 하루의 흐름을 편집장이 독자에게 추천하듯 3~5문장으로. 왜 이 조합인지, 어떤 감정의 흐름이 있는지 설득하세요.",
-  "totalDistanceKm": 숫자,
-  "estimatedCostWon": 숫자 (1인 기준 입장료+식사+카페 합산, 무료면 0),
-  "difficulty": "easy|moderate|active",
-  "tip": "전체 코스 실용 꿀팁 한 줄 (주차, 웨이팅, 필수 예약 등)",
-  "stops": [
-    {
-      "order": 1,
-      "contentId": "후보 목록의 contentId 그대로",
-      "title": "장소명",
-      "hook": "15자 이내 강렬한 후크 카피 (예: '노을 명당', '줄 서서 먹는 현지 맛집')",
-      "whyNow": "지금 이 계절/날씨/시점에 특별히 가야 하는 이유 1문장",
-      "timeStart": "HH:MM",
-      "durationMin": 숫자,
-      "description": "친구가 강력 추천하듯 감각적이고 구체적으로 3~4문장. 어떤 경험을 할 수 있는지, 어떤 감정이 드는지 묘사하세요.",
-      "tip": "실용적 꿀팁 1문장 (메뉴 추천, 포토존, 주차, 웨이팅 팁 등)",
-      "latitude": 숫자,
-      "longitude": 숫자,
-      "imageUrl": "이미지 URL 또는 빈 문자열",
-      "isFestival": boolean,
-      "isStay": boolean,
-      "day": 숫자 (1박2일일 때만, 당일은 생략),
-      "contentTypeId": "문자열 (예: \"12\", \"39\", \"15\", \"32\")"
-    }
-  ]
-}
-\`\`\``;
+응답은 제공된 JSON 스키마를 정확히 따르세요. JSON 밖의 설명이나 마크다운은 포함하지 마세요.
+- contentId는 후보 목록의 값을 그대로 사용하세요. 제목·좌표·유형은 서버가 원본 데이터로 확정합니다.
+- title과 summary는 코스의 지역·감정·핵심 경험이 드러나게 쓰세요.
+- estimatedCostWon은 1인 기준 입장료+식사+카페의 현실적인 합계입니다.
+- tip에는 주차·예약·웨이팅처럼 방문 전에 행동할 수 있는 정보만 쓰세요.`;
 
 // ─── 사전 스코어링 ───
 
@@ -381,7 +360,7 @@ function seasonBonus(spot: ScoredSpot, month: number): number {
 }
 
 // 콘텐츠타입ID → 역할 분류
-type SpotRole = 'attraction' | 'restaurant' | 'cafe' | 'activity' | 'culture';
+export type SpotRole = 'attraction' | 'restaurant' | 'cafe' | 'activity' | 'culture';
 
 function classifySpotRole(spot: ScoredSpot): SpotRole {
   // 39=음식점
@@ -1061,6 +1040,11 @@ export async function generateCourse(
             temperature: temp,
             topP: 0.9,
             maxOutputTokens: maxTokens,
+            // 출력 구조를 API 계약으로 강제한다. 이게 없으면 SYSTEM_INSTRUCTION 에서
+            // 스키마 설명을 뺀 상태라 모델이 hook·whyNow·storyArc 를 통째로 생략한다
+            // (2026-08-20 실측: 전부 빈칸으로 나왔다).
+            responseMimeType: 'application/json',
+            responseSchema: buildCourseSchema(input.duration),
           },
         });
 
@@ -1189,8 +1173,7 @@ export function generateShareSlug(): string {
 // ─── 접근성 ───
 // 무장애 정보는 lib/barrier-free-api.ts 가 조회한다. 여기서는 그 결과로 후보를
 // 정렬하고 Gemini 에 제약을 전달하는 일만 한다.
-import type { AccessibilityNeed, BarrierFreeInfo } from './weekend-types';
-import { ACCESSIBILITY_LABELS } from './weekend-types';
+// (타입·상수 import 는 파일 상단에 있다 — 여기 중복으로 두면 빌드가 깨진다)
 
 /**
  * 접근성 요구에 따라 후보를 재정렬한다.

@@ -68,6 +68,20 @@ export interface SajuResult {
   message: string;    // 설명 2~3문장
 }
 
+/**
+ * 클라이언트가 보낸 자유문구를 신뢰하지 않고, 허용된 오행 두 값만으로
+ * 관계·카피를 서버에서 다시 만든다. 공개 API의 프롬프트 주입면을 없애는 경계다.
+ */
+export function calcSajuFromElements(
+  birthElement: Element5,
+  todayElement: Element5,
+): SajuResult {
+  const relation = getRelation(birthElement, todayElement);
+  const feeling = FEELING_MAP[birthElement][relation];
+  const { headline, message } = MESSAGES[birthElement][relation];
+  return { birthElement, todayElement, relation, feeling, headline, message };
+}
+
 // (birth, relation) → feeling
 const FEELING_MAP: Record<Element5, Record<Relation, Feeling>> = {
   wood:  { same: 'healing',   generates: 'excited',  generated: 'healing',  controls: 'adventurous', controlled: 'romantic'  },
@@ -118,9 +132,5 @@ const MESSAGES: Record<Element5, Record<Relation, { headline: string; message: s
 export function calcSaju(birthYear: number, today: Date = new Date()): SajuResult {
   const birthElement = getYearElement(birthYear);
   const todayElement = getTodayElement(today);
-  const relation = getRelation(birthElement, todayElement);
-  const feeling = FEELING_MAP[birthElement][relation];
-  const { headline, message } = MESSAGES[birthElement][relation];
-
-  return { birthElement, todayElement, relation, feeling, headline, message };
+  return calcSajuFromElements(birthElement, todayElement);
 }
