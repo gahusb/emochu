@@ -110,10 +110,18 @@ export interface CourseGenerationInput {
 //    나중에 안정화되면 그때 실측하고 올린다.
 //
 // 폴백은 세대를 섞는다. 같은 세대로만 채우면 그 세대 전체 장애 때 다 같이 죽는다.
+// maxTokens: 세 모델 모두 실제 한도는 65,536 인데 8,192 만 쓰고 있었다(1/8).
+// 🔴 2026-08-20: responseSchema 가 hook·whyNow·description·tip 을 전부 required 로
+//    강제하면서 장소당 출력이 길어졌고, 하루 코스(5~7곳)에서 8,192 를 넘겨 JSON 이
+//    중간에 잘렸다("Expected ',' or '}' at position 4694"). 재시도로 결국 성공하지만
+//    이미 코스A 의 50초 타임아웃이 지난 뒤라 폴백 코스가 나갔다.
+//    반나절(3~4곳)은 24초로 멀쩡했다 — 장소 수에 비례하는 문제였다.
+// 한도까지 다 열지 않고 16,384 로 둔 것은, 잘림만 막으면 되고 상한을 크게 두면
+// 모델이 장황해질 여지를 주기 때문이다.
 const MODELS = [
-  { id: 'gemini-3.5-flash',      maxTokens: 8192, temp: 0.7 },
-  { id: 'gemini-3.6-flash',      maxTokens: 8192, temp: 0.7 },
-  { id: 'gemini-2.5-flash',      maxTokens: 8192, temp: 0.7 },
+  { id: 'gemini-3.5-flash',      maxTokens: 16384, temp: 0.7 },
+  { id: 'gemini-3.6-flash',      maxTokens: 16384, temp: 0.7 },
+  { id: 'gemini-2.5-flash',      maxTokens: 16384, temp: 0.7 },
 ] as const;
 
 const DURATION_DETAIL: Record<Duration, string> = {
