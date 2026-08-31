@@ -9,8 +9,6 @@
 //    비므로, 코스를 못 읽었을 때는 기본 카드로 떨어진다.
 
 import { ImageResponse } from 'next/og';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { getSiteUrl } from '@/lib/site-url';
 
 export const runtime = 'nodejs';
@@ -28,7 +26,19 @@ interface Course {
 
 export default async function CourseOgImage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const cookieRun = await readFile(join(process.cwd(), 'public/fonts/CookieRun-Bold.otf'));
+
+  // 🔴 폰트를 fs 로 읽지 않는다. 서버리스 런타임에는 public/ 이 번들에 없어서
+  //    readFile 이 던지고 이 라우트가 통째로 500 이 된다(2026-08-31 라이브 실측:
+  //    빌드 때 미리 만들어지는 홈 OG 는 200, 요청 시 만드는 코스 OG 만 500 이었다).
+  //    CDN 이 서빙하는 같은 파일을 HTTP 로 받는다.
+  // 🔑 실패해도 500 을 내지 않는다 — 기본 폰트로 그린 카드가 깨진 미리보기보다 낫다.
+  let cookieRun: ArrayBuffer | null = null;
+  try {
+    const res = await fetch(`${getSiteUrl()}/fonts/CookieRun-Bold.otf`, { next: { revalidate: 86400 } });
+    if (res.ok) cookieRun = await res.arrayBuffer();
+  } catch {
+    /* 기본 폰트로 그린다 */
+  }
 
   let course: Course | null = null;
   try {
@@ -52,7 +62,7 @@ export default async function CourseOgImage({ params }: { params: Promise<{ slug
           width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
           justifyContent: 'space-between', padding: '64px 72px',
           background: 'linear-gradient(135deg, #FFF8F0 0%, #FFE0B8 55%, #FFB066 100%)',
-          fontFamily: 'CookieRun',
+          fontFamily: cookieRun ? 'CookieRun' : 'sans-serif',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -80,7 +90,9 @@ export default async function CourseOgImage({ params }: { params: Promise<{ slug
     ),
     {
       ...size,
-      fonts: [{ name: 'CookieRun', data: cookieRun, style: 'normal', weight: 700 }],
+      ...(cookieRun
+        ? { fonts: [{ name: 'CookieRun', data: cookieRun, style: 'normal' as const, weight: 700 as const }] }
+        : {}),
     },
   );
 }
