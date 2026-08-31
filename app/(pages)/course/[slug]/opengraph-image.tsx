@@ -81,10 +81,16 @@ export default async function CourseOgImage({ params }: { params: Promise<{ slug
           )}
         </div>
 
+        {/* 🔴 satori 는 자식이 둘 이상인 div 에 명시적 display 를 요구한다.
+            `<div>📍 {n}곳</div>` 는 자식이 3개(텍스트·숫자·텍스트)라 여기서 터진다 —
+            라이브에서 이 라우트가 통째로 500 이었다(2026-08-31).
+            문자열 하나로 합쳐 자식을 1개로 만든다. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, fontSize: 26, color: '#A06A3A' }}>
-          {stops.length > 0 && <div>📍 {stops.length}곳</div>}
-          {course?.totalDistanceKm ? <div>🚗 총 {course.totalDistanceKm.toFixed(1)}km</div> : null}
-          <div style={{ marginLeft: 'auto', color: '#B07A4A' }}>출처: ⓒ한국관광공사</div>
+          {stops.length > 0 && <div style={{ display: 'flex' }}>{`📍 ${stops.length}곳`}</div>}
+          {course?.totalDistanceKm
+            ? <div style={{ display: 'flex' }}>{`🚗 총 ${course.totalDistanceKm.toFixed(1)}km`}</div>
+            : null}
+          <div style={{ display: 'flex', marginLeft: 'auto', color: '#B07A4A' }}>출처: ⓒ한국관광공사</div>
         </div>
       </div>
     ),
