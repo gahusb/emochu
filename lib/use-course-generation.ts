@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { saveEditToken } from '@/lib/edit-token';
 import type { CourseResponse, Duration, Companion, Preference, Feeling, DestinationType, VisitDay, AccessibilityNeed } from './weekend-types';
 import type { SajuResult } from './saju';
 
@@ -76,6 +77,8 @@ export function useCourseGeneration() {
       if (!slug) {
         throw new Error('코스 공유 URL이 올바르지 않아요.');
       }
+      // 편집 토큰은 **생성 응답에만** 들어 있다. 여기서 안 챙기면 다시 받을 방법이 없다.
+      if (data.editToken) saveEditToken(slug, data.editToken);
       // localStorage에 최근 코스 기록 저장 (최대 5개)
       try {
         const raw = localStorage.getItem('emochu.course_history');

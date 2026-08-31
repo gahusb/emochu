@@ -59,6 +59,19 @@ export const ELEMENT_META: Record<Element5, { name: string; emoji: string; color
   water: { name: '水 (수)', emoji: '💧', color: 'text-blue-500 bg-blue-50 border-blue-200' },
 };
 
+/**
+ * 오늘의 오행이 코스에서 어디로 향하는지 사용자에게 보여주는 한 줄.
+ * 🔗 실제 점수 가중은 lib/weekend-ai.ts 의 ELEMENT_PREFERENCE_MAP 이다.
+ *    저쪽 키워드를 바꾸면 이 문구도 같이 바꾼다(안 그러면 화면과 결과가 어긋난다).
+ */
+export const ELEMENT_COURSE_HINT: Record<Element5, string> = {
+  wood:  '숲 · 수목원 · 산책길',
+  fire:  '야경 · 전망 · 축제',
+  earth: '전통 · 마을 · 체험',
+  metal: '미술관 · 전시 · 공예',
+  water: '바다 · 계곡 · 온천',
+};
+
 export interface SajuResult {
   birthElement: Element5;
   todayElement: Element5;

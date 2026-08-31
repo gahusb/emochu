@@ -250,6 +250,8 @@ export interface CourseStop {
   images?: string[];
   facilities?: FacilityInfo;
   transitInfo?: string;         // "차로 15분 (4.2km)"
+  /** 전화번호 (TourAPI). 있으면 바로 걸 수 있게 노출한다. */
+  tel?: string;
   contentTypeId?: string;  // Phase 2: "12"|"14"|"15"|"28"|"32"|"39" — optional (기존 저장 코스 하위호환)
   openStatus?: 'open' | 'unknown';   // 방문일 영업 확인 여부
   restdate?: string;                 // 쉬는날 원문 (툴팁·보조 표시용)
@@ -287,6 +289,12 @@ export interface CourseData {
 export interface CourseResponse {
   courseId: string;
   shareUrl: string;
+  /**
+   * 코스를 만든 사람에게만 **생성 응답 1회**로 주는 편집 토큰.
+   * 로그인이 없는 동안 「이 코스를 고칠 자격」을 증명하는 유일한 수단이다.
+   * 🔴 조회 API 는 이 값을 절대 싣지 않는다 — 공유 링크로 편집 권한이 새면 안 된다.
+   */
+  editToken?: string;
   course: CourseData;
   courseB?: CourseData;   // A/B 비교용 이색 발견 코스
   kakaoNaviUrl: string;

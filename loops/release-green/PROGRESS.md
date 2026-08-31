@@ -7,19 +7,23 @@
 - Status: **Active** (권한 사다리 1단계 — 검사 + 리포트만)
 - Main objective: 9/21 접수 전까지 배포 가능 상태 유지
 - Current focus: 손으로 3~5회 실행하며 안정성 확인 (스케줄 미등록)
-- Last updated: 2026-08-13
+- Last updated: 2026-08-31
 
 ## Last Run
 
-- Date: **2026-08-13 01:18**
-- Summary: **✅ GREEN** — test·lint·build 3종 PASS, 테스트 **61/61**(기준선 유지), 유출 0건
-- Output: `outputs/green-2026-08-13-0118.md`
-- 같은 날 01:10 에도 한 번 돌렸다(푸터 색 수정 전). **두 리포트가 덮어써지지 않고 공존** — 중복 실행 규칙 완화 + 파일명 시각 포함이 의도대로 작동함을 확인
+- Date: **2026-08-31 10:47**
+- Summary: **✅ GREEN** — test·lint·build 3종 PASS, 테스트 **123/123**, 유출 0건
+- Output: `outputs/green-2026-08-31-1047.md`
+- 📌 **기준선을 114 → 123 으로 올렸다.** 사주(오행) 축 분리 작업에서 `tests/element-score.test.ts` 9건이 늘었다.
+  기준선을 안 올리면 그 9건이 통째로 사라져도 게이트가 통과한다.
+- 📌 `tests/element-match-live.test.ts` 는 실호출이라 `npm test` 에서 skip 된다 — 기준선에 포함되지 않는다.
+  실행: `export TOUR_API_KEY="$(grep -m1 '^TOUR_API_KEY=' .env.local | cut -d= -f2- | tr -d '')" && npx vitest run tests/element-match-live.test.ts --reporter=verbose`
+  (🔴 `. ./.env.local` 로 통째로 읽으면 81번째 줄 여러 줄 값에서 `type:: command not found` 로 죽는다)
 
 ## Open Items
 
-- 손 실행 **1/5회** 완료. 나머지 4회를 다른 날에 돌려 안정성 확인
-- `/loop` 스케줄 등록 — 손 실행 3~5회 안정 확인 전에는 금지
+- 손 실행 누적 **9회**(outputs 기준: 08-13 2회 · 08-20 6회 · 08-31 1회). 「3~5회 안정성 확인」 조건은 충족됐다
+- `/loop` 스케줄 등록 여부는 사람이 판단 — 남은 3주 동안 코드 변경이 잦다면 등록할 값이 있다
 
 ## Blockers
 
@@ -32,8 +36,9 @@
 ## Next Run Should
 
 1. `node loops/release-green/gate.mjs` 실행
-2. 테스트 개수를 **61과 비교**
-3. 이 파일의 `Last Run` 갱신 + 손 실행 횟수(N/5) 올리기
+2. 테스트 개수를 **114와 비교** (61이 아니다)
+3. 이 파일의 `Last Run` 갱신
+4. 🔴 제출 전(9/19 목표) 마지막으로 한 번 더 돌려 GREEN 을 확인한다
 
 ## Decisions Made
 

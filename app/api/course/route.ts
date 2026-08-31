@@ -4,6 +4,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { COURSE_TTL_DAYS, sweepExpiredCourses } from '@/lib/course-lifecycle';
+import { generateEditToken } from '@/lib/course-edit';
+import { getCurrentUserId } from '@/lib/auth';
 import {
   locationBasedList,
   areaBasedList,
@@ -19,6 +22,10 @@ import {
 import { getWeekendForecast } from '@/lib/weather-api';
 import { fetchBarrierFree } from '@/lib/barrier-free-api';
 import { calcSajuFromElements, type Element5 } from '@/lib/saju';
+import {
+  checkAndBumpUsage, clientKeyFrom, secondsUntilKstMidnight,
+  PER_CLIENT_DAILY, GLOBAL_DAILY,
+} from '@/lib/usage-limit';
 import {
   generateCourse,
   filterByAccessibility,
@@ -48,6 +55,7 @@ import type {
   DestinationType,
   MoodType,
   CourseSaju,
+  CourseData,
   VisitDay,
 } from '@/lib/weekend-types';
 import { MOOD_OPTIONS, CITY_OPTIONS } from '@/lib/weekend-types';
@@ -56,6 +64,11 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 // ─── 인메모리 Rate Limiter (IP 기반, 분당 3회) ───
+//
+// 🔴 이건 **버스트 차단기지 예산 차단기가 아니다.** 두 가지 한계가 있다:
+//   1) 서버리스라 인스턴스마다 Map 이 따로 산다. 콜드스타트마다 리셋된다.
+//   2) 하루 총량 개념이 없다 — 분당 3회를 하루 내내 유지하면 4,320회 ≈ 13만원이다.
+// 하루 상한·전체 예산 상한은 lib/usage-limit.ts 가 Supabase 카운터로 따로 건다.
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 3;
@@ -486,6 +499,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // 하루 상한 + 전체 예산 차단기. 외부 API 를 한 번이라도 부르기 전에 판정한다 —
+  // TourAPI 를 다 부르고 나서 막으면 막은 요청에도 비용이 든다.
+  const usage = await checkAndBumpUsage(clientKeyFrom(request.headers));
+  if (!usage.allowed) {
+    const retryAfter = secondsUntilKstMidnight();
+    const message = usage.blockedBy === 'global'
+      ? '오늘 만들 수 있는 코스가 모두 소진됐어요. 내일 다시 만나요!'
+      : `하루에 만들 수 있는 코스는 ${PER_CLIENT_DAILY}개예요. 내일 다시 만들어드릴게요!`;
+    console.warn(`[이모추API] 상한 도달(${usage.blockedBy}) client=${usage.clientCount} global=${usage.globalCount}/${GLOBAL_DAILY}`);
+    return NextResponse.json({ error: message }, {
+      status: 429,
+      headers: { 'Retry-After': String(retryAfter) },
+    });
+  }
+  if (usage.degraded) {
+    console.warn('[이모추API] 🔴 사용량 카운터가 동작하지 않는다 — 예산 차단기 없이 진행 중');
+  }
+
   try {
     // JSON 파싱 (별도 try-catch로 400 반환)
     let body: unknown;
@@ -498,7 +529,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const req = validateRequest(body);
+    // 「다른 코스도 볼래요」 — 저장된 코스의 원본 조건으로 B 코스만 만든다.
+    // 🔑 조건을 클라이언트에서 받지 않고 DB 에서 읽는다. 공유 링크로 들어온 사람은
+    //    위저드를 거치지 않아 조건을 갖고 있지 않다.
+    const rawBody = body as Record<string, unknown>;
+    const alternativeFor = typeof rawBody.alternativeFor === 'string' ? rawBody.alternativeFor : null;
+
+    let req: CourseRequest;
+    if (alternativeFor) {
+      const { data: row } = await createAdminClient()
+        .from('wk_courses')
+        .select('request_params, course_b_data')
+        .eq('share_slug', alternativeFor)
+        .single();
+
+      if (!row?.request_params) {
+        // 013 마이그레이션 이전에 만들어진 코스는 조건이 없다. 재생성이 불가능하다.
+        return NextResponse.json(
+          { error: '이 코스는 다른 버전을 만들 수 없어요. 새로 만들어보세요!' },
+          { status: 404 },
+        );
+      }
+      if (row.course_b_data) {
+        // 이미 만들어 둔 게 있으면 그대로 준다 — 같은 코스에 두 번 과금하지 않는다.
+        return NextResponse.json({ courseB: row.course_b_data as CourseData });
+      }
+      req = validateRequest(row.request_params);
+    } else {
+      req = validateRequest(body);
+    }
 
     // 1. 후보 수집 + 날씨 + 축제 병렬 조회
     const { saturday, sunday } = getNextWeekend();
@@ -555,6 +614,8 @@ export async function POST(request: NextRequest) {
       weather,
       req.feeling,
       req.visitDay,
+      // 🔑 「오늘의 오행」만 넘긴다 — 매일 바뀌는 축이라야 같은 사람이 다른 날 다른 코스를 받는다.
+      req.saju?.todayElement,
     );
 
     // 3. AI 코스 생성
@@ -597,39 +658,28 @@ export async function POST(request: NextRequest) {
       accessibility: req.accessibility,
     };
 
-    // A/B 코스 병렬 생성 (B는 20초 타임아웃, A는 50초 타임아웃으로 504 방지)
-    const courseBWithTimeout = Promise.race([
-      generateCourse(input, 'b'),
-      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 20_000)),
-    ]).catch((err) => {
-      console.warn('[이모추API] B 코스 생성 실패 (무시):', err);
-      return undefined;
-    });
+    // 🔑 코스는 **한 번에 하나만** 만든다.
+    //    예전에는 A/B 를 항상 병렬로 만들어 요청당 Gemini 호출이 정확히 2회였다.
+    //    실측(2026-08-31)으로 B 를 본 사람보다 안 본 사람이 훨씬 많을 구조인데
+    //    비용은 전원에게 2배로 나갔다. 이제 B 는 「다른 코스도 볼래요」를 누른 사람만 만든다.
+    const primaryVariant: 'a' | 'b' = alternativeFor ? 'b' : 'a';
 
-    // 코스 A: Gemini가 네트워크 행으로 응답 없을 때 maxDuration(60s) 전에 폴백 코스 반환
-    const courseAWithTimeout = Promise.race([
-      generateCourse(input, 'a'),
+    // Gemini 가 네트워크 행으로 응답 없을 때 maxDuration(60s) 전에 폴백 코스를 반환한다.
+    const course = await Promise.race([
+      generateCourse(input, primaryVariant),
       new Promise<ReturnType<typeof generateFallbackCourse>>((resolve) =>
         setTimeout(() => {
-          console.warn('[이모추API] 코스A 50초 타임아웃 → 폴백 코스 반환');
+          console.warn(`[이모추API] 코스${primaryVariant.toUpperCase()} 50초 타임아웃 → 폴백 코스 반환`);
           resolve(generateFallbackCourse(ranked, input.duration, input.departure));
         }, 50_000)
       ),
     ]);
 
-    const [course, courseB] = await Promise.all([
-      courseAWithTimeout,
-      courseBWithTimeout,
-    ]);
 
     // 4-0. 방문일 휴무 stop 교체 (AI가 프롬프트 지시를 어긴 경우의 최종 안전망)
     if (req.visitDay) {
       const fixedA = replaceClosedStops(course.stops, ranked, req.visitDay);
       course.stops = fixedA.stops;
-      if (courseB) {
-        const fixedB = replaceClosedStops(courseB.stops, ranked, req.visitDay);
-        courseB.stops = fixedB.stops;
-      }
       if (fixedA.replaced > 0) {
         console.warn(`[이모추API] 휴무 stop 교체: ${fixedA.replaced}건 (visitDay=${req.visitDay})`);
       }
@@ -659,6 +709,7 @@ export async function POST(request: NextRequest) {
 
         const cand = candidates.find(c => c.contentId === stop.contentId);
         if (cand) {
+          if (cand.tel) stop.tel = cand.tel;
           if (cand.restdate) stop.restdate = cand.restdate;
           if (req.visitDay) {
             // 판정 불가(null/undefined)거나, 교체에 실패해 휴무인 채로 남은 stop → 'unknown'
@@ -672,7 +723,6 @@ export async function POST(request: NextRequest) {
       }
     };
     enrichStops(course.stops);
-    if (courseB) enrichStops(courseB.stops);
 
     // 4.5. 이동 정보 계산 (A/B 모두)
     const calcTransit = (stops: CourseStop[]) => {
@@ -685,14 +735,15 @@ export async function POST(request: NextRequest) {
       }
     };
     calcTransit(course.stops);
-    if (courseB) calcTransit(courseB.stops);
 
     // 4.6. 나들이 운세 메시지 생성 — 사주 사용 시 사주 메시지로 개인화
     let fortuneMessage = '';
-    if (req.saju) {
+    if (alternativeFor) {
+      // 「다른 코스」는 이미 만들어진 코스에 곁들이는 것이라 운세 문구를 새로 뽑지 않는다.
+      fortuneMessage = '';
+    } else if (req.saju) {
       fortuneMessage = req.saju.message;
       course.saju = req.saju;
-      if (courseB) courseB.saju = req.saju;
     } else {
       try {
         fortuneMessage = await generateCourseFortuneMessage(
@@ -703,8 +754,25 @@ export async function POST(request: NextRequest) {
       } catch { /* ignore */ }
     }
 
-    // 5. Supabase 저장 (실패해도 코스는 반환)
+    // 5-a. 「다른 코스」였다면 기존 행에 붙이고 끝낸다 (새 코스를 만들지 않는다)
+    if (alternativeFor) {
+      try {
+        await createAdminClient()
+          .from('wk_courses')
+          .update({ course_b_data: course })
+          .eq('share_slug', alternativeFor);
+      } catch (dbErr) {
+        console.warn('[이모추API] B 코스 저장 실패 (코스는 반환):', dbErr);
+      }
+      return NextResponse.json({ courseB: course });
+    }
+
+    // 5-b. Supabase 저장 (실패해도 코스는 반환)
     const shareSlug = generateShareSlug();
+    const editToken = generateEditToken();
+    // 로그인 상태면 처음부터 계정에 붙인다. 비로그인이면 null 이고, 나중에
+    // 로그인한 뒤 편집 토큰으로 claim 해서 가져갈 수 있다.
+    const ownerId = await getCurrentUserId();
     let courseId = shareSlug;
 
     try {
@@ -714,15 +782,32 @@ export async function POST(request: NextRequest) {
         .from('wk_courses')
         .insert({
           share_slug: shareSlug,
-          user_id: null,
+          user_id: ownerId,
           departure_lat: req.lat,
           departure_lng: req.lng,
           duration: req.duration,
           companion: req.companion,
           preferences: req.preferences,
           course_data: course,
-          course_b_data: courseB ?? null,
+          course_b_data: null,
           ai_model: 'gemini',
+          // 만든 사람만 이 코스를 고칠 수 있게 하는 토큰. 응답으로 딱 한 번 나간다.
+          edit_token: editToken,
+          // 🔑 만든 코스가 전부 영구 보존되던 것을 바꿨다. 공유·저장을 누르지 않은
+          //    코스는 30일 뒤 사라진다. 누르면 expires_at 이 NULL 이 되어 영구 보존된다.
+          // 로그인해서 만든 코스는 「내 코스」에 남아야 하므로 만료시키지 않는다.
+          expires_at: ownerId ? null : new Date(Date.now() + COURSE_TTL_DAYS * 86_400_000).toISOString(),
+          is_kept: Boolean(ownerId),
+          // 「다른 코스도 볼래요」를 나중에 누를 수 있게 원본 조건을 남긴다.
+          // 🔴 위치는 넣지 않는다 — departure_lat/lng 컬럼에 이미 있다.
+          request_params: {
+            lat: req.lat, lng: req.lng,
+            duration: req.duration, companion: req.companion,
+            preferences: req.preferences, feeling: req.feeling,
+            destinationType: req.destinationType, cityAreaCode: req.cityAreaCode,
+            mood: req.mood, visitDay: req.visitDay,
+            accessibility: req.accessibility, saju: req.saju,
+          },
         })
         .select('id')
         .single();
@@ -730,6 +815,10 @@ export async function POST(request: NextRequest) {
       if (inserted) {
         courseId = inserted.id;
       }
+
+      // 만료된 코스를 조금씩 치운다. 별도 스케줄러 없이 도는 게 핵심이다 —
+      // 인프라를 하나 더 두면 그게 또 관리 대상이 된다.
+      void sweepExpiredCourses();
     } catch (dbErr) {
       console.warn('[이모추API] DB 저장 실패 (코스는 반환):', dbErr);
     }
@@ -739,7 +828,7 @@ export async function POST(request: NextRequest) {
       courseId,
       shareUrl: `/course/${shareSlug}`,
       course,
-      ...(courseB && { courseB }),
+      editToken,
       kakaoNaviUrl: buildKakaoNaviUrl(course.stops),
       fortuneMessage,
     };

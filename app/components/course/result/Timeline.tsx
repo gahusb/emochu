@@ -8,9 +8,16 @@ interface Props {
   stops: CourseStop[];
   activeIndex: number | null;
   onActivate: (index: number) => void;
+  /** 편집 가능 여부는 카드가 아니라 화면이 안다. 여기서 그대로 내려보낸다. */
+  editable?: boolean;
+  busyOrder?: number | null;
+  onReplace?: (order: number) => void;
+  onMove?: (order: number, direction: 'up' | 'down') => void;
 }
 
-export default function Timeline({ stops, activeIndex, onActivate }: Props) {
+export default function Timeline({
+  stops, activeIndex, onActivate, editable = false, busyOrder = null, onReplace, onMove,
+}: Props) {
   const refs = useRef<Array<HTMLDivElement | null>>([]);
 
   useEffect(() => {
@@ -28,6 +35,13 @@ export default function Timeline({ stops, activeIndex, onActivate }: Props) {
             isLast={i === stops.length - 1}
             isActive={activeIndex === i}
             onActivate={() => onActivate(i)}
+            editable={editable}
+            busy={busyOrder !== null}
+            // 같은 날짜 안에서만 옮긴다 — 1일차 장소가 2일차로 넘어가면 코스가 깨진다.
+            canMoveUp={i > 0}
+            canMoveDown={i < stops.length - 1}
+            onReplace={() => onReplace?.(stop.order)}
+            onMove={(d) => onMove?.(stop.order, d)}
           />
         </div>
       ))}

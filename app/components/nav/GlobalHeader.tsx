@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Compass } from 'lucide-react';
 import LocationSelector from './LocationSelector';
 import GlobalSearchBar from './GlobalSearchBar';
+import AuthButton from './AuthButton';
 
 const NAV_ITEMS = [
   { href: '/', label: '홈', match: (p: string) => p === '/' },
@@ -66,6 +67,8 @@ export default function GlobalHeader() {
 
         <GlobalSearchBar />
         <LocationSelector />
+        {/* 로그인이 꺼져 있으면 아무것도 렌더링하지 않는다 (AuthButton 내부에서 판단) */}
+        <AuthButton />
       </div>
 
       {/* Mobile (<lg) */}
@@ -79,7 +82,12 @@ export default function GlobalHeader() {
             이모추
           </span>
         </Link>
-        <LocationSelector variant="compact" />
+        <div className="flex items-center gap-1">
+          <LocationSelector variant="compact" />
+          {/* 🔴 모바일에 진입점이 없었다. 이 앱은 모바일 퍼스트인데 로그인·내 코스로
+              갈 방법이 데스크톱 헤더에만 있었다. */}
+          <AuthButton variant="compact" />
+        </div>
       </div>
     </header>
   );

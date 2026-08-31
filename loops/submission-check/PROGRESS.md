@@ -7,23 +7,24 @@
 - Status: **Active** (권한 사다리 1단계)
 - Main objective: 2026-09-21 16:00 제출 항목 9종 충족
 - Current focus: 손으로 3~5회 실행하며 안정성 확인
-- Last updated: 2026-08-13
+- Last updated: 2026-08-31
 
 ## Last Run
 
-- Date: **2026-08-13 03:16**
-- Summary: **3 / 9 충족** · D-40 · 남은 항목 6건 (사람 4 + 기계 2)
-- 변화: `attribution` **🔴 → ✅** · `service-url` **🔴 → ✅** (배포 후 `serviceUrl` 기입). `api-list` 는 계속 ✅
-- 배포: `https://emochu.vercel.app` — 라이브에서 출처 표기 렌더링 **육안 확인 완료**
-- Output: `outputs/submission-2026-08-13-0316.md`
-- ⚠️ 이 실행에서 **스크립트가 exit 127 로 붕괴**했다(아래 `Do Not Repeat` 참조). 리포트 내용 자체는 정상이었고, 원인을 찾아 고친 뒤 3회 재실행해 `exit=1` 을 확인했다.
+- Date: **2026-08-31 10:05**
+- Summary: **4 / 10 충족** · **D-22** · 남은 항목 6건 (사람 4 + 기계 2)
+- Output: `outputs/submission-2026-08-31-1005.md`
+- 충족: `service-url`(HTTP 200) · `api-list`(11개 일치) · `barrier-free`(KorWithService2 연동) · `attribution`(`SiteFooter.tsx:12`)
+- 📌 항목이 **9종 → 10종** 으로 늘었다(2026-08-18 `barrier-free` 추가). 이 파일의 옛 기록(N/9)은 낡은 표기다.
+- 🔴 미충족 6건은 **전부 사람·자산 작업**이다 — 코드로 해결되지 않는다
 
 ## Open Items
 
-- 손 실행 **1/5회** 완료. 나머지 4회를 다른 날에 돌려 안정성 확인
-- ~~`serviceUrl` 이 비어 있음~~ → ✅ 2026-08-13 `https://emochu.vercel.app` 기입 완료
-- 제출 자산(대표1+상세3~5 이미지, 기능설명서 PDF)이 `assets/` 에 없음
+- 🔴 **기능설명서 지정양식 PDF 가 레포 어디에도 없다.** `assets/` 에는 `README.md` 뿐이고, `docs/` 의 PDF 는 5월 예비심사용 **제안서**다(1차 심사용 기능설명서가 아니다). 임의 양식은 심사 제외 — **양식 다운로드가 남은 일 중 최대 리스크**다
+- 제출 이미지(대표1 + 상세3~5)가 0장. 🔑 **UI 변경이 끝난 뒤에 찍어야** 재촬영이 없다
 - manual 4종(`team-info`·`service-info`·`test-account`·`api-keys`)이 전부 `done: false`
+  - `test-account` 는 이모추가 로그인 없는 서비스이므로 **'불필요' 선택 1분 작업**이다
+- 📌 `api-list` 는 KorService2 11개만 센다. 실제 활용은 **2상품 12 오퍼레이션**(무장애 별도) — 서류에 11로 적으면 **과소 신고**다
 
 ## Blockers
 
@@ -37,8 +38,9 @@
 ## Next Run Should
 
 1. `node loops/submission-check/check.mjs` 실행
-2. D-day 를 확인하고, D-14 이내면 미충족 항목을 최상단으로 올린다
-3. 이 파일의 `Last Run` 갱신 + 손 실행 횟수(N/5) 올리기
+2. D-day 를 확인하고, **D-14 이내(2026-09-07 부터)면 미충족 항목을 최상단으로 올린다**
+3. 이 파일의 `Last Run` 갱신
+4. 🔴 제출 목표일은 **마감 이틀 전(9/19)** 이다 — 마감 당일 접수 시스템 과부하는 지원자 책임이다
 
 ## Decisions Made
 

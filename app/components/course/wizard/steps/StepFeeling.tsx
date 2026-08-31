@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Battery, Zap, Heart, Leaf, Compass, UtensilsCrossed, Sparkles, RefreshCw } from 'lucide-react';
 import { FEELING_OPTIONS } from '@/lib/weekend-types';
 import type { Feeling } from '@/lib/weekend-types';
-import { calcSaju, ELEMENT_META } from '@/lib/saju';
+import { calcSaju, ELEMENT_META, ELEMENT_COURSE_HINT } from '@/lib/saju';
 import type { SajuResult } from '@/lib/saju';
 import type { WizardState, WizardAction } from '../WizardShell';
 import type { Dispatch, ComponentType } from 'react';
@@ -20,31 +20,27 @@ const FEELING_ICONS: Record<string, ComponentType<{ size?: number; strokeWidth?:
   foodie: UtensilsCrossed,
 };
 
-const FEELING_LABELS: Record<Feeling, string> = {
-  tired: '쉬고 싶어요',
-  excited: '에너지 넘쳐요!',
-  romantic: '로맨틱한 기분',
-  healing: '힐링이 필요해요',
-  adventurous: '새로운 경험!',
-  foodie: '맛집 탐방',
-};
-
 const currentYear = new Date().getFullYear();
 const BIRTH_YEARS = Array.from({ length: 80 }, (_, i) => currentYear - 15 - i);
 
 export default function StepFeeling({ state, dispatch }: Props) {
-  const [showSaju, setShowSaju] = useState(false);
+  // 접어두지 않는다 — 접혀 있으면 이 서비스를 다시 찾을 이유(날마다 바뀌는 기운)가 보이지 않는다.
+  const [showSaju, setShowSaju] = useState(true);
   const [birthYear, setBirthYear] = useState<number>(1990);
-  const [sajuResult, setSajuResult] = useState<SajuResult | null>(null);
+  // 위저드 상태에서 복원한다. 스텝을 오갈 때 결과 카드가 사라지지 않게.
+  const [sajuResult, setSajuResult] = useState<SajuResult | null>(state.saju);
 
   const handleCalcSaju = () => {
     const result = calcSaju(birthYear);
     setSajuResult(result);
   };
 
+  // 🔑 여기서 SET_FEELING 을 하지 않는다.
+  //    사주는 「사주만 보고 주는 조언」이고, 기분은 사용자가 직접 고르는 것이다.
+  //    사주가 기분을 대신 정하면 오행 25가지가 기분 6칸으로 압축돼 정보가 버려진다.
+  //    오행은 서버에서 장소 점수(elementScore)로 따로 반영된다.
   const handleApplySaju = () => {
     if (!sajuResult) return;
-    dispatch({ type: 'SET_FEELING', value: sajuResult.feeling });
     dispatch({ type: 'SET_SAJU', value: sajuResult });
     setShowSaju(false);
   };
@@ -57,8 +53,7 @@ export default function StepFeeling({ state, dispatch }: Props) {
 
   const birthMeta = sajuResult ? ELEMENT_META[sajuResult.birthElement] : null;
   const todayMeta = sajuResult ? ELEMENT_META[sajuResult.todayElement] : null;
-  const recommendedLabel = sajuResult ? FEELING_LABELS[sajuResult.feeling] : '';
-  const RecommendedIcon = sajuResult ? (FEELING_ICONS[sajuResult.feeling] ?? Heart) : Heart;
+  const sajuApplied = state.saju !== null;
 
   return (
     <div className="space-y-4">
@@ -71,12 +66,8 @@ export default function StepFeeling({ state, dispatch }: Props) {
             <button
               key={opt.type}
               type="button"
-              onClick={() => {
-                dispatch({ type: 'SET_FEELING', value: opt.type as Feeling });
-                dispatch({ type: 'SET_SAJU', value: null });
-                setSajuResult(null);
-                setShowSaju(false);
-              }}
+              // 사주를 지우지 않는다 — 기분(내가 고른 것)과 기운(사주 조언)은 별개의 축이다.
+              onClick={() => dispatch({ type: 'SET_FEELING', value: opt.type as Feeling })}
               aria-pressed={selected}
               className={`flex flex-col items-start gap-2 px-4 py-4 rounded-lg border text-left transition-colors ${
                 selected ? 'bg-brand-soft border-brand' : 'bg-surface-elevated border-line hover:border-ink-4'
@@ -92,12 +83,25 @@ export default function StepFeeling({ state, dispatch }: Props) {
         })}
       </div>
 
+      {/* 사주를 반영했는데 기분을 아직 안 고른 경우.
+          예전엔 사주가 기분을 대신 채워 넘어갔지만 이제는 아니다 — 왜 「다음」이 막혔는지
+          알려주지 않으면 사용자는 그 자리에서 멈춘다. */}
+      {sajuApplied && state.feeling === null && (
+        <p role="status" className="text-xs text-brand font-semibold text-center break-keep">
+          기분은 위에서 하나 골라주세요. 오늘의 기운은 코스에 따로 반영돼요.
+        </p>
+      )}
+
       {/* ─── 사주 구분선 ─── */}
-      <div className="flex items-center gap-3 py-1">
+      {/* 「또는」이 아니다. 기분은 내가 고르고, 기운은 사주가 조언한다 — 둘 다 쓸 수 있다. */}
+      <div className="flex items-center gap-3 pt-2">
         <div className="flex-1 h-px bg-line" />
-        <span className="text-xs text-ink-4 font-medium">또는</span>
+        <span className="text-xs text-ink-4 font-medium">그리고</span>
         <div className="flex-1 h-px bg-line" />
       </div>
+      <p className="text-xs text-ink-3 text-center break-keep">
+        기분은 직접 고르고, <strong className="text-brand font-semibold">오늘의 기운</strong>은 사주가 조언해요. 기운은 <strong className="text-ink-2 font-semibold">날마다 바뀌어요.</strong>
+      </p>
 
       {/* ─── 사주 영역 ─── */}
       {!showSaju && !sajuResult && (
@@ -182,12 +186,12 @@ export default function StepFeeling({ state, dispatch }: Props) {
           <div className="px-5 py-4">
             <p className="text-sm text-ink-2 leading-relaxed break-keep">{sajuResult.message}</p>
 
-            {/* 추천 기분 */}
+            {/* 오늘의 오행이 코스에서 어디로 향하는지 — 기분을 대신 정하지 않는다 */}
             <div className="mt-4 flex items-center gap-2 p-3 rounded-lg bg-brand-soft/50 border border-brand/20">
-              <RecommendedIcon size={18} className="text-brand flex-shrink-0" />
+              <Sparkles size={18} className="text-brand flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-xs text-ink-4">추천 코스 기운</p>
-                <p className="text-sm font-bold text-brand">{recommendedLabel}</p>
+                <p className="text-xs text-ink-4">오늘 {todayMeta.name} 기운이 닿는 곳</p>
+                <p className="text-sm font-bold text-brand">{ELEMENT_COURSE_HINT[sajuResult.todayElement]}</p>
               </div>
             </div>
 
@@ -195,9 +199,14 @@ export default function StepFeeling({ state, dispatch }: Props) {
               <button
                 type="button"
                 onClick={handleApplySaju}
-                className="flex-1 h-11 rounded-lg bg-brand text-white text-sm font-bold hover:bg-brand-hover transition-colors"
+                disabled={sajuApplied}
+                className={`flex-1 h-11 rounded-lg text-sm font-bold transition-colors ${
+                  sajuApplied
+                    ? 'bg-brand-soft text-brand border border-brand/30 cursor-default'
+                    : 'bg-brand text-white hover:bg-brand-hover'
+                }`}
               >
-                이 기운으로 코스 만들기
+                {sajuApplied ? '✓ 이 기운이 코스에 반영돼요' : '이 기운 코스에 반영하기'}
               </button>
               <button
                 type="button"

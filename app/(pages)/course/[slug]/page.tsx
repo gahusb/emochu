@@ -10,14 +10,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!res.ok) throw new Error();
     const data = await res.json();
     const course = data.course;
-    const image = course?.stops?.find((s: { imageUrl?: string }) => s.imageUrl)?.imageUrl;
+    // 🔴 openGraph.images 를 여기서 지정하지 않는다.
+    //    지정하면 같은 폴더의 opengraph-image.tsx(코스 카드)를 덮어쓴다.
+    //    예전엔 첫 장소 사진 한 장을 썼는데, 사진 한 장으로는 「코스」가 안 보인다.
     return {
       title: course?.title ?? '코스 보기',
       description: course?.summary ?? '이모추! AI가 만든 주말 나들이 코스',
       openGraph: {
         title: course?.title ?? '이모추! 코스',
         description: course?.summary ?? '이모추! AI가 만든 주말 나들이 코스를 확인해보세요!',
-        images: image ? [{ url: image }] : undefined,
       },
     };
   } catch {

@@ -3,7 +3,7 @@
 // 설계서: docs/weekend-ai-engine-design.md
 // ============================================================
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, type GenerationConfig } from '@google/generative-ai';
 import type {
   AccessibilityNeed,
   BarrierFreeInfo,
@@ -19,6 +19,7 @@ import type {
   SpotRole,
 } from './weekend-types';
 import { ACCESSIBILITY_LABELS } from './weekend-types';
+import type { Element5 } from './saju';
 import { parseRestDate, visitDayToIndex } from './opening-hours';
 import { buildCourseSchema } from './course-schema';
 import { validateComposition, isCompositionRetryEnabled } from './course-composition';
@@ -50,6 +51,8 @@ export interface ScoredSpot {
   longitude: number;
   firstImage?: string;
   overview?: string;
+  /** TourAPI 가 주는 전화번호. 「보는 코스」를 「가는 코스」로 만드는 최소 연결이다. */
+  tel?: string;
   distanceKm: number;
   score: number;
   facilities?: CompanionFacilities;   // detailIntro에서 조회한 편의시설 정보
@@ -99,15 +102,27 @@ export interface CourseGenerationInput {
 
 // ─── 상수 ───
 
-// 2026-08-19 실측으로 교체. 같은 코스 생성 태스크를 3회씩 돌린 평균:
-//   gemini-3.5-flash  8,538ms (JSON 3/3)  ← 채택
-//   gemini-3.6-flash 10,467ms (JSON 3/3)
-//   gemini-2.5-flash 12,711ms (JSON 3/3)  ← 이전 1순위
-// 3.5 가 이전보다 33% 빠르다. 코스A 가 50초 타임아웃으로 폴백되던 문제에 직접 도움이 된다.
+// 🔬 2026-08-31 재실측으로 순서를 바꿨다. 8/19 측정은 **지연만** 봤고 가격·가용성을 안 봤다.
+//    같은 프롬프트로 모델당 3회씩 직접 호출한 결과:
 //
-// 🔴 gemini-3.7-flash 는 넣지 않았다 — 존재하지만 503 "high demand" 로 응답한다.
-//    폴백 체인은 1순위가 실패했을 때 기대는 곳이라 불안정한 모델을 넣으면 안 된다.
-//    나중에 안정화되면 그때 실측하고 올린다.
+//    모델              성공   평균지연   thinking  가격(in/out per 1M)
+//    gemini-3.5-flash   2/3   17.2s      2,267     $1.50 / $9.00   ← 이전 1순위. Flash 중 최고가
+//    gemini-3.6-flash   3/3   16.9s      1,682     $0.75 / $3.75   ← 채택
+//    gemini-3.7-flash   2/3   45.9s        380     $0.75 / $3.75
+//    gemini-2.5-flash   3/3   23.2s      3,682     $0.30 / $2.50
+//
+// 🔴 **1순위였던 3.5-flash 가 지금 503 "high demand" 를 뱉는다.** 8/19 에 3.7 을
+//    제외한 바로 그 증상이 3.5 로 옮겨왔다. 로컬 재현: 코스 생성 3회 중 2회가
+//    503 → 3초 대기 → 재시도 → 또 503 → 다음 모델 순서로 밀리다가 **50초 타임아웃**에 걸려
+//    **폴백 코스**가 나갔다(storyArc·hook 없는 코스). 돈은 내고 결과는 버린 셈이다.
+//
+// 3.6 은 지연이 같거나 빠르고, 3회 모두 성공했고, **3.5 의 절반 가격**이다.
+// 3.7 은 값은 같지만 지연이 2.7배라 1순위로 못 쓴다.
+//
+// ⚡ thinkingBudget: 실측에서 **출력 과금의 약 2/3 가 thinking 토큰**이었다(출력의 2배).
+//    512 로 묶으면 thinking 이 0 이 되고 **지연이 절반**(19.3s → 8.1s)인데
+//    stops 개수·storyArc·hook 품질은 유지됐다. 비용과 타임아웃을 한 번에 잡는 레버다.
+//    🔴 thinkingBudget: 0 은 400 을 뱉는다(이 모델군은 완전 비활성화를 거부한다). 512 를 쓴다.
 //
 // 폴백은 세대를 섞는다. 같은 세대로만 채우면 그 세대 전체 장애 때 다 같이 죽는다.
 // maxTokens: 세 모델 모두 실제 한도는 65,536 인데 8,192 만 쓰고 있었다(1/8).
@@ -119,9 +134,9 @@ export interface CourseGenerationInput {
 // 한도까지 다 열지 않고 16,384 로 둔 것은, 잘림만 막으면 되고 상한을 크게 두면
 // 모델이 장황해질 여지를 주기 때문이다.
 const MODELS = [
-  { id: 'gemini-3.5-flash',      maxTokens: 16384, temp: 0.7 },
-  { id: 'gemini-3.6-flash',      maxTokens: 16384, temp: 0.7 },
-  { id: 'gemini-2.5-flash',      maxTokens: 16384, temp: 0.7 },
+  { id: 'gemini-3.6-flash',      maxTokens: 16384, temp: 0.7, thinkingBudget: 512 },
+  { id: 'gemini-3.5-flash',      maxTokens: 16384, temp: 0.7, thinkingBudget: 512 },
+  { id: 'gemini-2.5-flash',      maxTokens: 16384, temp: 0.7, thinkingBudget: 512 },
 ] as const;
 
 const DURATION_DETAIL: Record<Duration, string> = {
@@ -320,6 +335,105 @@ function feelingScore(spot: ScoredSpot, feeling?: Feeling): number {
   return score;
 }
 
+// 오행(오늘의 기운) → 선호 카테고리·키워드 매핑.
+//
+// 왜 feeling 과 별개의 축인가 (2026-08-31 결정):
+//   사주는 「그 사람의 사주만 보고 주는 조언」이고, 기분은 「본인이 직접 고르는 것」이다.
+//   사주가 feeling 을 대신 정하던 이전 방식은 오행 5 × 관계 5 = 25가지를 feeling 6칸으로
+//   압축했다 — 木이든 水든 도출된 feeling 이 같으면 똑같은 코스가 나왔다.
+//   오행을 장소 점수에 직접 넣어야 그 정보가 코스까지 살아남는다.
+//
+// 🔑 대상은 「오늘의 오행」이다. 생년 오행은 사람마다 고정이라 다시 올 이유가 안 된다.
+//    오늘의 오행은 일주 기준으로 매일 바뀌므로, 같은 사람이 다른 날 오면 다른 코스가 나온다.
+//
+// 🔗 화면 문구는 lib/saju.ts 의 ELEMENT_COURSE_HINT 다. 여기를 바꾸면 같이 바꾼다.
+// 🔬 2026-08-31 실측으로 설계가 한 번 바뀌었다. 처음엔 contentTypeId + 한글 키워드로 짰는데,
+//    후보 100건 기준 매칭률이 오행별로 거의 같았다(서울 木20% 火28% 水20% / 안동 木41% 火41% 水41%).
+//    이유 둘:
+//      1) 木·火·水 가 contentTypeId 12(관광지)를 공유해 사실상 한 축이었다
+//      2) cat2·cat3 는 'A01010700' 같은 **코드**다 — 한글 키워드는 여기에 절대 안 걸린다.
+//         키워드 단독 매칭은 100건 중 0~5건이었다(그마저 대부분 title 우연 일치)
+//    → 오행이 달라도 같은 코스가 나오는, 킥이 없는 킥이 될 뻔했다.
+//
+// 그래서 **TourAPI 소분류(cat3) 코드**를 1차 신호로 쓴다. 공사 분류 체계를 그대로
+// 오행에 대응시킨 것이라 매칭이 정확하고, categoryCode2 의 활용 근거도 된다.
+// 코드는 categoryCode2 실호출 덤프(153건)에서 이름으로 골라 생성했다.
+const ELEMENT_PREFERENCE_MAP: Record<Element5, {
+  boostCat3: string[];      // TourAPI 소분류 코드 — 1차 신호
+  boostKeywords: string[];  // cat3 가 못 잡는 것을 title·overview 한글로 보완
+}> = {
+  wood: {
+    // 수목원 · 자연휴양림 · 자연생태 · 국립/도립/군립공원 · 산 · 공원 · 트래킹 · 자전거하이킹
+    // · 도보/힐링/캠핑코스 · 야영장 · 희귀동식물 · 기암괴석 · MTB
+    boostCat3: ['A01010700', 'A01010600', 'A01010500', 'A01010100', 'A01010200', 'A01010300',
+                'A01010400', 'A02020700', 'A03022700', 'A03020500', 'C01150001', 'C01140001',
+                'C01160001', 'A03021700', 'A01020100', 'A01020200', 'A03022200'],
+    boostKeywords: ['수목원', '숲', '공원', '산책', '휴양림', '둘레길', '정원', '생태', '식물', '나무'],
+  },
+  fire: {
+    // 전망대 · 축제 2종 · 공연 5종 · 유람선 · 해안절경 · 테마공원 · 이색체험/거리 · 다리 · 분수
+    // · 스키 · 번지점프 · 항공레포츠 4종 · ATV · 서바이벌 · 카트
+    // 🔴 火 는 축제·공연(contentTypeId 15)에 몰려 있는데 그건 후보 풀 밖에서 따로 합쳐진다.
+    //    그래서 「빛·열정」에 해당하는 레포츠·이색체험까지 넓혀야 실제로 발화한다(실측으로 확인).
+    boostCat3: ['A02050200', 'A02070100', 'A02070200', 'A02081000', 'A02080300', 'A02080200',
+                'A02080100', 'A02081400', 'A02020800', 'A01011100', 'A02020600', 'A02030400',
+                'A02030600', 'A02050100', 'A02050300', 'A03021200', 'A03022400', 'A03040400',
+                'A03040300', 'A03040100', 'A03040200', 'A03022100', 'A03022000', 'A03020600'],
+    boostKeywords: ['야경', '일몰', '전망', '축제', '불꽃', '노을', '타워', '야시장'],
+  },
+  earth: {
+    // 고택 · 민속마을 · 유적지 · 고궁 · 성 · 문 · 생가 · 사찰 · 종교성지 · 체험 3종
+    // · 5일장 · 상설시장 · 한옥 · 특산물판매점
+    boostCat3: ['A02010400', 'A02010600', 'A02010700', 'A02010100', 'A02010200', 'A02010300',
+                'A02010500', 'A02010800', 'A02010900', 'A02030200', 'A02030100', 'A02030300',
+                'A04010100', 'A04010200', 'B02011600', 'A04010900'],
+    boostKeywords: ['전통', '한옥', '민속', '마을', '체험', '농장', '도자기', '고택', '서원', '향교'],
+  },
+  metal: {
+    // 박물관 · 미술관 · 전시관 · 기념관 · 공연장 · 전시회 · 박람회 · 문화전수시설
+    // · 공예/공방 · 대형서점 · 도서관 · 유명건물 · 영화관
+    boostCat3: ['A02060100', 'A02060500', 'A02060300', 'A02060200', 'A02060600', 'A02080500',
+                'A02080600', 'A02061100', 'A04010700', 'A02061000', 'A02060900', 'A02050600',
+                'A02061200'],
+    boostKeywords: ['미술관', '박물관', '전시', '공예', '건축', '조각', '갤러리', '아트', '문학'],
+  },
+  water: {
+    // 해수욕장 · 폭포 · 계곡 · 호수 · 강 · 섬 · 항구 · 등대 · 약수터 · 동굴 · 온천
+    // · 수상레포츠 9종
+    boostCat3: ['A01011200', 'A01010800', 'A01010900', 'A01011700', 'A01011800', 'A01011300',
+                'A01011400', 'A01011600', 'A01011000', 'A01011900', 'A02020300', 'A03010200',
+                'A03030200', 'A03030800', 'A03030700', 'A03030100', 'A03030300', 'A03030400',
+                'A03030500', 'A03030600'],
+    boostKeywords: ['해변', '바다', '계곡', '호수', '폭포', '온천', '저수지', '섬', '포구', '수변'],
+  },
+};
+
+/**
+ * 오행 가중. 🔴 최대 5점으로 묶어 둔 것은 의도다 —
+ * preference 35 · companion 20 · distance 20 · feeling 최대 13 위에 얹히므로
+ * 이보다 크면 사용자가 직접 고른 취향·기분을 사주가 덮어쓴다.
+ * 지금 크기는 「비슷한 후보들 사이의 순서를 가르는」 정도지 후보를 갈아치우지 않는다.
+ */
+function elementScore(spot: ScoredSpot, element?: Element5): number {
+  if (!element) return 0;
+  const mapping = ELEMENT_PREFERENCE_MAP[element];
+  if (!mapping) return 0;
+
+  let score = 0;
+  if (mapping.boostCat3.includes(spot.cat3)) score += 3;
+  // 🔴 여기서 cat2·cat3 를 보지 않는 것은 의도다 — 코드값이라 한글이 안 걸린다(위 실측 참조).
+  //    한글이 실제로 들어 있는 곳만 본다.
+  const text = `${spot.title} ${spot.overview ?? ''}`;
+  if (mapping.boostKeywords.some(kw => text.includes(kw))) score += 2;
+
+  return score;
+}
+
+/** 오행 키워드 매칭률 측정용. 가중이 실제로 후보에 닿는지 스크립트로 확인한다. */
+export function matchesElement(spot: ScoredSpot, element: Element5): boolean {
+  return elementScore(spot, element) > 0;
+}
+
 function preferenceScore(spot: ScoredSpot, preferences: Preference[]): number {
   let maxMatch = 0;
   for (const pref of preferences) {
@@ -428,6 +542,7 @@ export function scoreAndRankCandidates(
   weather: WeekendWeather,
   feeling?: Feeling,
   visitDay?: VisitDay,
+  todayElement?: Element5,
 ): ScoredSpot[] {
   const month = new Date().getMonth() + 1;
 
@@ -439,9 +554,10 @@ export function scoreAndRankCandidates(
     const sBonus = seasonBonus(spot, month) * 10;
     const fBonus = facilityBonus(spot, companion);
     const feelBonus = feelingScore(spot, feeling);
+    const eBonus = elementScore(spot, todayElement);
     const closed = closedPenalty(spot, visitDay);
 
-    return { ...spot, score: pScore + cScore + wScore + dScore + sBonus + fBonus + feelBonus + closed };
+    return { ...spot, score: pScore + cScore + wScore + dScore + sBonus + fBonus + feelBonus + eBonus + closed };
   });
 
   return diversifyByRole(scored, duration, feeling);
@@ -533,7 +649,7 @@ function buildUserMessage(input: CourseGenerationInput): string {
 - 출발: ${input.departure.name} (위도 ${input.departure.lat}, 경도 ${input.departure.lng})
 - 시간 예산: ${DURATION_DETAIL[input.duration]}
 - 동반자: ${COMPANION_DETAIL[input.companion]}
-- 취향: ${input.preferences.map(p => PREFERENCE_KOREAN[p]).join(', ')}${input.feeling ? `\n- 🎭 오늘의 기분: ${FEELING_DETAIL[input.feeling]}` : ''}${input.saju ? `\n- ☯️ 오늘의 사주 기운: ${input.saju.headline} — ${input.saju.message}\n  → 위 기운의 정서를 코스 내러티브(storyArc·summary)의 톤에 자연스럽게 녹이되, 장소 선택 자체는 위 취향·동반자·기분 조건을 따르세요.` : ''}${input.visitDay ? `\n- 📅 방문일: ${input.visitDay === 'sun' ? '일요일' : '토요일'} — **후보의 "휴무" 표기를 확인해, 이 날 문을 닫는 곳은 절대 코스에 넣지 마세요.**` : ''}
+- 취향: ${input.preferences.map(p => PREFERENCE_KOREAN[p]).join(', ')}${input.feeling ? `\n- 🎭 오늘의 기분: ${FEELING_DETAIL[input.feeling]}` : ''}${input.saju ? `\n- ☯️ 오늘의 기운(사주): ${input.saju.headline} — ${input.saju.message}\n  → 이건 사용자의 사주로 뽑은 **오늘의 조언**입니다(기분은 사용자가 위에서 직접 골랐습니다). 이 기운의 정서를 코스 내러티브(storyArc·summary)의 톤에 자연스럽게 녹이고, **후보의 우열이 비슷하면 이 기운에 어울리는 쪽을 고르세요**. 다만 사용자가 직접 고른 취향·동반자·기분 조건을 뒤집지는 마세요.` : ''}${input.visitDay ? `\n- 📅 방문일: ${input.visitDay === 'sun' ? '일요일' : '토요일'} — **후보의 "휴무" 표기를 확인해, 이 날 문을 닫는 곳은 절대 코스에 넣지 마세요.**` : ''}
 - 현재: ${month}월 (${SEASON_NAME[month]})${buildAccessibilityPrompt(input.accessibility)}${(input.feeling !== 'adventurous' && input.feeling !== 'excited') ? '\n⚠️ 레포츠·등산·자전거 등 체력 소모 활동은 포함하지 마세요. 관광·맛집·카페·문화 중심 코스를 설계하세요.' : ''}
 
 ## 이번 주말 날씨
@@ -733,9 +849,46 @@ function parseCompanionFacilities(
 }
 
 /**
+ * 「문의 및 안내」 원문에서 **걸 수 있는** 번호 하나만 건진다.
+ * 원문은 `02-123-4567(주말 휴무)` · `<br>안내 1330` 처럼 설명·태그가 섞여 온다.
+ *
+ * 🔴 형태만 보는 정규식은 위험하다. 첫 구현이 실제로 `0507-1400-1797` 에서
+ *    `07-1400-1797` 을 뽑아냈다 — **못 거는 번호**가 전화 버튼에 붙는다.
+ *    그래서 「그럴듯한 덩어리를 잡고 → 자릿수로 판정 → 자릿수대로 다시 조립」한다.
+ *    번호가 없는 것보다 틀린 번호가 나쁘므로, 애매하면 버린다.
+ */
+export function extractPhone(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const text = raw.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
+
+  // 숫자·구분자로만 이뤄진 덩어리를 통째로 집는다. 앞뒤에 숫자가 붙어 있으면
+  // 잘라내지 않는다 — 잘라내는 순간 위의 0507 사고가 난다.
+  for (const m of text.matchAll(/(?<![\d-])(\d[\d\s.-]{5,15}\d)(?![\d-])/g)) {
+    const d = m[1].replace(/\D/g, '');
+
+    // 국내 번호 자릿수 규칙. 여기 없는 형태는 통과시키지 않는다.
+    if (/^02/.test(d) && (d.length === 9 || d.length === 10)) {
+      return `02-${d.slice(2, -4)}-${d.slice(-4)}`;
+    }
+    if (/^050\d/.test(d) && d.length === 12) {          // 안심번호
+      return `${d.slice(0, 4)}-${d.slice(4, 8)}-${d.slice(8)}`;
+    }
+    // 01x 휴대폰 · 03~06x 지역 · 07x 인터넷전화 · 080 수신자부담
+    if (/^01\d|^0[3-6]\d|^07\d|^080/.test(d) && (d.length === 10 || d.length === 11)) {
+      return `${d.slice(0, 3)}-${d.slice(3, -4)}-${d.slice(-4)}`;
+    }
+    if (/^1[5-9]\d\d/.test(d) && d.length === 8) {      // 1588 류 대표번호
+      return `${d.slice(0, 4)}-${d.slice(4)}`;
+    }
+  }
+  return undefined;
+}
+
+/**
  * 상위 후보들의 detailIntro를 병렬 조회하여 편의시설 정보 보강.
  * API 호출 최소화를 위해 상위 N개만 조회.
  */
+
 export async function enrichWithFacilities(
   spots: ScoredSpot[],
   maxEnrich: number = 20,
@@ -756,6 +909,15 @@ export async function enrichWithFacilities(
     if (result.status === 'fulfilled' && result.value) {
       const intro = result.value as Record<string, string>;
       targets[i].facilities = parseCompanionFacilities(intro, targets[i].contentTypeId);
+
+      // 전화번호 추출.
+      // 🔴 목록 API(locationBasedList2)의 tel 은 **비어서 온다**(2026-08-31 실측:
+      //    음식점·관광지 각 20건 전부 빈 값). 상세 조회에만 들어 있다.
+      //    이 함수는 이미 detailIntro 를 부르고 있으므로 **추가 호출 없이** 여기서 건진다.
+      const rawTel = intro.infocenter ?? intro.infocenterfood ?? intro.infocenterculture
+        ?? intro.infocenterleports ?? intro.infocenterlodging ?? intro.sponsor1tel ?? '';
+      const tel = extractPhone(rawTel);
+      if (tel) targets[i].tel = tel;
 
       // 운영시간 추출 (콘텐츠 타입별 필드명이 다름)
       const rawTime = intro.usetime ?? intro.opentimefood ?? intro.usetimefestival ?? '';
@@ -965,6 +1127,11 @@ async function callGeminiLite(prompt: string, maxTokens = 100): Promise<string> 
         generationConfig: { maxOutputTokens: maxTokens, temperature: 0.8 },
       });
       const result = await model.generateContent(prompt);
+      const liteUsage = result.response.usageMetadata;
+      if (liteUsage) {
+        console.log(`[이모추AI:usage] model=${modelName} kind=lite ` +
+          `in=${liteUsage.promptTokenCount} out=${liteUsage.candidatesTokenCount} total=${liteUsage.totalTokenCount}`);
+      }
       const text = result.response.text().trim();
       if (text) return text;
     } catch {
@@ -1060,7 +1227,7 @@ export async function generateCourse(
   const startedAt = Date.now();
   const RETRY_BUDGET_MS = 28_000;
 
-  for (const { id: modelId, maxTokens, temp } of models) {
+  for (const { id: modelId, maxTokens, temp, thinkingBudget } of models) {
     // 최대 2회 시도 (JSON 파싱 실패 시 1회 재시도)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -1078,7 +1245,11 @@ export async function generateCourse(
             // (2026-08-20 실측: 전부 빈칸으로 나왔다).
             responseMimeType: 'application/json',
             responseSchema: buildCourseSchema(input.duration),
-          },
+            // 🔴 `@google/generative-ai` 0.24 의 타입에는 thinkingConfig 가 없지만
+            //    REST generationConfig 는 받는다(실측). SDK 는 이 객체를 그대로 직렬화하므로
+            //    캐스팅으로 넘긴다. SDK 를 @google/genai 로 올리면 캐스팅을 지운다.
+            thinkingConfig: { thinkingBudget },
+          } as GenerationConfig,
         });
 
         const retryHint = attempt > 0
@@ -1087,6 +1258,15 @@ export async function generateCourse(
 
         const result = await model.generateContent(userMessage + retryHint + compositionHint);
         const text = result.response.text();
+
+        // 🔴 비용을 관리하려면 먼저 재야 한다. 호출 1건의 토큰을 남긴다 —
+        //    한 요청이 A/B 두 코스를 병렬로 만들므로 이 로그는 요청당 최소 2줄이 찍힌다.
+        //    prod 에서도 남긴다(debugLog 가 아니다). 이게 없으면 과금 설계가 추정이 된다.
+        const usage = result.response.usageMetadata;
+        if (usage) {
+          console.log(`[이모추AI:usage] model=${modelId} variant=${variant} attempt=${attempt + 1} ` +
+            `in=${usage.promptTokenCount} out=${usage.candidatesTokenCount} total=${usage.totalTokenCount}`);
+        }
 
         if (!text || text.trim().length < 50) {
           throw new Error('응답이 너무 짧습니다');

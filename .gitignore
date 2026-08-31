@@ -28,6 +28,9 @@ yarn-error.log*
 # env files
 .env
 .env*.local
+# 🔴 백업 사본까지 막는다. `.env*.local` 은 .local 로 끝나야 매칭돼서
+#    .env.local.bak-203152 같은 파일이 추적 대상으로 남은 적이 있다(2026-08-31).
+.env*
 
 # vercel
 .vercel

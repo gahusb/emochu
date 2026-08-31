@@ -7,15 +7,28 @@ import type { CourseStop } from '@/lib/weekend-types';
 
 interface Props {
   shareUrl: string;
+  /** 보존 표시에 쓴다. 공유·저장을 누른 코스만 영구 보존된다. */
+  slug: string;
   title: string;
   summary?: string;
   stops?: CourseStop[];
 }
 
-export default function SaveShareBar({ shareUrl, title, summary, stops }: Props) {
+export default function SaveShareBar({ shareUrl, slug, title, summary, stops }: Props) {
   const [copied, setCopied] = useState(false);
 
+  /**
+   * 이 코스를 영구 보존으로 표시한다.
+   * 🔴 await 하지 않고 실패도 삼킨다 — 공유는 사용자가 원한 동작이고,
+   *    보존 표시는 거기 딸린 부수 효과다. 이것 때문에 공유가 느려지거나
+   *    에러가 뜨면 안 된다. 실패는 서버 로그에 남는다.
+   */
+  const markKept = () => {
+    void fetch(`/api/course/${slug}/keep`, { method: 'POST' }).catch(() => {});
+  };
+
   const handleCopy = async () => {
+    markKept();
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
@@ -26,6 +39,7 @@ export default function SaveShareBar({ shareUrl, title, summary, stops }: Props)
   };
 
   const handleKakaoShare = () => {
+    markKept();
     const Kakao = window.Kakao;
     if (!Kakao?.isInitialized?.()) {
       handleCopy();

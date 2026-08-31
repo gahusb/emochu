@@ -124,7 +124,7 @@ interface DraftPayload {
 
 const STEP_META = [
   { title: '목적지', question: '어디로 떠나볼까요?', sub: '가고 싶은 스타일을 골라주세요.' },
-  { title: '기분', question: '오늘 기분이 어때요?', sub: '기분에 맞는 코스를 AI가 맞춰드릴게요.' },
+  { title: '기분', question: '오늘 기분이 어때요?', sub: '기분은 직접 고르고, 사주로 오늘의 기운도 더할 수 있어요.' },
   { title: '일정', question: '언제, 얼마나 놀 수 있어요?', sub: '방문하는 날에 맞춰 문 여는 곳만 골라드려요.' },
   { title: '동반자', question: '누구랑 가요?', sub: '함께하는 사람에 따라 추천이 달라져요.' },
   { title: '취향', question: '뭐가 끌려요?', sub: '여러 개 골라도 좋아요.' },
