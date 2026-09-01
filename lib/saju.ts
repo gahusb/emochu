@@ -25,9 +25,18 @@ export function getYearElement(birthYear: number): Element5 {
   return STEM_ELEMENTS[idx];
 }
 
+/** KST 고정 오프셋(+9). 한국은 서머타임이 없어 상수로 충분하다. */
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 export function getTodayElement(date: Date = new Date()): Element5 {
-  // 로컬(KST) 날짜 기준으로 UTC 자정 타임스탬프를 구성해 안정적인 일 인덱스 계산
-  const utcMidnight = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  // 🔴 실행 환경의 시간대에 기대지 않는다.
+  //    예전에는 `date.getFullYear()` 처럼 **로컬** 날짜를 읽었고, 주석은 그 로컬이
+  //    KST 라고 가정했다. 그런데 Vercel 서버는 UTC 다 — KST 00:00~08:59 구간에서
+  //    서버와 브라우저가 **다른 날짜**를 보고, 같은 화면이 서버 렌더와 하이드레이션에서
+  //    다른 오행을 그린다(홈에 「오늘의 기운」을 올리면서 드러났다).
+  //    「오늘」은 한국 기준이어야 한다 — 한국 관광 서비스다.
+  const kst = new Date(date.getTime() + KST_OFFSET_MS);
+  const utcMidnight = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate());
   const days = Math.floor((utcMidnight - REF_DATE) / 86_400_000);
   return STEM_ELEMENTS[((days % 10) + 10) % 10];
 }

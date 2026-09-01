@@ -25,7 +25,7 @@
 | Framework | Next.js 16 (App Router, TypeScript) |
 | Styling | Tailwind CSS v4 |
 | AI 엔진 | Google Gemini (gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash) |
-| 관광 데이터 | 한국관광공사 TourAPI 4.0 (KorService2) — 11개 API 활용 |
+| 관광 데이터 | 한국관광공사 **OpenAPI 2종 · 오퍼레이션 12개** (KorService2 11 + KorWithService2 1) |
 | 날씨 데이터 | 기상청 단기예보 API |
 | DB | Supabase (코스 저장/공유) |
 | 지도 | Kakao Maps SDK |
@@ -117,7 +117,10 @@ docs/
   weekend-app-design.md · weekend-ai-engine-design.md · weekend-deploy-checklist.md
 ```
 
-## TourAPI 활용 현황 (KorService2 11개 + 무장애 여행 정보 별도 상품)
+## TourAPI 활용 현황 — **OpenAPI 2종 · 오퍼레이션 12개**
+
+> 🔴 **서류에는 「12개」로 적는다.** 2026-08-18 무장애 활용신청이 승인되어 상품이 2종이 됐다.
+> 「11개」로 적으면 **과소 신고**이고, 데이터 활용 배점(20점)에서 손해다.
 | API | 용도 |
 |-----|------|
 | searchFestival2 | 주변 축제 검색 |
@@ -176,7 +179,8 @@ docs/
 ## 🔁 Loops
 - 🔖 **하네스 작업을 이어받는다면 `docs/2026-08-13-하네스-작업-인수인계.md` 부터 읽어라** — 남은 일·순서·되풀이하지 말 것이 거기 있다
 - **먼저 해당 Loop 의 `PROGRESS.md` 를 읽어라.** 상태·다음 할 일·`Do Not Repeat` 이 거기 있다
-- `loops/tourapi-watch/` — TourAPI 11개 실호출 감시 + 폐기 예정 API 경보 (`node loops/tourapi-watch/smoke.mjs`)
+- `loops/tourapi-watch/` — KorService2 **11개 오퍼레이션** 실호출 감시 + 폐기 예정 API 경보 (`node loops/tourapi-watch/smoke.mjs`)
+  - 무장애(`KorWithService2`)는 이 루프가 아니라 `submission-check` 의 `barrier-free` 항목이 본다
 - `loops/release-green/` — test·lint·build 배포 가능 상태 (`node loops/release-green/gate.mjs`)
 - `loops/submission-check/` — 1차 제출 항목 9종 (`node loops/submission-check/check.mjs`)
 - 공통: 스크립트가 **검사 단일 경유점**. 권한 **사다리 1단계**(읽기+리포트). 소스 수정·commit·push 금지

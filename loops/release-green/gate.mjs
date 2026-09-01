@@ -19,7 +19,7 @@ const OUT_DIR = resolve(HERE, 'outputs');
 // tests/barrier-free-live.test.ts 의 3개는 실호출이라 TOUR_API_KEY 가 있어야만
 // 돈다. gate 는 그 키 없이 도는 게 정상이므로 기준선에서 제외한다 —
 // 포함시키면 게이트가 매번 WARN 을 내 경고 피로만 생긴다.
-const BASELINE = 147;
+const BASELINE = 151;
 
 const pad = (n) => String(n).padStart(2, '0');
 const now = new Date();

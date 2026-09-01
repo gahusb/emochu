@@ -8,6 +8,7 @@ import { useLocation } from '../nav/LocationContext';
 import { useHomeData } from '@/lib/use-home-data';
 import HomeHero from './HomeHero';
 import ThreeAxis from './ThreeAxis';
+import TodayElementCard from './TodayElementCard';
 import MagazineGrid from './MagazineGrid';
 import WeatherCard from './WeatherCard';
 import FestivalSideList from './FestivalSideList';
@@ -222,7 +223,13 @@ export default function HomeView() {
         </div>
       )}
 
-      <Container className="pt-8 lg:pt-12">
+      {/* 🔑 차별점(사주 오행)을 첫 화면에. 위저드 2단계까지 들어가야 보이면
+          없는 기능이나 마찬가지다. 히어로 바로 아래가 3초 안에 보이는 자리다. */}
+      <Container className="pt-6 lg:pt-10">
+        <TodayElementCard />
+      </Container>
+
+      <Container className="pt-6 lg:pt-10">
         <ThreeAxis />
       </Container>
 
