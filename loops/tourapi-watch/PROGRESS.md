@@ -8,21 +8,27 @@
 - Status: **Active** (권한 사다리 **1단계** — 읽기 + 리포트만)
 - Main objective: TourAPI 11개 실호출 감시 + 폐기 예정 오퍼레이션 조기 경보
 - Current focus: 손으로 3~5회 실행하며 안정성 확인 (스케줄 미등록)
-- Last updated: 2026-08-13
+- Last updated: 2026-09-01
 
 ## Last Run
 
-- Date: **2026-08-13**
-- Summary: **PASS 11 / WARN 0 / FAIL 0**
-- 폐기 예정 오퍼레이션: ✅ `areaCode2`·`categoryCode2` 모두 정상 (totalCount 17·7 — 전날과 동일)
-- 전날(08-12) 대비 `totalCount` **급변 없음**. `searchFestival2` 115→118(+3)만 변동 — 축제가 늘어난 것이라 정상
-- 키 유출 스캔 **0건** (산출물 한정 — 아래 `Do Not Repeat` 참조)
-- Output: `outputs/api-health-2026-08-13.md`
+- Date: **2026-09-01 11:12**
+- Summary: **PASS 11 / WARN 0 / FAIL 0** — 폐기 예정 `areaCode2`·`categoryCode2` 모두 정상
+- Output: `outputs/api-health-2026-09-01.md`
+- 손 실행 **3/5**
+- 📌 8/13 대비 `totalCount` 급변 없음. `searchFestival2` 118 → 160 은 계절 반영으로 보이고
+  나머지는 소폭 증감(`locationBasedList2` 800→759, `areaBasedList2` 419→395)이다.
+  상세 계열(detail*)·코드 계열은 값이 그대로다.
+- 📌 8/13 이후 **19일 만의 실행**이다. 심사가 인증키로 「개발 기간 내 호출건수」를 검증하므로
+  이 공백은 이력에서 손해다 — 아래 Open Items 참조.
 
 ## Open Items
 
-- 손 실행 **2/5회** 완료. 나머지 3회를 다른 날에 돌려 안정성 확인
-- `/loop 24h` 스케줄 등록 — 도입 5단계 (**손 실행 3~5회 안정 확인 전에는 금지**)
+- 🔴 **호출 이력이 19일 비었다**(8/13 → 9/01). 마감이 2026-09-21 이라 **남은 20일을 매일 채우는 게
+  지금 할 수 있는 최선**이다. 하루 한 번이면 11회씩 쌓인다.
+- 손 실행 **3/5**. CLAUDE.md 규약상 3~5회 안정 확인 후 `/loop` 스케줄 등록이 가능하다 —
+  **이제 등록해도 되는 구간에 들어왔다**(다만 스케줄 등록은 사람이 결정한다).
+- 📌 라이브 서비스 자체도 호출 이력을 만든다. 다만 트래픽이 적으면 빈약하므로 이 루프가 바닥을 깐다.
 
 ## Blockers
 
@@ -35,9 +41,9 @@
 ## Next Run Should
 
 1. `node loops/tourapi-watch/smoke.mjs` 실행
-2. `areaCode2`·`categoryCode2` 생존 여부를 **가장 먼저** 확인
-3. 전날 리포트와 비교해 **totalCount가 급변한 오퍼레이션**이 있으면 기록
-4. 이 파일의 `Last Run`·`Open Items`를 갱신하고, **손 실행 횟수(N/5)를 올린다**
+2. 🔴 `areaCode2`·`categoryCode2` 가 PASS 가 아니면 **재시도하지 말고 즉시 사람 호출**
+3. `totalCount` 는 `awk -F'|'` 기준 **7번째 컬럼**이다(8번째는 응답 시간 — 한 칸 밀려 읽지 말 것)
+4. 이 파일의 `Last Run` 갱신 + 손 실행 횟수 올리기
 
 ## 🔖 다음 세션 재개 지점 (2026-08-13 기준)
 
