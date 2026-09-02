@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getYearElement, getTodayElement, getRelation, calcSaju } from '@/lib/saju';
+import { getYearElement, getTodayElement, getRelation, calcSaju, getWeekendElements } from '@/lib/saju';
 
 describe('getYearElement (천간 5행)', () => {
   it('검증 케이스 (CONNECTIVITY 1992=壬=water)', () => {
@@ -77,5 +77,52 @@ describe('getTodayElement — 실행 환경 시간대와 무관하게 KST 기준
   it('같은 순간이면 어느 시간대에서 계산해도 같은 오행', () => {
     const instant = new Date(Date.UTC(2026, 8, 1, 20, 0)); // KST 로는 09-02 05:00
     expect(getTodayElement(instant)).toBe(getTodayElement(new Date(instant.getTime())));
+  });
+});
+
+// 🔑 홈의 기준 축이 「오늘」에서 「이번 주말」로 바뀌면서 생긴 계산.
+//    주말 나들이 서비스라 홈은 주 단위, 코스 만들기(위저드)는 일 단위로 나눴다.
+describe('getWeekendElements — 이번 주말의 기운', () => {
+  // 2026-09-03(목) KST = 09-02 15:00 UTC 이후
+  const thursday = new Date(Date.UTC(2026, 8, 3, 3, 0)); // 09-03 12:00 KST
+
+  it('평일에는 다가오는 토·일을 본다', () => {
+    const w = getWeekendElements(thursday);
+    expect(w.saturdayDate.getUTCDate()).toBe(5);
+    expect(w.sundayDate.getUTCDate()).toBe(6);
+  });
+
+  it('실측값과 일치한다 — 9/5·6 은 둘 다 土', () => {
+    const w = getWeekendElements(thursday);
+    expect(w.saturday).toBe('earth');
+    expect(w.sunday).toBe('earth');
+    expect(w.same).toBe(true);
+  });
+
+  it('토·일 오행이 다른 주말도 있다 — 9/12 木 · 9/13 火', () => {
+    const w = getWeekendElements(new Date(Date.UTC(2026, 8, 10, 3, 0))); // 09-10(목) KST
+    expect(w.saturdayDate.getUTCDate()).toBe(12);
+    expect(w.saturday).toBe('wood');
+    expect(w.sunday).toBe('fire');
+    expect(w.same).toBe(false);
+  });
+
+  it('토요일에는 그날이 기준이다', () => {
+    const sat = new Date(Date.UTC(2026, 8, 5, 3, 0)); // 09-05(토) 12:00 KST
+    expect(getWeekendElements(sat).saturdayDate.getUTCDate()).toBe(5);
+  });
+
+  // 🔴 일요일에 다음 주말로 넘어가면 오늘 나갈 사람에게 엉뚱한 정보를 준다.
+  it('일요일에는 어제 토요일이 기준이다 — 다음 주말로 넘어가지 않는다', () => {
+    const sun = new Date(Date.UTC(2026, 8, 6, 3, 0)); // 09-06(일) 12:00 KST
+    const w = getWeekendElements(sun);
+    expect(w.saturdayDate.getUTCDate()).toBe(5);
+    expect(w.sundayDate.getUTCDate()).toBe(6);
+  });
+
+  // 서버(UTC)와 브라우저(KST)가 같은 답을 내야 한다
+  it('KST 자정 직후에도 같은 주말을 가리킨다', () => {
+    const lateFri = new Date(Date.UTC(2026, 8, 3, 15, 30)); // 09-04(금) 00:30 KST
+    expect(getWeekendElements(lateFri).saturdayDate.getUTCDate()).toBe(5);
   });
 });

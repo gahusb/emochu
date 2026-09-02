@@ -35,10 +35,61 @@ export function getTodayElement(date: Date = new Date()): Element5 {
   //    서버와 브라우저가 **다른 날짜**를 보고, 같은 화면이 서버 렌더와 하이드레이션에서
   //    다른 오행을 그린다(홈에 「오늘의 기운」을 올리면서 드러났다).
   //    「오늘」은 한국 기준이어야 한다 — 한국 관광 서비스다.
+  return elementAt(kstMidnightMs(date));
+}
+
+/** 어떤 순간이 속한 KST 날짜의 자정을 UTC 타임스탬프로. 일 인덱스 계산의 단일 기준점이다. */
+function kstMidnightMs(date: Date): number {
   const kst = new Date(date.getTime() + KST_OFFSET_MS);
-  const utcMidnight = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate());
-  const days = Math.floor((utcMidnight - REF_DATE) / 86_400_000);
+  return Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate());
+}
+
+/** KST 자정 타임스탬프 → 그날의 일주 오행. */
+function elementAt(kstMidnight: number): Element5 {
+  const days = Math.floor((kstMidnight - REF_DATE) / 86_400_000);
   return STEM_ELEMENTS[((days % 10) + 10) % 10];
+}
+
+export interface WeekendElements {
+  saturday: Element5;
+  sunday: Element5;
+  /** 토·일 날짜 (KST 자정 기준). 화면에 "9월 5~6일" 을 찍는 데 쓴다. */
+  saturdayDate: Date;
+  sundayDate: Date;
+  /**
+   * 토·일 오행이 같은가.
+   * 🔑 화면이 합칠지 나눌지의 근거다. 천간 10개가 오행 5개에 2:1 로 대응해
+   *    **연속된 이틀이 같을 확률이 절반**이다 — 두 경우가 다 흔하므로 UI 가 둘 다 감당해야 한다.
+   *    (실측: 2026-09-05·06 = 土·土 같음 / 09-12·13 = 木·火 다름)
+   */
+  same: boolean;
+}
+
+/**
+ * 「이번 주말」의 오행. 이모추는 주말 나들이 서비스라 홈의 기준 축이 오늘이 아니라 주말이다.
+ *
+ * 토요일이면 그날이 기준이고, 일요일이면 **어제 토요일**이 기준이다 —
+ * 일요일 오전에 "다음 주말"로 넘어가 버리면 오늘 나갈 사람에게 엉뚱한 정보를 준다.
+ */
+export function getWeekendElements(now: Date = new Date()): WeekendElements {
+  const kst = new Date(now.getTime() + KST_OFFSET_MS);
+  const dow = kst.getUTCDay(); // KST 요일 (0=일 … 6=토)
+  const satOffset = dow === 6 ? 0 : dow === 0 ? -1 : 6 - dow;
+
+  const satMs = kstMidnightMs(now) + satOffset * 86_400_000;
+  const sunMs = satMs + 86_400_000;
+
+  const saturday = elementAt(satMs);
+  const sunday = elementAt(sunMs);
+
+  return {
+    saturday,
+    sunday,
+    // KST 자정을 UTC 로 표현한 값이라, 표시할 땐 UTC 게터(getUTCMonth 등)로 읽어야 어긋나지 않는다.
+    saturdayDate: new Date(satMs),
+    sundayDate: new Date(sunMs),
+    same: saturday === sunday,
+  };
 }
 
 // 5행 상생(生): 木→火→土→金→水→木

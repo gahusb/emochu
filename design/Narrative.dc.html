@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+    body { margin: 0; font-family: 'Noto Sans KR', -apple-system, system-ui, sans-serif; }
+    a { color: #C5532D; } a:hover { color: #A8421F; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; overflow: hidden; background: #FAF7F2; color: #4A4038; display: flex; flex-direction: column;">
+
+  <!-- 헤더 -->
+  <div style="height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C5532D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-1.8 5.41a2 2 0 0 1-1.27 1.27l-5.41 1.8 1.8-5.41a2 2 0 0 1 1.27-1.27z"/></svg>
+      <span style="font-family: 'Jua', sans-serif; font-size: 18px; color: #2A241F;">이모추</span>
+    </div>
+    <span style="font-size: 13px; font-weight: 500; color: #7A6E62;">서울 ▾</span>
+  </div>
+
+  <!-- 컴팩트 히어로: 사진은 배경으로 물러나고, 문장이 앞으로 -->
+  <div style="position: relative; height: 196px; flex-shrink: 0; overflow: hidden; background: linear-gradient(135deg, #3D2914 0%, #5C3D2A 55%, #7A5642 100%);">
+    <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(42,36,31,0.78) 0%, rgba(42,36,31,0.28) 60%, rgba(42,36,31,0.05) 100%);"></div>
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 0 20px 18px; display: flex; flex-direction: column; align-items: flex-start;">
+      <p style="margin: 0 0 6px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.80);">9월 5~6일 주말 · 서울</p>
+      <h1 style="margin: 0; font-family: 'Jua', sans-serif; font-size: 27px; line-height: 1.25; color: #FFFFFF; word-break: keep-all;">이번 주말, 이런 하루는<br>어때요?</h1>
+    </div>
+  </div>
+
+  <!-- ⭐ 핵심: 하루가 어떻게 흘러가는지를 통째로 보여준다 -->
+  <div style="padding: 16px 20px 0; flex: 1; min-height: 0;">
+    <div style="border-radius: 12px; background: #FFFFFF; border: 1px solid #E8DFD2; box-shadow: 0 4px 12px rgba(42,36,31,0.06); overflow: hidden;">
+
+      <!-- 서사 한 문장 (storyArc) -->
+      <div style="padding: 18px 18px 14px; background: linear-gradient(135deg, rgba(245,224,213,0.55) 0%, rgba(245,224,213,0) 100%); border-bottom: 1px solid #E8DFD2;">
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+          <span style="font-size: 15px; line-height: 1;">🔥</span>
+          <span style="font-size: 12px; font-weight: 700; color: #C5532D;">오늘 火 기운 · 야경이 어울리는 날</span>
+        </div>
+        <p style="margin: 0; font-family: 'Jua', sans-serif; font-size: 17px; line-height: 1.45; color: #2A241F; word-break: keep-all;">아침의 맑은 공기로 열어 노을빛 전망으로 닫는 하루</p>
+      </div>
+
+      <!-- 시간의 흐름 -->
+      <div style="padding: 16px 18px 6px; display: flex; flex-direction: column; gap: 14px;">
+
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 44px; flex-shrink: 0; text-align: right;">
+            <p style="margin: 0; font-size: 13px; font-weight: 700; color: #2A241F;">09:30</p>
+          </div>
+          <div style="width: 10px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+            <span style="width: 9px; height: 9px; border-radius: 999px; background: #C5532D; margin-top: 5px;"></span>
+            <span style="flex: 1; width: 1px; background: #E8DFD2; margin: 4px 0 -14px;"></span>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="margin: 0; font-size: 14px; font-weight: 700; color: #2A241F;">정동길 산책</p>
+            <p style="margin: 1px 0 0; font-size: 12px; color: #7A6E62; word-break: keep-all;">아침 공기가 가장 맑을 시간</p>
+          </div>
+          <div style="width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(140deg, #5A7A4F 0%, #7A9A6F 100%);"></div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 44px; flex-shrink: 0; text-align: right;">
+            <p style="margin: 0; font-size: 13px; font-weight: 700; color: #2A241F;">12:00</p>
+          </div>
+          <div style="width: 10px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+            <span style="width: 9px; height: 9px; border-radius: 999px; background: #8B5E3C; margin-top: 5px;"></span>
+            <span style="flex: 1; width: 1px; background: #E8DFD2; margin: 4px 0 -14px;"></span>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="margin: 0; font-size: 14px; font-weight: 700; color: #2A241F;">이북만두</p>
+            <p style="margin: 1px 0 0; font-size: 12px; color: #7A6E62; word-break: keep-all;">줄이 짧은 시간대로 잡았어요</p>
+          </div>
+          <div style="width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(140deg, #8B5E3C 0%, #B8860B 100%);"></div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 44px; flex-shrink: 0; text-align: right;">
+            <p style="margin: 0; font-size: 13px; font-weight: 700; color: #2A241F;">15:30</p>
+          </div>
+          <div style="width: 10px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+            <span style="width: 9px; height: 9px; border-radius: 999px; background: #A8421F; margin-top: 5px;"></span>
+            <span style="flex: 1; width: 1px; background: #E8DFD2; margin: 4px 0 -14px;"></span>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="margin: 0; font-size: 14px; font-weight: 700; color: #2A241F;">신문박물관</p>
+            <p style="margin: 1px 0 0; font-size: 12px; color: #7A6E62; word-break: keep-all;">오후에 비 소식 — 실내로 붙였어요</p>
+          </div>
+          <div style="width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(140deg, #4A6B8A 0%, #7A8FA8 100%);"></div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 44px; flex-shrink: 0; text-align: right;">
+            <p style="margin: 0; font-size: 13px; font-weight: 700; color: #C5532D;">18:20</p>
+          </div>
+          <div style="width: 10px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+            <span style="width: 11px; height: 11px; border-radius: 999px; background: #C5532D; border: 2px solid #F5E0D5; margin-top: 4px;"></span>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="margin: 0; font-size: 14px; font-weight: 700; color: #2A241F;">인왕산 자락길 전망</p>
+            <p style="margin: 1px 0 0; font-size: 12px; font-weight: 700; color: #C5532D; word-break: keep-all;">해 지기 20분 전에 도착해요</p>
+          </div>
+          <div style="width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(140deg, #C5532D 0%, #B8860B 100%);"></div>
+        </div>
+
+      </div>
+
+      <!-- 합계 + 행동 -->
+      <div style="padding: 12px 18px 18px; border-top: 1px solid #E8DFD2; margin-top: 10px;">
+        <p style="margin: 0 0 12px; font-size: 12px; color: #7A6E62;">4곳 · 총 6.2km · 약 8시간 · 1인 3만원대</p>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; border-radius: 8px; background: #C5532D; color: #FFFFFF; font-size: 16px; font-weight: 700;">
+          이 하루를 내 것으로 바꾸기
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
