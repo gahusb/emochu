@@ -414,7 +414,10 @@ const ELEMENT_PREFERENCE_MAP: Record<Element5, {
  * 이보다 크면 사용자가 직접 고른 취향·기분을 사주가 덮어쓴다.
  * 지금 크기는 「비슷한 후보들 사이의 순서를 가르는」 정도지 후보를 갈아치우지 않는다.
  */
-function elementScore(spot: ScoredSpot, element?: Element5): number {
+/** 오행 판정이 실제로 읽는 것만. 홈 추천처럼 ScoredSpot 전체가 없는 곳에서도 쓰려고 좁혔다. */
+export type ElementMatchable = Pick<ScoredSpot, 'cat3' | 'title'> & { overview?: string };
+
+function elementScore(spot: ElementMatchable, element?: Element5): number {
   if (!element) return 0;
   const mapping = ELEMENT_PREFERENCE_MAP[element];
   if (!mapping) return 0;
@@ -430,7 +433,7 @@ function elementScore(spot: ScoredSpot, element?: Element5): number {
 }
 
 /** 오행 키워드 매칭률 측정용. 가중이 실제로 후보에 닿는지 스크립트로 확인한다. */
-export function matchesElement(spot: ScoredSpot, element: Element5): boolean {
+export function matchesElement(spot: ElementMatchable, element: Element5): boolean {
   return elementScore(spot, element) > 0;
 }
 

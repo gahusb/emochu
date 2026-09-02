@@ -1,5 +1,14 @@
 'use client';
 
+// ⚠️ 2026-09-03 현재 홈에서 **쓰이지 않는다.**
+// 홈의 기준 축을 「이번 주말」로 옮기면서 60vh 히어로를 걷어냈다 —
+// 사진은 예뻤지만 접힘 위에서 '이 서비스가 나에게 뭘 해주는가'를 말하지 못했고,
+// 그 자리를 WeekendConditionBar(주말 조건)가 대신한다.
+//
+// 지우지 않고 남긴 이유: 「감성이 사라지고 대시보드처럼 보인다」가 이 방향의 알려진 대가라,
+// 사진을 일부 되살릴 가능성이 열려 있다. 되살릴 땐 HomeView 에서 다시 부르면 된다.
+// (lib/hero-copy.ts · lib/hero-image.ts 도 같은 이유로 남아 있다)
+
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';

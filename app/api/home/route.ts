@@ -13,7 +13,8 @@ import {
   getNextWeekend,
 } from '@/lib/tour-api';
 import { getWeekendForecast } from '@/lib/weather-api';
-import { haversineKm, generateFestivalSummary, generateSpotWhyNow } from '@/lib/weekend-ai';
+import { haversineKm, generateFestivalSummary, generateSpotWhyNow, matchesElement } from '@/lib/weekend-ai';
+import { getWeekendElements } from '@/lib/saju';
 import type {
   HomeData,
   FestivalCard,
@@ -188,19 +189,50 @@ async function collectSpotsForHome(lat: number, lng: number): Promise<SpotCard[]
     return true;
   });
 
-  // 이미지 있는 항목 우선, 전체를 랜덤 셔플 후 4개 선택
-  const withImage = unique.filter(item => item.firstimage);
-  const withoutImage = unique.filter(item => !item.firstimage);
-  const shuffled = [...shuffleArray(withImage), ...shuffleArray(withoutImage)];
+  // 🔑 이번 주말의 기운과 맞는 곳을 앞으로 올린다. 홈이 「이번 주말 土 기운과 맞는 곳」이라고
+  //    말하려면 실제로 그렇게 골라야 한다 — 제목만 바꾸면 거짓말이 된다.
+  //    다만 오행만 보면 사진 없는 곳이 앞에 서므로, 사진도 같이 점수에 넣는다.
+  //    같은 점수 안에서는 셔플해 매번 다른 얼굴을 유지한다.
+  const weekend = getWeekendElements();
 
-  const top4Raw = shuffled.slice(0, 4);
+  const matchOf = (item: (typeof unique)[number]): SpotCard['weekendMatch'] => {
+    const target = { cat3: item.cat3 ?? '', title: item.title ?? '' };
+    const sat = matchesElement(target, weekend.saturday);
+    const sun = weekend.same ? sat : matchesElement(target, weekend.sunday);
+    if (sat && sun) return 'both';
+    if (sat) return 'sat';
+    if (sun) return 'sun';
+    return undefined;
+  };
 
-  const spotCards: SpotCard[] = top4Raw.map(item => ({
+  const scored = unique.map(item => ({
+    item,
+    match: matchOf(item),
+    // 오행 2점 + 사진 1점. 오행이 사진보다 무겁되, 사진 없는 곳만 줄세우지는 않는다.
+    score: (matchOf(item) ? 2 : 0) + (item.firstimage ? 1 : 0),
+  }));
+
+  const buckets = new Map<number, typeof scored>();
+  for (const s of scored) {
+    const b = buckets.get(s.score) ?? [];
+    b.push(s);
+    buckets.set(s.score, b);
+  }
+  const ordered = [...buckets.keys()]
+    .sort((a, b) => b - a)
+    .flatMap(k => shuffleArray(buckets.get(k)!));
+
+  const top4 = ordered.slice(0, 4);
+  const top4Raw = top4.map(s => s.item);
+
+  const spotCards: SpotCard[] = top4.map(({ item, match }) => ({
     contentId: item.contentid,
     title: item.title,
     addr1: item.addr1,
     firstImage: item.firstimage || undefined,
     cat2: item.cat2 || '관광지',
+    cat3: item.cat3 || undefined,
+    weekendMatch: match,
     reason: '',
     distanceKm: Math.round(haversineKm(lat, lng, Number(item.mapy), Number(item.mapx)) * 10) / 10,
   }));

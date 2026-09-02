@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
 import type { SpotCard as SpotCardType } from '@/lib/weekend-types';
+import { getWeekendElements, ELEMENT_META } from '@/lib/saju';
 import FacilityBadges from './FacilityBadges';
 import Badge from './ui/Badge';
 
@@ -49,8 +50,22 @@ function getCategoryMeta(cat2: string): CategoryMeta {
   return CAT2_META[cat2] ?? DEFAULT_META;
 }
 
+/**
+ * 「이번 주말 어느 날의 기운과 맞는가」 배지.
+ * 🔑 서버(/api/home)가 실제로 그 기운으로 정렬했을 때만 값이 붙는다 —
+ *    화면이 근거 없이 '맞는 곳'이라고 말하지 않게 하는 장치다.
+ */
+function weekendMatchLabel(match: SpotCardType['weekendMatch']): string | null {
+  if (!match) return null;
+  const { saturday, sunday } = getWeekendElements();
+  const hanja = (e: typeof saturday) => ELEMENT_META[e].name.split(' ')[0];
+  if (match === 'both') return `${hanja(saturday)} 기운`;
+  return match === 'sat' ? `토요일 · ${hanja(saturday)}` : `일요일 · ${hanja(sunday)}`;
+}
+
 export default function SpotCard({ spot }: Props) {
   const meta = getCategoryMeta(spot.cat2);
+  const matchLabel = weekendMatchLabel(spot.weekendMatch);
 
   return (
     <article className="group bg-surface-elevated rounded-xl border border-line overflow-hidden hover:shadow-[var(--shadow-raised)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
@@ -75,9 +90,14 @@ export default function SpotCard({ spot }: Props) {
         {/* 하단 그라디언트 — 텍스트 가독성 + 편집 감성 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-        {/* 카테고리 뱃지 (상단 좌) */}
-        <div className="absolute top-3 left-3">
+        {/* 카테고리 뱃지 + 주말 기운 (상단 좌) */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5">
           <Badge variant={meta.variant} size="sm">{meta.label}</Badge>
+          {matchLabel && (
+            <span className="bg-white/90 text-brand text-[11px] font-bold px-2 py-0.5 rounded-md">
+              {matchLabel}
+            </span>
+          )}
         </div>
 
         {/* 거리 (상단 우) */}

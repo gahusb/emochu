@@ -309,6 +309,13 @@ export interface SpotCard {
   addr1: string;
   firstImage?: string;
   cat2: string;
+  /** TourAPI 소분류 코드. 오행 매칭의 1차 신호다(한글 키워드는 코드값에 안 걸린다). */
+  cat3?: string;
+  /**
+   * 이번 주말 어느 날의 기운과 맞는지. 홈이 「토요일 · 木」 같은 배지를 다는 근거다.
+   * 토·일 오행이 같으면 'both' 뿐이고, 다르면 날짜별로 갈린다.
+   */
+  weekendMatch?: 'sat' | 'sun' | 'both';
   reason: string;          // AI 생성 추천 이유
   distanceKm?: number;
   whyNow?: string;              // AI "지금 가면 좋은 이유"

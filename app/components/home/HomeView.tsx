@@ -6,9 +6,11 @@ import { ArrowRight, Sparkles, MapPinOff, X } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation } from '../nav/LocationContext';
 import { useHomeData } from '@/lib/use-home-data';
-import HomeHero from './HomeHero';
+import WeekendConditionBar from './WeekendConditionBar';
+import WeekendClosingFestival from './WeekendClosingFestival';
+import WhichDaySide from './WhichDaySide';
 import ThreeAxis from './ThreeAxis';
-import WeekendElementCard from './WeekendElementCard';
+import { getWeekendElements, ELEMENT_META } from '@/lib/saju';
 import MagazineGrid from './MagazineGrid';
 import WeatherCard from './WeatherCard';
 import FestivalSideList from './FestivalSideList';
@@ -24,8 +26,27 @@ export default function HomeView() {
   const { weather, festivals, spots, loading } = useHomeData(location);
   const [gpsBannerDismissed, setGpsBannerDismissed] = useState(false);
 
+  // 이번 주말에 끝나는 축제 수 — 조건 바의 「마감 임박」 타일 근거다.
+  const closingCount = festivals.filter(
+    (f) => typeof f.dDay === 'number' && f.dDay >= 0 && f.dDay <= 7,
+  ).length;
+
+  // 추천 섹션 제목은 이번 주말의 기운을 그대로 말한다.
+  // 🔴 서버가 실제로 그 기운으로 정렬했을 때만 그렇게 부른다 — 제목만 바꾸면 거짓말이 된다.
+  const weekend = getWeekendElements();
+  const satHanja = ELEMENT_META[weekend.saturday].name.split(' ')[0];
+  const hasElementMatch = spots.some((s) => s.weekendMatch);
+  const recommendTitle = !hasElementMatch
+    ? '지금 가면 좋은 곳'
+    : weekend.same
+      ? `이번 주말 ${satHanja} 기운과 맞는 곳`
+      : '날마다 맞는 곳이 달라요';
+
   const main = (
     <div className="space-y-12 lg:space-y-16">
+      {/* 지금 아니면 못 가는 것 — 근거가 있을 때만 나타난다 */}
+      <WeekendClosingFestival festivals={festivals} />
+
       {/* Mobile-only sections (sidebar 콘텐츠 합류) */}
       <div className="lg:hidden space-y-6">
         <SearchBar />
@@ -35,8 +56,8 @@ export default function HomeView() {
       {/* 추천 관광지 */}
       <section id="recommended">
         <SectionHeader
-          title="지금 가면 좋은 곳"
-          description="이번 주말 추천 관광지"
+          title={recommendTitle}
+          description={hasElementMatch ? '주말 기운에 맞춰 골랐어요' : '이번 주말 추천 관광지'}
         />
         {loading ? (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -163,6 +184,8 @@ export default function HomeView() {
 
   const side = (
     <>
+      {/* 주말 상태에 따라 다른 질문에 답한다 — 다르면 '어느 날', 같으면 '놓치면 아쉬운 것' */}
+      <WhichDaySide festivals={festivals} weather={weather} />
       <WeatherCard weather={weather} />
       <FestivalSideList festivals={festivals} />
       <Card className="p-5">
@@ -187,8 +210,6 @@ export default function HomeView() {
 
   return (
     <>
-      <HomeHero weather={weather} />
-
       {/* GPS 권한 거부 안내 배너 */}
       {showGpsBanner && (
         <div
@@ -223,14 +244,14 @@ export default function HomeView() {
         </div>
       )}
 
-      {/* 🔑 차별점(사주 오행)을 첫 화면에. 위저드 2단계까지 들어가야 보이면
-          없는 기능이나 마찬가지다. 히어로 바로 아래가 3초 안에 보이는 자리다.
-          기준 축은 「오늘」이 아니라 「이번 주말」이다 — 주말 나들이 서비스다. */}
-      <Container className="pt-6 lg:pt-10">
-        <WeekendElementCard />
+      {/* 🔴 60vh 히어로 사진을 걷어냈다. 사진은 예뻤지만 접힘 위에서
+          '이 서비스가 나에게 뭘 해주는가'를 말하지 못했다.
+          이 방향의 주장은 '이번 주말 아니면' 이라 정보가 사진보다 앞에 온다. */}
+      <Container>
+        <WeekendConditionBar weather={weather} closingCount={closingCount} />
       </Container>
 
-      <Container className="pt-6 lg:pt-10">
+      <Container className="pt-8 lg:pt-12">
         <ThreeAxis />
       </Container>
 
