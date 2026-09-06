@@ -6,11 +6,13 @@ interface Props {
   canGoBack: boolean;
   canProceed: boolean;
   isLast: boolean;
+  /** 「다음」 대신 쓸 문구. 건너뛸 수 있는 스텝에서 버튼이 사실을 말하게 한다. */
+  nextLabel?: string;
   onPrev: () => void;
   onNext: () => void;
 }
 
-export default function WizardNav({ canGoBack, canProceed, isLast, onPrev, onNext }: Props) {
+export default function WizardNav({ canGoBack, canProceed, isLast, nextLabel, onPrev, onNext }: Props) {
   return (
     <div className="flex items-center justify-between gap-3 lg:static sticky bottom-0 z-40 lg:z-auto lg:bg-transparent bg-surface-base/95 backdrop-blur-sm lg:backdrop-blur-0 py-3 lg:py-0 -mx-5 px-5 lg:mx-0 lg:px-0 lg:border-0 border-t border-line" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
       {canGoBack ? (
@@ -32,7 +34,7 @@ export default function WizardNav({ canGoBack, canProceed, isLast, onPrev, onNex
         onClick={onNext}
         disabled={!canProceed}
       >
-        {isLast ? '코스 만들기' : '다음'}
+        {isLast ? '코스 만들기' : nextLabel ?? '다음'}
       </Button>
     </div>
   );

@@ -6,17 +6,32 @@
 
 > 🎯 **킥 = 사주(오행).** 근거·실측은 `docs/2026-08-29-킥-사주-인수인계.md`.
 > **홈의 기준 축은 「이번 주말」이다**(2026-09-03) — 주말 나들이 서비스라 오늘 기준이면 어긋난다.
-> `getWeekendElements()` 가 토·일 오행을 주고, **같으면 합쳐 크게 / 다르면 나란히** 두 상태를 그린다
-> (연속 이틀이 같을 확률이 절반이라 둘 다 흔하다). 시안: `design/` · 캔버스 아티팩트.
+> `getWeekendElements()` 가 토·일 오행을 주고, `summarizeWeekendElements()` 가 **같으면 한 줄로 합쳐 / 다르면 한 줄 안에서 나눠** 말한다.
 > **두 축은 분리돼 있다**: 기분은 **사용자가 직접** 고르고(`SET_FEELING`), 사주는 **조언**이며 오늘의 오행이 `elementScore()` 로 **장소 점수**에 얹힌다(최대 5점). 사주는 feeling 을 정하지 않는다.
 > `getTodayElement()` 가 일주 기준이라 **날마다 답이 바뀐다** — 그게 리텐션 장치다.
-> 🔴 남은 것: **육안 확인**(playwright 없음) · **홈 화면 「오늘의 기운」 노출**.
+> 🔴 남은 것: **육안 확인**(playwright 없음).
 > ⏳ **제출이 킥보다 먼저다** — 마감 2026-09-21 16:00. 하네스·루프는 `docs/2026-08-13-하네스-작업-인수인계.md`.
 
+> 🧭 **2026-09-04 단순화 (사용자 테스트 반영).** 피드백: *"선택지가 너무 많아 복잡하고, 뭘 원하는지 모르겠다."*
+> **홈은 히어로 랜딩이다** — 첫 화면의 주장은 「주말 코스를 짜준다」 하나. 조건(날씨·기운)은 카드가 아니라 **한 줄씩**(`lib/weekend-summary.ts`), 그 아래 CTA 하나가 화면에서 제일 크다.
+> **축제는 홈에서 뺐다** — 탭이 따로 있어서 `FestivalTabInvite` 한 줄이 탭으로 보낸다. 같은 걸 네 군데서 보여주면 정보가 아니라 소음이다.
+> **위저드는 6스텝 → 4스텝**(`WIZARD_TOTAL_STEPS`): ①어디로+기분(장소를 고르면 기분이 이어서 나타난다) ②내 기운(사주 — **건너뛸 수 있다**) ③언제+누구랑 ④취향(+접근성 접이식).
+> 🎲 **랜덤**은 UI 전용 선택지다(`DestinationPick`). 뽑힌 도시를 **이름으로 보여주고** 다시 뽑게 한다 — 서버로는 `destinationType: 'city'` 로 나가 계약이 그대로다.
+> 🔴 draft 키가 `emochu.wizard_draft.v2` 다. 6스텝 시절 draft(`step: 5`)를 복구하면 없는 스텝에 갇힌다.
+
 > 💰 **실서비스 과금·저장·공유는 `docs/2026-08-31-실서비스-과금-저장-공유-설계.md`.**
-> 🔴 **배포 전에 마이그레이션을 `013 → 014 → 015` 순서로 실행한다** — 순서가 뒤바뀌면 공유 링크가 404 가 된다.
+> 🔴 **배포 전에 마이그레이션을 `013 → 014 → 015 → 016` 순서로 실행한다** — 순서가 뒤바뀌면 공유 링크가 404 가 된다.
 > 코스 생성은 이제 **1회 생성**(B는 눌러야 만들어짐)이고, 개인·전체 **일일 상한**이 걸려 있다.
 > 코스 편집(장소 교체·순서)은 **편집 토큰**으로 권한을 가른다. 로그인은 `NEXT_PUBLIC_AUTH_ENABLED` 로 **기본 꺼짐**.
+
+> 🤝 **2026-09-05 커뮤니티 코스 추천 — `/community`.** "AI 로 새로 만드는 대신 남이 만든 코스도 보여주자"는
+> 제안을 받아 구현. **opt-in**이다 — 코스 결과 화면(`SaveShareBar`)에서 소유자(edit_token 보유자)가
+> 직접 켜야 `is_public=true` 가 되고, 그때 `keepCourse()` 도 같이 불러 영구 보존시킨다(끌 때는 되돌리지 않음).
+> **재검증은 안 한다**(1차 범위) — `COMMUNITY_FRESH_DAYS`(기본 45일, env override) 신선도 필터로만
+> 오래된 코스를 자동으로 뺀다. 축제 종료·영업시간 재확인은 2차 과제. 하루 생성 한도(429)에도
+> `lib/course-community.ts` 의 `fetchSuggestionsForLimitError()` 로 인기 코스 몇 개를 곁들인다.
+> 목록/상세는 기존 `/course/[slug]` 를 그대로 재사용 — `editable = Boolean(editToken)` 이 이미
+> 방문자를 편집 불가로 가르기 때문에 새 상세 페이지가 필요 없었다.
 
 ## 개발자
 - 이름: 박재오
@@ -60,6 +75,7 @@ COURSE_DAILY_LIMIT_PER_CLIENT=20   # 한 사람당 하루 코스 생성 수
 COURSE_DAILY_LIMIT_GLOBAL=500      # 서비스 전체 하루 상한 = 하루 최대 지출
 USAGE_HASH_SALT=                   # IP 해시 솔트. 운영에선 지정 권장
 COURSE_TTL_DAYS=30                 # 공유·저장 안 한 코스의 보관 기간
+COMMUNITY_FRESH_DAYS=45            # 커뮤니티 추천 후보로 남는 신선도(일). 재검증 대신 쓰는 필터
 NEXT_PUBLIC_AUTH_ENABLED=          # 로그인 스위치. OAuth 공급자 설정 후에만 true
 NEXT_PUBLIC_AUTH_PROVIDER=         # kakao(기본) | google. 카카오가 KOE205로 막히면 google 로 우회
 ```
@@ -72,16 +88,19 @@ app/
   globals.css                       — 토큰(@theme inline) + 폰트 + shimmer/fadeIn 키프레임
   (pages)/
     course/page.tsx                 — /course (Wizard 마운트)
-    course/[slug]/page.tsx          — /course/:slug (CourseResultShell)
+    course/[slug]/page.tsx          — /course/:slug (CourseResultShell, 커뮤니티 코스 상세도 재사용)
     festival/page.tsx               — /festival (FestivalPageShell)
+    community/page.tsx              — /community (CommunityPageShell — 커뮤니티 코스 목록)
   spot/[contentId]/page.tsx         — /spot/:id 전용 페이지 (server, generateMetadata OG)
   @modal/
     default.tsx                     — Parallel Route 빈 slot
     (.)spot/[contentId]/page.tsx    — 인터셉트된 모달 (client)
   api/
     home/route.ts                   — GET 홈 데이터 (날씨+축제+추천)
-    course/route.ts                 — POST AI 코스 생성
-    course/[slug]/route.ts          — GET 저장된 코스
+    course/route.ts                 — POST AI 코스 생성 (429 에 커뮤니티 suggestions 곁들임)
+    course/[slug]/route.ts          — GET 저장된 코스(isPublic 포함) · PATCH 편집
+    course/[slug]/public/route.ts   — POST 커뮤니티 추천 opt-in 토글 (edit_token 인증)
+    course/community/route.ts       — GET 커뮤니티 코스 목록 (신선도+공개 필터, 재검증 없음)
     spot/route.ts                   — GET 장소 상세
     spot/images/route.ts            — GET 장소 이미지
     festival/route.ts               — GET 축제 목록
@@ -89,15 +108,16 @@ app/
   components/
     ui/                             — Phase 1 프리미티브 (Button, Card, Badge, Container, SectionHeader)
     nav/                            — GlobalHeader, BottomTabBar, LocationContext/Selector/Modal, GlobalSearchBar
-    home/                           — HomeHero, MagazineGrid, HomeView, WeatherCard, FestivalSideList
+    home/                           — HomeView, HomeHeroLanding(히어로 랜딩), FestivalTabInvite/CommunityInvite(탭·목록 유도)
     course/
-      wizard/                       — WizardShell, Stepper, ProgressBar, Nav, steps/Step*.tsx
+      wizard/                       — WizardShell, Stepper, ProgressBar, Nav
+        steps/                      — StepWhereMood, StepEnergy, StepWhenWho, StepTaste (4스텝)
       loading/                      — CourseLoading, SkeletonStopCard
-      result/                       — CourseResultShell, Summary, DayTabs, Timeline, StopCard, CourseTip, SaveShareBar, CourseMapPane
+      result/                       — CourseResultShell, Summary, DayTabs, Timeline, StopCard, CourseTip, SaveShareBar(공개 토글 포함), CourseMapPane
     festival/                       — FestivalPageShell, Header, FilterBar, Radius, RegionFilter, Grid, Card, Skeleton, Empty
+    community/                      — CommunityPageShell, Header, SortTabs, Grid, Card, Empty (festival 패턴 본뜸, FestivalSkeleton 재사용)
     spot/                           — SpotDetail, SpotDetailSkeleton, SpotDetailModalFrame, SpotPageBackButton
     SpotCard.tsx                    — Home 관광지 카드
-    FestivalBadge.tsx               — Home 축제 카드 (가로 스크롤)
     FacilityBadges.tsx              — 편의시설 뱃지 (Lucide + size API)
     ImageGallery.tsx                — 가로 스크롤 갤러리 (next/image)
     SearchBar.tsx                   — Home 검색 입력
@@ -108,8 +128,13 @@ lib/
   tour-api.ts                       — TourAPI 4.0 클라이언트
   weather-api.ts                    — 기상청 API 클라이언트
   course-role.ts                    — stop role 매핑 (contentTypeId → spot/food/cafe/festival/stay)
-  hero-copy.ts · hero-image.ts      — Home Hero 카피/이미지 선택
-  use-course-generation.ts          — Wizard → AI 호출 + 로딩 메시지 훅
+  course-community.ts               — 커뮤니티 코스 목록·opt-in (재검증 없음, 신선도 필터만)
+  weekend-summary.ts                — 홈 히어로의 「한 줄」들 (날씨·기운·주말 날짜)
+  random-pick.ts                    — 랜덤 뽑기(도시·기분). rng 주입으로 테스트 가능
+  loading-messages.ts               — 코스 생성 대기 멘트 15종 + 셔플
+  wizard-steps.ts                   — 스텝 진행 조건(canProceedAtStep) · DestinationPick
+  hero-copy.ts · hero-image.ts      — 계절 판정 + Hero 이미지 선택
+  use-course-generation.ts          — Wizard → AI 호출 + 로딩 메시지 훅 + errorSuggestions(429)
   use-active-stop.ts                — Timeline ↔ Map 연동 상태
   use-home-data.ts                  — Home 데이터 fetch
   supabase/

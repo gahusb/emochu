@@ -240,6 +240,8 @@ export async function getWeekendForecast(params: {
       saturday: { ...fallback, date: params.saturdayDate },
       sunday: { ...fallback, date: params.sundayDate },
       recommendation: '날씨 정보를 불러오는 중입니다.',
+      // 예보가 한 건도 안 왔다 — 위 값들은 자리표시자지 예보가 아니다.
+      unavailable: true,
     };
   }
 

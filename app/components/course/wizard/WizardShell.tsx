@@ -5,31 +5,34 @@ import Link from 'next/link';
 import { RotateCcw, X, History } from 'lucide-react';
 import type {
   Duration, Companion, Preference, Feeling,
-  DestinationType, MoodType, CityOption, VisitDay,
+  DestinationType, CityOption, VisitDay,
 } from '@/lib/weekend-types';
 import type { SajuResult } from '@/lib/saju';
 import { useCourseGeneration } from '@/lib/use-course-generation';
-import { CITY_OPTIONS, MOOD_OPTIONS, FEELING_OPTIONS, DURATION_LABELS, COMPANION_LABELS } from '@/lib/weekend-types';
+import { FEELING_OPTIONS, DURATION_LABELS, COMPANION_LABELS } from '@/lib/weekend-types';
 import Container from '@/app/components/ui/Container';
 import CourseLoading from '../loading/CourseLoading';
 import WizardStepper from './WizardStepper';
 import WizardProgressBar from './WizardProgressBar';
 import WizardNav from './WizardNav';
-import StepDestination from './steps/StepDestination';
-import StepFeeling from './steps/StepFeeling';
-import StepDuration from './steps/StepDuration';
-import StepCompanion from './steps/StepCompanion';
-import StepPreferences from './steps/StepPreferences';
-import StepAccessibility from './steps/StepAccessibility';
+import StepWhereMood from './steps/StepWhereMood';
+import StepEnergy from './steps/StepEnergy';
+import StepWhenWho from './steps/StepWhenWho';
+import StepTaste from './steps/StepTaste';
 import type { AccessibilityNeed } from '@/lib/weekend-types';
-import { canProceedAtStep, WIZARD_TOTAL_STEPS } from '@/lib/wizard-steps';
+import { canProceedAtStep, WIZARD_TOTAL_STEPS, type DestinationPick } from '@/lib/wizard-steps';
 
 export interface WizardState {
   step: number;
+  /** 사용자가 실제로 누른 칸. 「랜덤」은 여기에만 있고 서버로는 city 로 나간다. */
+  destinationPick: DestinationPick | null;
   destinationType: DestinationType | null;
   selectedCity: CityOption | null;
-  selectedMood: MoodType | null;
+  /** 도시가 주사위로 정해졌는가. 화면이 "뽑힌 곳"이라고 말할 근거다. */
+  cityWasRandom: boolean;
   feeling: Feeling | null;
+  /** 기분이 주사위로 정해졌는가. */
+  feelingWasRandom: boolean;
   duration: Duration | null;
   companion: Companion | null;
   preferences: Preference[];
@@ -43,10 +46,10 @@ export interface WizardState {
 
 export type WizardAction =
   | { type: 'SET_STEP'; step: number }
-  | { type: 'SET_DESTINATION_TYPE'; value: DestinationType | null }
+  | { type: 'SET_DESTINATION_PICK'; value: DestinationPick }
   | { type: 'SET_CITY'; value: CityOption | null }
-  | { type: 'SET_MOOD'; value: MoodType | null }
-  | { type: 'SET_FEELING'; value: Feeling | null }
+  | { type: 'ROLL_CITY'; value: CityOption }
+  | { type: 'SET_FEELING'; value: Feeling | null; random?: boolean }
   | { type: 'SET_SAJU'; value: SajuResult | null }
   | { type: 'SET_DURATION'; value: Duration | null }
   | { type: 'SET_COMPANION'; value: Companion | null }
@@ -59,10 +62,12 @@ export type WizardAction =
 
 const INITIAL: WizardState = {
   step: 0,
+  destinationPick: null,
   destinationType: null,
   selectedCity: null,
-  selectedMood: null,
+  cityWasRandom: false,
   feeling: null,
+  feelingWasRandom: false,
   duration: null,
   companion: null,
   preferences: [],
@@ -76,15 +81,22 @@ const INITIAL: WizardState = {
 function reducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
     case 'SET_STEP': return { ...state, step: action.step };
-    case 'SET_DESTINATION_TYPE': {
-      const next: WizardState = { ...state, destinationType: action.value };
-      if (action.value !== 'city') next.selectedCity = null;
-      if (action.value !== 'mood') next.selectedMood = null;
-      return next;
+    case 'SET_DESTINATION_PICK': {
+      // 「랜덤」도 결국 도시 한 곳이다 — 서버 계약(nearby|city|mood)을 흔들지 않는다.
+      // 실제로 뽑힌 도시는 곧바로 이어지는 ROLL_CITY 가 채운다.
+      const destinationType: DestinationType = action.value === 'nearby' ? 'nearby' : 'city';
+      return {
+        ...state,
+        destinationPick: action.value,
+        destinationType,
+        selectedCity: null,
+        cityWasRandom: action.value === 'random',
+      };
     }
-    case 'SET_CITY': return { ...state, selectedCity: action.value };
-    case 'SET_MOOD': return { ...state, selectedMood: action.value };
-    case 'SET_FEELING': return { ...state, feeling: action.value };
+    case 'SET_CITY': return { ...state, selectedCity: action.value, cityWasRandom: false };
+    case 'ROLL_CITY': return { ...state, selectedCity: action.value, cityWasRandom: true };
+    case 'SET_FEELING':
+      return { ...state, feeling: action.value, feelingWasRandom: action.random ?? false };
     case 'SET_SAJU': return { ...state, saju: action.value };
     case 'SET_DURATION': {
       // 1박2일은 토·일 모두 방문하므로 요일 선택을 무의미하게 만든다 → 토요일로 고정
@@ -114,7 +126,9 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
 }
 
 const TOTAL_STEPS = WIZARD_TOTAL_STEPS;
-const DRAFT_KEY = 'emochu.wizard_draft';
+// 🔴 v2. 6스텝 시절 draft 에는 `step: 5` 가 들어 있어서 4스텝 위저드에 복구하면
+//    존재하지 않는 스텝에 갇힌다. 키를 바꿔 옛 draft 를 아예 보지 않는다.
+const DRAFT_KEY = 'emochu.wizard_draft.v2';
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24시간
 
 interface DraftPayload {
@@ -123,17 +137,33 @@ interface DraftPayload {
 }
 
 const STEP_META = [
-  { title: '목적지', question: '어디로 떠나볼까요?', sub: '가고 싶은 스타일을 골라주세요.' },
-  { title: '기분', question: '오늘 기분이 어때요?', sub: '기분은 직접 고르고, 사주로 오늘의 기운도 더할 수 있어요.' },
-  { title: '일정', question: '언제, 얼마나 놀 수 있어요?', sub: '방문하는 날에 맞춰 문 여는 곳만 골라드려요.' },
-  { title: '동반자', question: '누구랑 가요?', sub: '함께하는 사람에 따라 추천이 달라져요.' },
-  { title: '취향', question: '뭐가 끌려요?', sub: '여러 개 골라도 좋아요.' },
-  { title: '접근성', question: '편하게 다니려면 뭐가 필요해요?', sub: '해당 없으면 그냥 넘어가세요.' },
+  {
+    title: '어디로',
+    question: '어디로 떠나볼까요?',
+    sub: '고르고 나면 기분도 이어서 물어볼게요.',
+  },
+  {
+    title: '내 기운',
+    question: '이번 주 당신의 기운이…',
+    sub: '이쪽으로 가보는 건 어때요? 안 봐도 코스는 나와요.',
+  },
+  {
+    title: '언제·누구랑',
+    question: '언제, 누구랑 가요?',
+    sub: '방문하는 날에 맞춰 문 여는 곳만 골라드려요.',
+  },
+  {
+    title: '취향',
+    question: '뭐가 끌려요?',
+    sub: '여러 개 골라도 좋아요.',
+  },
 ];
+
+const STEP_COMPONENTS = [StepWhereMood, StepEnergy, StepWhenWho, StepTaste];
 
 export default function WizardShell() {
   const [state, dispatch] = useReducer(reducer, INITIAL);
-  const { loading, error, generate, loadingMessage } = useCourseGeneration();
+  const { loading, error, errorSuggestions, generate, loadingMessage } = useCourseGeneration();
   const [showResumeBanner, setShowResumeBanner] = useState(false);
   const [courseHistory, setCourseHistory] = useState<Array<{ slug: string; title: string; createdAt: number }>>([]);
   const isMounted = useRef(false);
@@ -159,15 +189,17 @@ export default function WizardShell() {
   // state 변경 시 draft 자동저장 (마운트 직후 초기 상태 저장 방지)
   useEffect(() => {
     if (!isMounted.current) return;
-    if (state.step === 0 && !state.destinationType) return;
+    if (state.step === 0 && !state.destinationPick) return;
     try {
       const payload: DraftPayload = {
         state: {
           step: state.step,
+          destinationPick: state.destinationPick,
           destinationType: state.destinationType,
           selectedCity: state.selectedCity,
-          selectedMood: state.selectedMood,
+          cityWasRandom: state.cityWasRandom,
           feeling: state.feeling,
+          feelingWasRandom: state.feelingWasRandom,
           duration: state.duration,
           companion: state.companion,
           preferences: state.preferences,
@@ -184,7 +216,9 @@ export default function WizardShell() {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
       const { state: saved } = JSON.parse(raw) as DraftPayload;
-      dispatch({ type: 'RESTORE_DRAFT', value: saved });
+      // 저장된 step 이 범위를 벗어나면 첫 스텝으로. 갇히는 것보다 낫다.
+      const step = Math.min(Math.max(saved.step ?? 0, 0), TOTAL_STEPS - 1);
+      dispatch({ type: 'RESTORE_DRAFT', value: { ...saved, step } });
     } catch { /* ignore */ }
     setShowResumeBanner(false);
   };
@@ -194,7 +228,7 @@ export default function WizardShell() {
   };
 
   useEffect(() => {
-    if (state.destinationType !== 'nearby' || state.userLocation) return;
+    if (state.destinationPick !== 'nearby' || state.userLocation) return;
     dispatch({ type: 'SET_GPS_LOADING', value: true });
     if (!navigator.geolocation) {
       dispatch({ type: 'SET_USER_LOCATION', value: { lat: 37.5665, lng: 126.9780 } });
@@ -212,7 +246,7 @@ export default function WizardShell() {
       },
       { timeout: 5000 },
     );
-  }, [state.destinationType, state.userLocation]);
+  }, [state.destinationPick, state.userLocation]);
 
   // 진행 조건은 lib/wizard-steps.ts 의 순수 함수가 결정한다 —
   // 컴포넌트 안에 두면 "실제로 진행되는가"를 테스트로 증명할 수 없다.
@@ -221,13 +255,6 @@ export default function WizardShell() {
   const getRequestLocation = () => {
     if (state.destinationType === 'city' && state.selectedCity) {
       return { lat: state.selectedCity.lat, lng: state.selectedCity.lng };
-    }
-    if (state.destinationType === 'mood' && state.selectedMood) {
-      const mood = MOOD_OPTIONS.find(m => m.type === state.selectedMood);
-      if (mood) {
-        const city = CITY_OPTIONS.find(c => c.areaCode === mood.areaCodes[0]);
-        if (city) return { lat: city.lat, lng: city.lng };
-      }
     }
     return state.userLocation ?? { lat: 37.5665, lng: 126.9780 };
   };
@@ -246,7 +273,6 @@ export default function WizardShell() {
         feeling: state.feeling ?? undefined,
         destinationType: state.destinationType ?? 'nearby',
         cityAreaCode: state.selectedCity?.areaCode != null ? String(state.selectedCity.areaCode) : undefined,
-        mood: state.selectedMood,
         saju: state.saju ?? undefined,
         visitDay: state.duration === 'overnight' ? undefined : state.visitDay ?? undefined,
         // 빈 배열이 아니라 undefined 로 보낸다 — 서버가 "조건 없음"을 확실히 알아야
@@ -268,26 +294,44 @@ export default function WizardShell() {
   const durationLabel = state.duration ? DURATION_LABELS[state.duration] : null;
   const companionLabel = state.companion ? COMPANION_LABELS[state.companion] : null;
 
+  const placeLabel =
+    state.destinationPick === 'nearby' ? '현 위치'
+    : state.selectedCity ? `${state.selectedCity.name}${state.cityWasRandom ? ' 🎲' : ''}`
+    : null;
+
   const stepSummaries: (string | null)[] = [
-    state.destinationType === 'nearby' ? '내 주변'
-      : state.destinationType === 'city' ? state.selectedCity?.name ?? null
-      : state.destinationType === 'mood' ? MOOD_OPTIONS.find(m => m.type === state.selectedMood)?.label ?? null
-      : null,
-    feelingLabel,
+    placeLabel && feelingLabel ? `${placeLabel} · ${feelingLabel}` : placeLabel,
+    state.saju ? state.saju.headline : '건너뜀',
     durationLabel && state.duration !== 'overnight' && state.visitDay
-      ? `${state.visitDay === 'sat' ? '토' : '일'} · ${durationLabel}`
-      : durationLabel,
-    companionLabel,
+      ? `${state.visitDay === 'sat' ? '토' : '일'} · ${durationLabel}${companionLabel ? ` · ${companionLabel}` : ''}`
+      : durationLabel
+        ? `${durationLabel}${companionLabel ? ` · ${companionLabel}` : ''}`
+        : null,
     state.preferences.length > 0 ? `${state.preferences.length}개 선택` : null,
-    state.accessibility.length > 0 ? `${state.accessibility.length}개 선택` : '해당 없음',
   ];
 
   const meta = STEP_META[state.step];
-  const CurrentStep = [StepDestination, StepFeeling, StepDuration, StepCompanion, StepPreferences, StepAccessibility][state.step];
+  const CurrentStep = STEP_COMPONENTS[state.step];
+  // 사주 스텝에서 아직 아무것도 안 봤다면 「다음」이 아니라 「건너뛰기」다 —
+  // 버튼이 사실을 말해야 사용자가 안심하고 넘어간다.
+  const nextLabel = state.step === 1 && !state.saju ? '건너뛰기' : undefined;
 
   return (
     <>
       <WizardProgressBar current={state.step} total={TOTAL_STEPS} />
+
+      {/* 직접 만들지 않아도 되는 길 — 1단계에서만 보인다. 2단계부터는 마법사
+          흐름 한가운데라 방해가 된다. */}
+      {state.step === 0 && (
+        <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-3">
+          <Link
+            href="/community"
+            className="inline-flex items-center gap-1 text-xs font-medium text-ink-3 hover:text-brand transition-colors"
+          >
+            직접 만들지 않아도 돼요 — 다른 사람이 만든 코스 보기
+          </Link>
+        </div>
+      )}
 
       {/* Draft 복구 배너 */}
       {showResumeBanner && (
@@ -351,18 +395,37 @@ export default function WizardShell() {
             <h2 className="text-2xl lg:text-3xl font-bold text-ink-1 break-keep" style={{ fontFamily: 'var(--font-display)' }}>
               {meta.question}
             </h2>
-            <p className="text-sm text-ink-3 mt-2">{meta.sub}</p>
+            <p className="text-sm text-ink-3 mt-2 break-keep">{meta.sub}</p>
             <div className="mt-6">
               <CurrentStep state={state} dispatch={dispatch} />
             </div>
             {error && (
-              <p role="alert" className="mt-4 text-sm text-brand">{error}</p>
+              <div className="mt-4">
+                <p role="alert" className="text-sm text-brand">{error}</p>
+                {errorSuggestions && errorSuggestions.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs text-ink-3 mb-2">대신 이런 코스는 어때요?</p>
+                    <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                      {errorSuggestions.map((s) => (
+                        <Link
+                          key={s.slug}
+                          href={`/course/${s.slug}`}
+                          className="flex-shrink-0 text-xs font-medium text-ink-2 bg-surface-sunken hover:bg-surface-elevated border border-line rounded-full px-3 py-1.5 transition-colors whitespace-nowrap"
+                        >
+                          {s.title}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             <div className="mt-10">
               <WizardNav
                 canGoBack={state.step > 0}
                 canProceed={canProceed}
                 isLast={state.step === TOTAL_STEPS - 1}
+                nextLabel={nextLabel}
                 onPrev={handlePrev}
                 onNext={handleNext}
               />

@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveEditToken } from '@/lib/edit-token';
-import type { CourseResponse, Duration, Companion, Preference, Feeling, DestinationType, VisitDay, AccessibilityNeed } from './weekend-types';
+import { buildLoadingSequence, FIRST_LOADING_MESSAGE } from './loading-messages';
+import type { CourseResponse, Duration, Companion, Preference, Feeling, DestinationType, VisitDay, AccessibilityNeed, CommunityCourseCard } from './weekend-types';
 import type { SajuResult } from './saju';
 
 export interface GenerateParams {
@@ -22,18 +23,20 @@ export interface GenerateParams {
   accessibility?: AccessibilityNeed[];
 }
 
-const LOADING_MESSAGES = [
-  '주변 관광지를 살펴보고 있어요',
-  'AI가 코스 순서를 계산하는 중이에요',
-  '실시간 날씨와 동선을 반영하고 있어요',
-  '마지막으로 다듬는 중이에요',
-];
+// 멘트 목록과 셔플은 lib/loading-messages.ts 가 갖는다 —
+// 훅 안에 있으면 "매번 다른 조합이 나오는가"를 테스트로 확정할 수 없다.
+const MESSAGE_INTERVAL_MS = 6000;
 
 export function useCourseGeneration() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 하루 한도(429)에 곁들여 오는 「대신 이런 코스는 어때요?」 제안. 그 외 실패에서는 항상 null.
+  const [errorSuggestions, setErrorSuggestions] = useState<CommunityCourseCard[] | null>(null);
   const [messageIndex, setMessageIndex] = useState(0);
+  // 🔴 렌더 중에 셔플하지 않는다. 서버 렌더와 하이드레이션이 서로 다른 문장을 그린다.
+  //    생성이 시작되는 순간(=클라이언트 이벤트) 한 번만 뽑는다.
+  const [messages, setMessages] = useState<string[]>(() => [FIRST_LOADING_MESSAGE]);
 
   useEffect(() => {
     if (!loading) {
@@ -41,14 +44,17 @@ export function useCourseGeneration() {
       return;
     }
     const interval = setInterval(() => {
-      setMessageIndex((i) => Math.min(i + 1, LOADING_MESSAGES.length - 1));
-    }, 8000);
+      setMessageIndex((i) => i + 1);
+    }, MESSAGE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [loading]);
 
   const generate = useCallback(async (params: GenerateParams) => {
+    setMessages(buildLoadingSequence());
+    setMessageIndex(0);
     setLoading(true);
     setError(null);
+    setErrorSuggestions(null);
     try {
       const res = await fetch('/api/course', {
         method: 'POST',
@@ -68,10 +74,15 @@ export function useCourseGeneration() {
           visitDay: params.visitDay,
         }),
       });
-      const data: CourseResponse = await res.json();
+      const body: unknown = await res.json();
       if (!res.ok) {
-        throw new Error((data as unknown as { error?: string }).error ?? '코스 생성에 실패했어요.');
+        const failure = body as { error?: string; suggestions?: CommunityCourseCard[] };
+        // suggestions 는 하루 한도(429)에만 실린다. 그 외 실패엔 없다 — 필드가
+        // 없으면 undefined 라 아래에서 null 로 정규화된다.
+        setErrorSuggestions(failure.suggestions ?? null);
+        throw new Error(failure.error ?? '코스 생성에 실패했어요.');
       }
+      const data = body as CourseResponse;
       sessionStorage.setItem('weekendCourse', JSON.stringify(data));
       const slug = data.shareUrl.split('/').pop();
       if (!slug) {
@@ -98,7 +109,9 @@ export function useCourseGeneration() {
   return {
     loading,
     error,
+    errorSuggestions,
     generate,
-    loadingMessage: LOADING_MESSAGES[messageIndex],
+    // 마지막 문장에서 멈춘다 — 목록을 다 쓰면 「거의 다 됐어요」가 계속 남는다.
+    loadingMessage: messages[Math.min(messageIndex, messages.length - 1)],
   };
 }

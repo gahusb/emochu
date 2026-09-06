@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { COURSE_TTL_DAYS, sweepExpiredCourses } from '@/lib/course-lifecycle';
 import { generateEditToken } from '@/lib/course-edit';
+import { fetchSuggestionsForLimitError } from '@/lib/course-community';
 import { getCurrentUserId } from '@/lib/auth';
 import {
   locationBasedList,
@@ -508,7 +509,11 @@ export async function POST(request: NextRequest) {
       ? '오늘 만들 수 있는 코스가 모두 소진됐어요. 내일 다시 만나요!'
       : `하루에 만들 수 있는 코스는 ${PER_CLIENT_DAILY}개예요. 내일 다시 만들어드릴게요!`;
     console.warn(`[이모추API] 상한 도달(${usage.blockedBy}) client=${usage.clientCount} global=${usage.globalCount}/${GLOBAL_DAILY}`);
-    return NextResponse.json({ error: message }, {
+    // 대신 보여줄 거리 — 이미 있는 인기 코스 몇 개. AI 재호출 없이 공짜다.
+    // 🔴 이 시점엔 아직 body 를 파싱하지 않아 위치 정보가 없다 — 위치 필터 없이 전체
+    //    인기 코스를 준다(1차 범위, 2026-09-04).
+    const suggestions = await fetchSuggestionsForLimitError();
+    return NextResponse.json({ error: message, suggestions }, {
       status: 429,
       headers: { 'Retry-After': String(retryAfter) },
     });
@@ -665,15 +670,19 @@ export async function POST(request: NextRequest) {
     const primaryVariant: 'a' | 'b' = alternativeFor ? 'b' : 'a';
 
     // Gemini 가 네트워크 행으로 응답 없을 때 maxDuration(60s) 전에 폴백 코스를 반환한다.
-    const course = await Promise.race([
-      generateCourse(input, primaryVariant),
-      new Promise<ReturnType<typeof generateFallbackCourse>>((resolve) =>
-        setTimeout(() => {
-          console.warn(`[이모추API] 코스${primaryVariant.toUpperCase()} 50초 타임아웃 → 폴백 코스 반환`);
-          resolve(generateFallbackCourse(ranked, input.duration, input.departure));
-        }, 50_000)
-      ),
-    ]);
+    // 🔴 2026-09-05 실측으로 발견: Promise.race 는 진 쪽 프라미스를 취소하지 않는다.
+    //    타이머 핸들을 안 잡아두면 generateCourse 가 먼저 성공해도 50초 뒤에 이 setTimeout 이
+    //    그대로 발화해 "타임아웃 → 폴백 반환" 이라는 거짓 경고 로그를 남긴다(실제로는 타임아웃도,
+    //    폴백 반환도 없었다). 핸들을 잡아뒀다가 race 가 끝나면 반드시 지운다.
+    let fallbackTimer: ReturnType<typeof setTimeout>;
+    const fallbackPromise = new Promise<ReturnType<typeof generateFallbackCourse>>((resolve) => {
+      fallbackTimer = setTimeout(() => {
+        console.warn(`[이모추API] 코스${primaryVariant.toUpperCase()} 50초 타임아웃 → 폴백 코스 반환`);
+        resolve(generateFallbackCourse(ranked, input.duration, input.departure));
+      }, 50_000);
+    });
+    const course = await Promise.race([generateCourse(input, primaryVariant), fallbackPromise]);
+    clearTimeout(fallbackTimer!);
 
 
     // 4-0. 방문일 휴무 stop 교체 (AI가 프롬프트 지시를 어긴 경우의 최종 안전망)

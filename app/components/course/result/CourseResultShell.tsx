@@ -330,6 +330,8 @@ function CourseResultView({ course, slug }: { course: CourseResponse; slug: stri
                 title={courseData?.title ?? '이모추 코스'}
                 summary={courseData?.summary}
                 stops={allStops}
+                editToken={editToken}
+                initialIsPublic={course.isPublic ?? false}
               />
             </div>
           </section>

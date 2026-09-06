@@ -153,9 +153,30 @@ body {
   .skeleton { animation: none; }
   .slide-in-right, .slide-in-left { animation: none; }
   .animate-spin { animation: none; }
+  /* 아래 둘은 파일 끝에 정의돼 있다 — Tailwind 유틸이 아니라 소재 클래스라
+     motion-safe: 접두사가 안 먹는다. 여기서 직접 끈다. */
+  .reveal-down, .roll-in { animation: none; }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ─── 이어지는 질문 등장 ───
+   위저드에서 앞 선택이 끝나면 다음 질문이 그 아래 「이어서」 나타난다.
+   화면이 통째로 갈리는 대신 흐름이 이어진다는 신호다. */
+@keyframes revealDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal-down { animation: revealDown 0.4s ease-out both; }
+
+/* ─── 랜덤 뽑기 ───
+   「뽑혔다」는 사건이 눈에 보여야 랜덤 버튼이 랜덤으로 읽힌다. */
+@keyframes rollIn {
+  0%   { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+  60%  { opacity: 1; transform: scale(1.03) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+.roll-in { animation: rollIn 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }

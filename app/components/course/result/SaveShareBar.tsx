@@ -12,10 +12,18 @@ interface Props {
   title: string;
   summary?: string;
   stops?: CourseStop[];
+  /** 있으면 소유자 — 커뮤니티 공개 토글을 보여준다. 없으면(방문자) 토글 자체를 렌더링하지 않는다. */
+  editToken?: string | null;
+  /** GET /api/course/[slug] 가 내려준 현재 공개 상태. */
+  initialIsPublic?: boolean;
 }
 
-export default function SaveShareBar({ shareUrl, slug, title, summary, stops }: Props) {
+export default function SaveShareBar({
+  shareUrl, slug, title, summary, stops, editToken, initialIsPublic = false,
+}: Props) {
   const [copied, setCopied] = useState(false);
+  const [isPublic, setIsPublic] = useState(initialIsPublic);
+  const [toggling, setToggling] = useState(false);
 
   /**
    * 이 코스를 영구 보존으로 표시한다.
@@ -35,6 +43,26 @@ export default function SaveShareBar({ shareUrl, slug, title, summary, stops }: 
       setTimeout(() => setCopied(false), 2000);
     } catch {
       /* clipboard permission denied — ignore */
+    }
+  };
+
+  /** 낙관적으로 먼저 바꾸고, 실패하면 되돌린다 — 토글은 즉각 반응해야 하는 UI다. */
+  const handleTogglePublic = async () => {
+    if (!editToken || toggling) return;
+    const next = !isPublic;
+    setIsPublic(next);
+    setToggling(true);
+    try {
+      const res = await fetch(`/api/course/${slug}/public`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-edit-token': editToken },
+        body: JSON.stringify({ isPublic: next }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setIsPublic(!next);
+    } finally {
+      setToggling(false);
     }
   };
 
@@ -71,23 +99,56 @@ export default function SaveShareBar({ shareUrl, slug, title, summary, stops }: 
   };
 
   return (
-    <div className="flex flex-wrap gap-2" aria-live="polite">
-      <Button
-        variant="secondary"
-        size="md"
-        iconLeft={<Share2 size={16} />}
-        onClick={handleKakaoShare}
-      >
-        카카오톡 공유
-      </Button>
-      <Button
-        variant="ghost"
-        size="md"
-        iconLeft={copied ? <Check size={16} /> : <Link2 size={16} />}
-        onClick={handleCopy}
-      >
-        {copied ? '복사됨!' : '링크 복사'}
-      </Button>
+    <div className="space-y-3" aria-live="polite">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          size="md"
+          iconLeft={<Share2 size={16} />}
+          onClick={handleKakaoShare}
+        >
+          카카오톡 공유
+        </Button>
+        <Button
+          variant="ghost"
+          size="md"
+          iconLeft={copied ? <Check size={16} /> : <Link2 size={16} />}
+          onClick={handleCopy}
+        >
+          {copied ? '복사됨!' : '링크 복사'}
+        </Button>
+      </div>
+
+      {/* 커뮤니티 공개 — owner(editToken 보유자)에게만 보인다. 공유와는 다른 결정이라
+          시각적으로 분리한다: 버튼 줄이 아니라 별도의 카드로. */}
+      {editToken && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface-sunken px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-ink-1">다른 사람에게도 추천되게 허용</p>
+            <p className="text-xs text-ink-3 mt-0.5 break-keep">
+              켜면 커뮤니티 코스 목록에 나와요. 언제든 다시 끌 수 있어요.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isPublic}
+            aria-label="다른 사람에게도 추천되게 허용"
+            onClick={handleTogglePublic}
+            disabled={toggling}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+              isPublic ? 'bg-brand' : 'bg-ink-4/40'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                isPublic ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

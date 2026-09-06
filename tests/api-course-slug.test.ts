@@ -51,4 +51,32 @@ describe('GET /api/course/[slug]', () => {
     expect(body.shareUrl).toContain('abcd1234');
     expect(typeof body.kakaoNaviUrl).toBe('string');
   });
+
+  // 🔴 커뮤니티 opt-in 토글(SaveShareBar)의 초기 상태가 여기서 나온다 — 값이 안 실리면
+  //    토글이 항상 꺼진 채로 그려진다.
+  it('is_public=true 인 코스는 isPublic:true 로 응답한다', async () => {
+    single.mockResolvedValue({
+      data: {
+        id: 'id1', share_slug: 'abcd1234', view_count: 3, course_b_data: null, is_public: true,
+        course_data: { title: '코스', summary: '', totalDistanceKm: 0, tip: '', stops: [] },
+      },
+      error: null,
+    });
+    const res = await GET({} as any, ctx('abcd1234'));
+    const body = await res.json();
+    expect(body.isPublic).toBe(true);
+  });
+
+  it('is_public 이 없거나 false 면 isPublic:false 로 응답한다(단언하지 않는다)', async () => {
+    single.mockResolvedValue({
+      data: {
+        id: 'id1', share_slug: 'abcd1234', view_count: 0, course_b_data: null,
+        course_data: { title: '코스', summary: '', totalDistanceKm: 0, tip: '', stops: [] },
+      },
+      error: null,
+    });
+    const res = await GET({} as any, ctx('abcd1234'));
+    const body = await res.json();
+    expect(body.isPublic).toBe(false);
+  });
 });

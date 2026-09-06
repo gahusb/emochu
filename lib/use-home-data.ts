@@ -14,6 +14,7 @@ const DEMO_WEATHER: WeekendWeather = {
   saturday: { date: '', sky: 'clear', precipitation: 'none', tempMin: 15, tempMax: 22, pop: 0, summary: '날씨 정보 준비 중' },
   sunday:   { date: '', sky: 'clear', precipitation: 'none', tempMin: 15, tempMax: 22, pop: 0, summary: '날씨 정보 준비 중' },
   recommendation: 'API 키를 설정하면 실시간 날씨를 볼 수 있어요.',
+  unavailable: true,
 };
 
 export function useHomeData(loc: { lat: number; lng: number } | null): HomeData {

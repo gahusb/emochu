@@ -23,7 +23,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('wk_courses')
-      .select('id, share_slug, course_data, course_b_data, view_count')
+      .select('id, share_slug, course_data, course_b_data, view_count, is_public')
       .eq('share_slug', slug)
       .single();
 
@@ -47,6 +47,9 @@ export async function GET(
       course,
       ...(courseB ? { courseB } : {}),
       kakaoNaviUrl: buildKakaoNaviUrl(course.stops),
+      // 켜져 있는지 여부만 노출한다 — 누가 언제 켰는지가 아니라 SaveShareBar 토글의
+      // 초기 상태를 그리는 데만 쓰인다. 민감정보가 아니라 방문자에게 줘도 안전하다.
+      isPublic: Boolean((data as { is_public?: boolean }).is_public),
     };
 
     return NextResponse.json(response);

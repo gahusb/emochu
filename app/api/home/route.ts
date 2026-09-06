@@ -30,6 +30,7 @@ const FALLBACK_WEATHER: WeekendWeather = {
   saturday: { date: '', sky: 'clear', precipitation: 'none', tempMin: 15, tempMax: 22, pop: 0, summary: '날씨 정보 준비 중' },
   sunday:   { date: '', sky: 'clear', precipitation: 'none', tempMin: 15, tempMax: 22, pop: 0, summary: '날씨 정보 준비 중' },
   recommendation: '날씨 정보를 불러오는 중이에요.',
+  unavailable: true,
 };
 
 export async function GET(request: NextRequest) {

@@ -57,6 +57,13 @@ export interface WeekendWeather {
   saturday: DayWeather;
   sunday: DayWeather;
   recommendation: string; // "토요일이 외출 적기예요"
+  /**
+   * 🔴 실제 예보가 아니라 **자리를 채운 값**이라는 표시.
+   *    폴백 DayWeather 는 sky:'clear', pop:0 이라 그냥 읽으면 "토·일 모두 맑아요"가 된다 —
+   *    기상청 응답이 없을 때 화면이 맑다고 단언해 버린다.
+   *    표시하는 쪽(summarizeWeekendWeather)이 이 값을 보고 입을 다문다.
+   */
+  unavailable?: boolean;
 }
 
 // ─── 코스 생성 ───
@@ -299,6 +306,8 @@ export interface CourseResponse {
   courseB?: CourseData;   // A/B 비교용 이색 발견 코스
   kakaoNaviUrl: string;
   fortuneMessage?: string;
+  /** 커뮤니티 추천 opt-in 여부. 방문자에게 노출해도 안전하다(민감정보 아님) — SaveShareBar 의 토글 초기값. */
+  isPublic?: boolean;
 }
 
 // ─── 홈 화면 ───
@@ -337,6 +346,24 @@ export interface FestivalCard {
   images?: string[];
   dDay?: number;
 }
+
+// ─── 커뮤니티 코스 ───
+
+/** 커뮤니티 목록/카드용 파생 셰이프. app/api/my/courses/route.ts 의 응답 형태와 대칭이다. */
+export interface CommunityCourseCard {
+  slug: string;
+  title: string;
+  summary: string;
+  stopCount: number;
+  totalDistanceKm: number;
+  imageUrl?: string;
+  duration: Duration;
+  companion: Companion;
+  viewCount: number;
+  createdAt: string;
+}
+
+export type CommunitySort = 'popular' | 'newest';
 
 export interface HomeData {
   festivals: FestivalCard[];
