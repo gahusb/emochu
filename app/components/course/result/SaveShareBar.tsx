@@ -24,6 +24,8 @@ export default function SaveShareBar({
   const [copied, setCopied] = useState(false);
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [toggling, setToggling] = useState(false);
+  const [shareError, setShareError] = useState(false);
+  const absoluteShareUrl = () => new URL(shareUrl, window.location.origin).href;
 
   /**
    * 이 코스를 영구 보존으로 표시한다.
@@ -38,11 +40,12 @@ export default function SaveShareBar({
   const handleCopy = async () => {
     markKept();
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(absoluteShareUrl());
+      setShareError(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      /* clipboard permission denied — ignore */
+      setShareError(true);
     }
   };
 
@@ -87,12 +90,12 @@ export default function SaveShareBar({
           ? `${summary}\n📍 ${stopNames}`
           : '이번 주말 나들이 코스를 AI가 만들어줬어요!',
         imageUrl: firstImage,
-        link: { mobileWebUrl: shareUrl, webUrl: shareUrl },
+        link: { mobileWebUrl: absoluteShareUrl(), webUrl: absoluteShareUrl() },
       },
       buttons: [
         {
           title: '코스 보기',
-          link: { mobileWebUrl: shareUrl, webUrl: shareUrl },
+          link: { mobileWebUrl: absoluteShareUrl(), webUrl: absoluteShareUrl() },
         },
       ],
     });
@@ -100,6 +103,7 @@ export default function SaveShareBar({
 
   return (
     <div className="space-y-3" aria-live="polite">
+      {shareError && <label className="block text-sm text-ink-2">자동 복사가 차단됐어요. 아래 주소를 직접 복사해주세요.<input aria-label="공유 주소" readOnly value={absoluteShareUrl()} onFocus={e => e.target.select()} className="mt-2 w-full min-h-11 rounded-lg border border-line bg-surface-elevated px-3 text-xs" /></label>}
       <div className="flex flex-wrap gap-2">
         <Button
           variant="secondary"
