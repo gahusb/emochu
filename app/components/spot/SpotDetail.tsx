@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, Phone, Globe, ChevronDown, ChevronUp, ImageOff } from 'lucide-react';
+import { MapPin, Phone, Globe, ChevronDown, ChevronUp, ImageOff, Expand } from 'lucide-react';
 import KakaoMiniMap from './KakaoMiniMap';
+import SpotImageViewer from './SpotImageViewer';
 
 export interface SpotDetailData {
   contentId: string;
@@ -26,12 +27,20 @@ interface Props { detail: SpotDetailData; }
 
 export default function SpotDetail({ detail }: Props) {
   const [activeImage, setActiveImage] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [showFullOverview, setShowFullOverview] = useState(false);
 
   const allImages: { url: string; thumbnail?: string; name: string }[] = [
     ...(detail.mainImage ? [{ url: detail.mainImage, name: detail.title }] : []),
-    ...detail.images.filter((img) => img.url !== detail.mainImage),
+    ...detail.images.filter((img) => img.url && img.url !== detail.mainImage),
   ];
+  const selectedIndex = Math.min(activeImage, Math.max(0, allImages.length - 1));
+  const openViewer = (event: MouseEvent<HTMLButtonElement>, index: number) => {
+    // Touch browsers may not focus a tapped button; remember a useful return point.
+    event.currentTarget.focus({ preventScroll: true });
+    setActiveImage(index);
+    setViewerOpen(true);
+  };
 
   const kakaoMapUrl = `https://map.kakao.com/link/map/${encodeURIComponent(detail.title)},${detail.lat},${detail.lng}`;
   const telNumber = detail.tel ? detail.tel.replace(/[^0-9-]/g, '').split(',')[0]?.trim() : '';
@@ -44,43 +53,53 @@ export default function SpotDetail({ detail }: Props) {
       <section className="lg:order-1" aria-label="이미지 갤러리">
         {allImages.length > 0 ? (
           <>
-            <div className="relative aspect-[4/3] bg-surface-sunken overflow-hidden lg:rounded-lg">
+            <button
+              type="button"
+              onClick={(event) => openViewer(event, selectedIndex)}
+              aria-label={`${detail.title} ${selectedIndex + 1}번째 사진 전체 보기`}
+              aria-haspopup="dialog"
+              className="block w-full relative aspect-[4/3] bg-surface-sunken overflow-hidden lg:rounded-lg cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
               <Image
-                key={allImages[activeImage]?.url}
-                src={allImages[activeImage]?.url ?? ''}
-                alt={allImages[activeImage]?.name || detail.title}
+                key={allImages[selectedIndex]?.url}
+                src={allImages[selectedIndex]?.url ?? ''}
+                alt={allImages[selectedIndex]?.name || detail.title}
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover"
-                unoptimized={allImages[activeImage]?.url.startsWith('http://')}
+                unoptimized={allImages[selectedIndex]?.url.startsWith('http://')}
                 priority
               />
+              <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 bg-ink-1/65 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full" aria-hidden="true">
+                <Expand size={14} /> 전체 보기
+              </span>
               {allImages.length > 1 && (
-                <div className="absolute bottom-3 right-3 bg-ink-1/50 backdrop-blur-sm text-white text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                  {activeImage + 1} / {allImages.length}
-                </div>
+                <span className="absolute bottom-3 right-3 bg-ink-1/50 backdrop-blur-sm text-white text-[11px] font-semibold px-2.5 py-1 rounded-full">
+                  {selectedIndex + 1} / {allImages.length}
+                </span>
               )}
-            </div>
+            </button>
             {allImages.length > 1 && (
               <div className="flex gap-1.5 px-4 py-3 lg:px-0 overflow-x-auto" role="list">
                 {allImages.map((img, i) => (
                   <button
                     key={i}
                     type="button"
-                    onClick={() => setActiveImage(i)}
-                    aria-label={`${i + 1}번째 이미지 보기`}
-                    aria-pressed={activeImage === i}
+                    onClick={(event) => openViewer(event, i)}
+                    aria-label={`${i + 1}번째 이미지 전체 보기`}
+                    aria-haspopup="dialog"
+                    aria-pressed={selectedIndex === i}
                     className={`flex-shrink-0 relative w-14 h-14 rounded-md overflow-hidden border-2 transition-all ${
-                      activeImage === i ? 'border-brand' : 'border-transparent opacity-60 hover:opacity-100'
+                      selectedIndex === i ? 'border-brand' : 'border-transparent opacity-60 hover:opacity-100'
                     }`}
                   >
                     <Image
-                      src={img.thumbnail ?? img.url}
+                      src={img.thumbnail || img.url}
                       alt=""
                       fill
                       sizes="56px"
                       className="object-cover"
-                      unoptimized={(img.thumbnail ?? img.url).startsWith('http://')}
+                      unoptimized={(img.thumbnail || img.url).startsWith('http://')}
                     />
                   </button>
                 ))}
@@ -93,6 +112,16 @@ export default function SpotDetail({ detail }: Props) {
           </div>
         )}
       </section>
+
+      {viewerOpen && allImages.length > 0 && (
+        <SpotImageViewer
+          images={allImages}
+          index={selectedIndex}
+          title={detail.title}
+          onIndexChange={setActiveImage}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
 
       {/* ─── 우: 정보 섹션 ─── */}
       <section className="lg:order-2 px-5 py-5 lg:p-0" aria-label="장소 정보">

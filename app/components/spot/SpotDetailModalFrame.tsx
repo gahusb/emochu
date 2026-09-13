@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
+import { lockBodyScroll } from '@/lib/body-scroll-lock';
 
 interface Props { children: ReactNode; }
 
@@ -31,6 +32,8 @@ export default function SpotDetailModalFrame({ children }: Props) {
   // ESC 닫기 + Tab trap + body scroll lock (기존 overflow 값 보존하여 중첩 모달 호환)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      // A native image dialog owns Escape/Tab while it is on the top layer.
+      if (e.defaultPrevented || (e.target instanceof Element && e.target.closest('dialog[open]'))) return;
       if (e.key === 'Escape') {
         router.back();
         return;
@@ -51,12 +54,11 @@ export default function SpotDetailModalFrame({ children }: Props) {
         first.focus();
       }
     };
-    const prevOverflow = document.body.style.overflow;
+    const unlockScroll = lockBodyScroll();
     document.addEventListener('keydown', handleKey);
-    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', handleKey);
-      document.body.style.overflow = prevOverflow;
+      unlockScroll();
     };
   }, [router]);
 
