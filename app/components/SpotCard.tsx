@@ -6,48 +6,10 @@ import type { SpotCard as SpotCardType } from '@/lib/weekend-types';
 import { getWeekendElements, ELEMENT_META } from '@/lib/saju';
 import FacilityBadges from './FacilityBadges';
 import Badge from './ui/Badge';
+import { getSpotCategoryMeta } from '@/lib/spot-category';
 
 interface Props {
   spot: SpotCardType;
-}
-
-type BadgeVariant = 'brand' | 'mocha' | 'success' | 'warning' | 'outline';
-
-interface CategoryMeta {
-  label: string;
-  variant: BadgeVariant;
-  gradient: string;
-  emoji: string;
-}
-
-const CAT2_META: Record<string, CategoryMeta> = {
-  A0101: { label: '자연',       variant: 'success', gradient: 'from-green-800 via-emerald-700 to-green-500',    emoji: '🌿' },
-  A0102: { label: '관광지',     variant: 'success', gradient: 'from-sky-800 via-blue-700 to-cyan-500',          emoji: '🏞️' },
-  A0201: { label: '역사',       variant: 'mocha',   gradient: 'from-stone-800 via-amber-800 to-amber-600',      emoji: '🏛️' },
-  A0202: { label: '체험',       variant: 'mocha',   gradient: 'from-violet-800 via-purple-700 to-indigo-500',   emoji: '🎨' },
-  A0203: { label: '체험',       variant: 'mocha',   gradient: 'from-violet-800 via-purple-700 to-indigo-500',   emoji: '🎨' },
-  A0204: { label: '산업',       variant: 'mocha',   gradient: 'from-slate-700 via-zinc-600 to-slate-500',       emoji: '🏭' },
-  A0205: { label: '문화',       variant: 'mocha',   gradient: 'from-rose-800 via-pink-700 to-rose-500',         emoji: '🎭' },
-  A0206: { label: '공연',       variant: 'mocha',   gradient: 'from-rose-800 via-pink-700 to-rose-500',         emoji: '🎶' },
-  A0207: { label: '축제',       variant: 'brand',   gradient: 'from-orange-700 via-amber-600 to-yellow-500',    emoji: '🎉' },
-  A0208: { label: '행사',       variant: 'brand',   gradient: 'from-orange-700 via-amber-600 to-yellow-500',    emoji: '🎪' },
-  A0301: { label: '레포츠',     variant: 'brand',   gradient: 'from-teal-700 via-cyan-600 to-sky-500',          emoji: '🏄' },
-  A0302: { label: '수상레포츠', variant: 'brand',   gradient: 'from-blue-700 via-sky-600 to-cyan-400',          emoji: '🚣' },
-  A0303: { label: '항공레포츠', variant: 'brand',   gradient: 'from-indigo-700 via-blue-600 to-sky-400',        emoji: '🪂' },
-  A0304: { label: '레포츠',     variant: 'brand',   gradient: 'from-teal-700 via-cyan-600 to-sky-500',          emoji: '⛺' },
-  A0401: { label: '쇼핑',       variant: 'mocha',   gradient: 'from-pink-700 via-rose-600 to-fuchsia-500',      emoji: '🛍️' },
-  A0502: { label: '맛집',       variant: 'warning', gradient: 'from-orange-700 via-amber-600 to-yellow-400',    emoji: '🍽️' },
-};
-
-const DEFAULT_META: CategoryMeta = {
-  label: '관광',
-  variant: 'outline',
-  gradient: 'from-stone-700 via-warm-gray-600 to-stone-500',
-  emoji: '📍',
-};
-
-function getCategoryMeta(cat2: string): CategoryMeta {
-  return CAT2_META[cat2] ?? DEFAULT_META;
 }
 
 /**
@@ -64,7 +26,8 @@ function weekendMatchLabel(match: SpotCardType['weekendMatch']): string | null {
 }
 
 export default function SpotCard({ spot }: Props) {
-  const meta = getCategoryMeta(spot.cat2);
+  // 🔴 소분류까지 넘긴다 — cat2 만 보면 박물관·도서관·기념관이 전부 같은 라벨이 된다(2026-09-21).
+  const meta = getSpotCategoryMeta(spot.cat2, spot.cat3);
   const matchLabel = weekendMatchLabel(spot.weekendMatch);
 
   return (

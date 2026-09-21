@@ -170,7 +170,11 @@ async function checkServiceUrl(url) {
   }
 }
 
-// 활용 API 목록의 "단일 소스" — 제출 서류에 적을 11개와 정확히 같아야 한다.
+// 활용 API 목록의 "단일 소스" — KorService2 오퍼레이션 11개와 정확히 같아야 한다.
+// 🔑 검사 기준(11) ≠ 서류 표기(12). 무장애 detailWithTour2 는 KorService2 가 아니라
+//    **별도 API 상품**(15101897 · KorWithService2)이라 barrier-free 항목이 따로 본다.
+//    서류에는 「API 상품 2종 · 오퍼레이션 12개」로 적는다(근거: CLAUDE.md 「TourAPI 활용 현황」).
+//    11 로 적으면 과소 신고이고, 여기 집합에 섞으면 "KorService2 11개" 검사가 무너진다.
 // 개수만 비교하면 하나가 다른 걸로 바뀌어도(모양만 맞으면) 조용히 통과한다 — 그래서 이름 집합으로 비교한다.
 const EXPECTED_APIS = new Set([
   'searchFestival2', 'locationBasedList2', 'areaBasedList2', 'searchKeyword2', 'searchStay2',
@@ -195,7 +199,7 @@ function checkApiList() {
   const extra = [...found].filter((n) => !EXPECTED_APIS.has(n));
   const ok = missing.length === 0 && extra.length === 0;
   const detail = ok
-    ? `lib/tour-api.ts — 11개 전부 일치(주석 제외)`
+    ? `lib/tour-api.ts — KorService2 11개 전부 일치(주석 제외). 서류 표기는 무장애 포함 12개(별도 상품)`
     : `lib/tour-api.ts 불일치(주석 제외) — 누락: ${missing.length ? missing.join(', ') : '없음'} / 초과: ${extra.length ? extra.join(', ') : '없음'}`;
   return { ok, detail };
 }

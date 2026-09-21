@@ -4,6 +4,11 @@ import {
   FINAL_LOADING_MESSAGE,
   FIRST_LOADING_MESSAGE,
   buildLoadingSequence,
+  COURSE_WAIT_CEILING_SEC,
+  COURSE_WAIT_HINT,
+  COURSE_WAIT_TYPICAL_SEC,
+  waitProgressRatio,
+  waitStatusText,
 } from '@/lib/loading-messages';
 
 describe('로딩 멘트', () => {
@@ -48,5 +53,40 @@ describe('로딩 멘트', () => {
     const seq = buildLoadingSequence(() => 0.3);
     const bodyCount = LOADING_MESSAGES.filter((m) => m !== FIRST_LOADING_MESSAGE).length;
     expect(seq).toHaveLength(bodyCount + 2);
+  });
+});
+
+
+describe('대기 안내 — 아는 것만 말한다', () => {
+  it('시작 직후에는 숫자를 말하지 않는다 — 0초부터 세면 초조해진다', () => {
+    expect(waitStatusText(0)).toBe('');
+    expect(waitStatusText(0.4)).toBe('');
+  });
+
+  it('흘러간 시간은 클라이언트가 정확히 아는 값이라 그대로 말한다', () => {
+    expect(waitStatusText(12)).toBe('12초째 만드는 중');
+    expect(waitStatusText(20.9)).toBe('20초째 만드는 중');
+  });
+
+  it('실측 구간(45초)을 넘기면 솔직히 말한다', () => {
+    expect(waitStatusText(COURSE_WAIT_TYPICAL_SEC)).toContain('예상보다 오래');
+    expect(waitStatusText(58)).toContain('예상보다 오래');
+  });
+
+  it('안내가 옛 문구(평균 15~25초)를 되풀이하지 않고 상한 안에 머문다', () => {
+    expect(COURSE_WAIT_HINT).not.toContain('15~25');
+    expect(COURSE_WAIT_TYPICAL_SEC).toBeLessThan(COURSE_WAIT_CEILING_SEC);
+  });
+
+  it('진행은 「예상」이라 100%로 차지 않는다', () => {
+    expect(waitProgressRatio(0)).toBe(0);
+    expect(waitProgressRatio(30)).toBeCloseTo(0.5, 5);
+    expect(waitProgressRatio(999)).toBe(0.95);
+    expect(waitProgressRatio(Number.NaN)).toBe(0);
+  });
+
+  it('시간이 지나면 되돌아가지 않는다', () => {
+    const steps = [1, 5, 10, 30, 59, 120].map(waitProgressRatio);
+    for (let i = 1; i < steps.length; i++) expect(steps[i]).toBeGreaterThanOrEqual(steps[i - 1]);
   });
 });

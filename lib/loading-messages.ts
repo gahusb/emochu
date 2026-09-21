@@ -1,4 +1,4 @@
-// 코스를 만드는 15~25초 동안 화면이 하는 말.
+// 코스를 만드는 30초 안팎 동안 화면이 하는 말.
 //
 // 🔴 2026-09-04 피드백: 멘트가 4개 고정이라 두 번만 써 보면 다 외워진다.
 //    기다림 자체는 줄일 수 없으니(Gemini 호출 + TourAPI 후보 수집), 기다리는
@@ -46,4 +46,38 @@ export const FIRST_LOADING_MESSAGE = LOADING_MESSAGES[0];
 export function buildLoadingSequence(rng: Rng = Math.random): string[] {
   const body = shuffle(LOADING_MESSAGES, rng).filter((m) => m !== FIRST_LOADING_MESSAGE);
   return [FIRST_LOADING_MESSAGE, ...body, FINAL_LOADING_MESSAGE];
+}
+
+// ─── 기다리는 시간 자체에 대해 화면이 말하는 것 ───
+//
+// 🔴 2026-09-21 제출 후 배포본 관찰: 20초 시점에도 생성 중이었고 45초 안에 끝났다(2회).
+//    그런데 화면에는 「평균 15~25초 소요」라고 적혀 있었다 — 첫 인상에서 바로 어긋난다.
+// 🔑 단계별 실측은 아직 없다(계측만 붙였다 — lib/course-stage-timer.ts).
+//    그래서 화면은 **아는 것만** 말한다: 흘러간 시간과 상한, 그리고 그 둘로 만든 「예상」.
+//    (서버 maxDuration 60초, 클라이언트 65초에 중단)
+
+/** 대기 안내. 실측 범위 밖을 약속하지 않는다. */
+export const COURSE_WAIT_HINT = '보통 30초 안팎, 길면 1분까지 걸려요';
+
+/** 서버가 끊는 시각. 진행 추정의 분모다. */
+export const COURSE_WAIT_CEILING_SEC = 60;
+
+/** 실측에서 완료가 몰린 구간. 이걸 넘기면 화면이 "예상보다 오래 걸린다"고 솔직히 말한다. */
+export const COURSE_WAIT_TYPICAL_SEC = 45;
+
+/**
+ * 「지금 몇 초째인가」. 0초를 굳이 적지 않는다 — 시작하자마자 숫자가 뜨면 초조해진다.
+ * 🔑 단계 이름("후보 수집 중")을 쓰지 않는 이유: 서버가 단계를 흘려보내지 않으므로
+ *    클라이언트는 **어느 단계인지 모른다.** 모르는 것을 아는 척하지 않는다.
+ */
+export function waitStatusText(elapsedSec: number): string {
+  if (!Number.isFinite(elapsedSec) || elapsedSec < 1) return '';
+  if (elapsedSec >= COURSE_WAIT_TYPICAL_SEC) return '예상보다 오래 걸리고 있어요. 1분까지는 기다려볼게요';
+  return `${Math.floor(elapsedSec)}초째 만드는 중`;
+}
+
+/** 진행 **추정** 비율(0~1). 실제 진행률이 아니라서 화면도 「예상」이라고 적는다. 100%로 차지 않는다. */
+export function waitProgressRatio(elapsedSec: number): number {
+  if (!Number.isFinite(elapsedSec) || elapsedSec <= 0) return 0;
+  return Math.min(0.95, elapsedSec / COURSE_WAIT_CEILING_SEC);
 }
