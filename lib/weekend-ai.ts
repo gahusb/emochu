@@ -92,6 +92,12 @@ export interface StayCandidate {
 
 export interface CourseGenerationInput {
   signal?: AbortSignal;
+  /**
+   * 이 생성에 쓸 수 있는 전체 시간. 호출부(route)가 요청 상한에서 수집에 쓴 시간을 빼고 준다.
+   * 🔑 모델 체인이 **남은 시간을 알아야** 마지막 모델에 몇 초를 줄지 정할 수 있다.
+   *    모르면 모든 모델에 같은 상한을 주고, 앞 모델이 시간을 다 쓰면 마지막이 굶는다(2026-09-21 실측).
+   */
+  budgetMs?: number;
   departure: { name: string; lat: number; lng: number };
   duration: Duration;
   companion: Companion;
@@ -1294,6 +1300,20 @@ export async function generateCourse(
   const startedAt = Date.now();
   const RETRY_BUDGET_MS = 28_000;
 
+  // 🔴 2026-09-21 실측이 바꾼 부분이다. 그날 운영 8회 중 5회가 폴백이었고, 이유는 이랬다:
+  //    3.6-flash 503(6.6s) → 3초 대기 → 503 재시도 → 3.5-flash 503 → 3초 대기 → 503 재시도
+  //    → 여기까지 20초를 버리고, 유일하게 200 을 주는 2.5-flash 에는 **고정 25초**만 준다.
+  //    그 모델은 같은 크기 요청에 48.6초가 걸렸다 → 25초 타임아웃 → 전 모델 실패 → 폴백.
+  //    고친 것 두 가지: ① 503 은 재시도하지 않고 즉시 다음 모델 ② 호출 상한을 **남은 예산에서**
+  //    계산해 앞 모델은 짧게, 마지막 모델은 남은 걸 다 쓰게 한다.
+  const budgetMs = input.budgetMs ?? 50_000;
+  const RESERVE_MS = 2_000;        // 응답 파싱·검증에 남겨 둘 여유
+  const EARLY_CALL_MS = 12_000;    // 앞 모델: 살아 있으면 이 안에 답한다(8/19 벤치 16.9s 의 절반 수준)
+  const LAST_CALL_MS = 45_000;     // 마지막 모델: 남은 걸 다 준다
+  const MIN_CALL_MS = 6_000;       // 이보다 적게 남았으면 부르지 않는다 — 어차피 못 끝낸다
+  const remainingMs = () => budgetMs - (Date.now() - startedAt);
+  const lastModelId = models[models.length - 1]?.id;
+
   for (const { id: modelId, maxTokens, temp, thinkingBudget } of models) {
     // 최대 2회 시도 (JSON 파싱 실패 시 1회 재시도)
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -1324,7 +1344,14 @@ export async function generateCourse(
           ? '\n\n중요: 반드시 유효한 JSON만 출력하세요. 마크다운이나 설명 텍스트를 포함하지 마세요.'
           : '';
 
-        const result = await model.generateContent(userMessage + retryHint + compositionHint, { signal: input.signal, timeout: 25_000 });
+        // 남은 예산 안에서만 부른다. 마지막 모델에는 남은 걸 다 준다(앞 모델이 503 이면 그게 유일한 기회다).
+        const left = remainingMs() - RESERVE_MS;
+        if (left < MIN_CALL_MS) {
+          console.warn(`[이모추AI] 남은 예산 ${Math.max(0, left)}ms → ${modelId} 호출 생략, 폴백 코스 생성`);
+          return fallback();
+        }
+        const callTimeout = Math.min(modelId === lastModelId ? LAST_CALL_MS : EARLY_CALL_MS, left);
+        const result = await model.generateContent(userMessage + retryHint + compositionHint, { signal: input.signal, timeout: callTimeout });
         const text = result.response.text();
 
         // 🔴 비용을 관리하려면 먼저 재야 한다. 호출 1건의 토큰을 남긴다 —
@@ -1411,13 +1438,12 @@ export async function generateCourse(
           break;
         }
 
-        // 서버 과부하 (503) → 3초 대기 후 같은 모델 재시도
+        // 서버 과부하 (503) → **재시도하지 않고 바로 다음 모델**.
+        // 🔴 예전엔 3초 대기 후 같은 모델을 다시 불렀다. 2026-09-21 실측에서 그 재시도는
+        //    100% 또 503 이었고(모델 단위 용량 문제라 3초로 풀리지 않는다), 모델당 약 10초를
+        //    버려 마지막 모델이 굶었다. 기다릴 시간에 다음 모델을 부르는 편이 낫다.
         if (msg.includes('503') || msg.includes('Service Unavailable') || msg.includes('high demand')) {
-          console.warn(`[이모추AI] ${modelId} 서버 과부하 → ${attempt < 1 ? '3초 후 재시도' : '다음 모델'}`);
-          if (attempt < 1) {
-            await new Promise(r => setTimeout(r, 3000));
-            continue;
-          }
+          console.warn(`[이모추AI] ${modelId} 서버 과부하(503) → 재시도 없이 다음 모델 (남은 예산 ${remainingMs()}ms)`);
           break;
         }
 

@@ -113,3 +113,75 @@ describe('generateCourse (Gemini 모킹 통합)', () => {
     expect(generateContent.mock.calls.length).toBeGreaterThan(1); // 재시도 발생
   });
 });
+
+// 🔴 2026-09-21 운영 실측이 만든 검사다. 그날 8회 중 5회가 폴백이었고 원인은 두 가지였다:
+//    ① 503 을 3초 대기 후 같은 모델에 재시도(100% 또 503) ② 마지막 모델에도 고정 25초.
+//    아래 세 검사는 그 두 가지가 되돌아오면 깨진다.
+describe('모델 체인 시간 예산 (2026-09-21 실측 반영)', () => {
+  const overloaded = () => Object.assign(new Error('[503 Service Unavailable] This model is currently experiencing high demand.'), { name: 'GoogleGenerativeAIFetchError' });
+
+  it('503 은 재시도하지 않고 바로 다음 모델로 간다', async () => {
+    generateContent
+      .mockRejectedValueOnce(overloaded())   // 1순위
+      .mockRejectedValueOnce(overloaded())   // 2순위
+      .mockResolvedValueOnce({ response: { text: () => JSON.stringify({
+      title: '3순위가 살린 코스', summary: '정상 코스',
+      stops: [
+        { contentId: '1', title: '장소1', timeStart: '10:00', durationMin: 60, latitude: 37.5, longitude: 127 },
+        { contentId: '2', title: '식당1', timeStart: '11:40', durationMin: 60, latitude: 37.5, longitude: 127 },
+      ],
+    }) } });
+
+    const startedAt = Date.now();
+    const result = await generateCourse(baseInput());
+
+    // 모델당 1회씩 = 3회. 재시도가 살아 있으면 5~6회가 되고 3초 대기가 두 번 붙는다.
+    expect(generateContent).toHaveBeenCalledTimes(3);
+    expect(Date.now() - startedAt).toBeLessThan(2_000);
+    expect(result.title).toBe('3순위가 살린 코스');
+    expect(result.generationMode).toBe('ai');
+  });
+
+  it('마지막 모델에는 남은 예산을 몰아준다 — 앞 모델은 짧게', async () => {
+    generateContent
+      .mockRejectedValueOnce(overloaded())
+      .mockRejectedValueOnce(overloaded())
+      .mockResolvedValueOnce({ response: { text: () => JSON.stringify({
+      title: '마지막 모델 코스', summary: '정상 코스',
+      stops: [
+        { contentId: '1', title: '장소1', timeStart: '10:00', durationMin: 60, latitude: 37.5, longitude: 127 },
+        { contentId: '2', title: '식당1', timeStart: '11:40', durationMin: 60, latitude: 37.5, longitude: 127 },
+      ],
+    }) } });
+
+    await generateCourse({ ...baseInput(), budgetMs: 50_000 });
+
+    const timeouts = generateContent.mock.calls.map(([, opts]) => opts?.timeout);
+    expect(timeouts).toHaveLength(3);
+    expect(timeouts[0]).toBeLessThanOrEqual(12_000);
+    expect(timeouts[1]).toBeLessThanOrEqual(12_000);
+    // 마지막은 앞 모델보다 확실히 크다(예전엔 셋 다 25초 고정이었다).
+    expect(timeouts[2]).toBeGreaterThan(25_000);
+  });
+
+  it('남은 예산이 바닥이면 부르지 않고 폴백한다 — 못 끝낼 호출에 시간을 쓰지 않는다', async () => {
+    const result = await generateCourse({ ...baseInput(), budgetMs: 3_000 });
+    expect(generateContent).not.toHaveBeenCalled();
+    expect(result.generationMode).toBe('rules');
+    expect(result.stops.length).toBeGreaterThan(0);
+  });
+
+  it('예산을 주지 않으면 기본값으로 돈다 — 기존 호출부는 그대로 동작한다', async () => {
+    generateContent.mockResolvedValueOnce({ response: { text: () => JSON.stringify({
+      title: '기본 예산 코스', summary: '정상 코스',
+      stops: [
+        { contentId: '1', title: '장소1', timeStart: '10:00', durationMin: 60, latitude: 37.5, longitude: 127 },
+        { contentId: '2', title: '식당1', timeStart: '11:40', durationMin: 60, latitude: 37.5, longitude: 127 },
+      ],
+    }) } });
+    const result = await generateCourse(baseInput());
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(generateContent.mock.calls[0][1]?.timeout).toBeGreaterThan(0);
+    expect(result.title).toBe('기본 예산 코스');
+  });
+});

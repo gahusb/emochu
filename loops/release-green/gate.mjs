@@ -20,7 +20,7 @@ const OUT_DIR = resolve(HERE, 'outputs');
 // 돈다. gate 는 그 키 없이 도는 게 정상이므로 기준선에서 제외한다 —
 // 포함시키면 게이트가 매번 WARN 을 내 경고 피로만 생긴다.
 // 2026-09-21: 제출 후 개선(배지 분류·단계 계측·대기 안내·동반자별 이동 기준)으로 24개 추가 → 561.
-const BASELINE = 564;
+const BASELINE = 568;
 
 const pad = (n) => String(n).padStart(2, '0');
 const now = new Date();

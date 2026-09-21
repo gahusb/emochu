@@ -379,6 +379,9 @@ export async function POST(request: NextRequest) {
     const aiController = new AbortController();
     const remainingMs = Math.max(0, 53_000 - (Date.now() - requestStartedAt));
     input.signal = AbortSignal.any([request.signal, aiController.signal]);
+    // 🔑 엔진에도 같은 예산을 알려 준다(바깥 경주보다 1초 먼저 끝나게). 그래야 엔진이
+    //    "마지막 모델에 몇 초를 줄지"를 스스로 정할 수 있다 — 모르면 앞 모델이 시간을 다 쓴다.
+    input.budgetMs = Math.max(0, remainingMs - 1_000);
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
     let generated: CourseData;
     // 어느 경로로 만들어졌는지 로그에 남긴다 — 폴백이 잦다면 그게 대기시간의 진짜 원인이다.
