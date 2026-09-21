@@ -82,6 +82,26 @@ export function formatTimingLine(summary: CourseTimingSummary, prefix = '[이모
   return [prefix, `total=${Math.round(summary.totalMs)}`, ...parts, ...metaParts].join(' ');
 }
 
+/**
+ * 응답 헤더용 한 줄. 서버 로그를 열어보지 못하는 쪽(외부 측정기·다른 세션)이
+ * **호출 한 번으로 단계별 소요를 읽게** 하는 통로다.
+ *
+ * 규칙 세 가지:
+ *  1) 단계는 `이름=밀리초`, 부가 정보는 `이름:값` — 같은 이름(ai)이 둘 다에 있어도 구분된다.
+ *  2) HTTP 헤더는 latin-1 이라 **ASCII 밖 문자는 버린다**(한글 접두어를 쓰지 않는 이유).
+ *  3) 🔴 비밀값·좌표·사용자 식별자를 담지 않는다. 단계 이름·소요·후보 수 같은 집계뿐이다.
+ */
+export function formatTimingHeader(summary: CourseTimingSummary): string {
+  const stages = [...summary.stages].sort((a, b) => b.ms - a.ms).map((s) => `${s.stage}=${Math.round(s.ms)}`);
+  const meta = Object.entries(summary.meta).map(([k, v]) => `${k}:${v}`);
+  return [`total=${Math.round(summary.totalMs)}`, ...stages, ...meta]
+    .join(' ')
+    // 방어적으로 한 번 더 — 값에 예상 못 한 문자가 섞여도 헤더가 깨지지 않게.
+    // `[^ -~]` = 공백(0x20)~물결(0x7E) 밖, 즉 출력 가능한 ASCII 가 아닌 것 전부(줄바꿈 포함).
+    .replace(/[^ -~]/g, '')
+    .slice(0, 500);
+}
+
 /** 표본을 모을 때 쓰는 요약 — "지배적인 단계가 무엇인가"에만 답한다. */
 export function dominantStage(summary: CourseTimingSummary): StageSpent | null {
   if (!summary.stages.length) return null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createStageTimer, dominantStage, formatTimingLine } from '@/lib/course-stage-timer';
+import { createStageTimer, dominantStage, formatTimingHeader, formatTimingLine } from '@/lib/course-stage-timer';
 
 const fakeClock = () => {
   let t = 0;
@@ -70,5 +70,44 @@ describe('코스 생성 단계 계측', () => {
     await timer.track('ai', async () => { clock.advance(18_000); });
     expect(dominantStage(timer.summary())).toEqual({ stage: 'ai', ms: 18_000 });
     expect(dominantStage(createStageTimer(clock.now).summary())).toBeNull();
+  });
+});
+
+describe('응답 헤더 — 로그를 못 보는 쪽이 읽는 통로', () => {
+  const sample = async () => {
+    const clock = fakeClock();
+    const timer = createStageTimer(clock.now);
+    await timer.track('collect', async () => { clock.advance(1_200); });
+    await timer.track('ai', async () => { clock.advance(18_000); });
+    timer.note('candidates', 66);
+    timer.note('ai', 'gemini');
+    timer.note('persistence', 'saved');
+    return timer.summary();
+  };
+
+  it('단계는 =, 부가 정보는 : 로 갈라 같은 이름도 구분된다', async () => {
+    const header = formatTimingHeader(await sample());
+    expect(header).toContain('total=19200');
+    expect(header).toContain('ai=18000');      // 단계
+    expect(header).toContain('ai:gemini');     // 부가 정보
+    expect(header).toContain('candidates:66');
+    expect(header.indexOf('ai=18000')).toBeLessThan(header.indexOf('collect=1200'));
+  });
+
+  it('HTTP 헤더에 실을 수 있도록 ASCII 만 남긴다', async () => {
+    const clock = fakeClock();
+    const timer = createStageTimer(clock.now);
+    timer.mark('ai', 100);
+    timer.note('note', ['한글과 줄바꿈', '도 섞인 값'].join(String.fromCharCode(10)));
+    const header = formatTimingHeader(timer.summary());
+    expect(header).toMatch(/^[ -~]*$/);
+    expect(header).not.toContain('한글');
+  });
+
+  it('길어져도 헤더 한도를 넘기지 않는다', () => {
+    const clock = fakeClock();
+    const timer = createStageTimer(clock.now);
+    for (let i = 0; i < 80; i++) timer.note('k' + i, 'x'.repeat(30));
+    expect(formatTimingHeader(timer.summary()).length).toBeLessThanOrEqual(500);
   });
 });

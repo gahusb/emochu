@@ -15,7 +15,7 @@ import { fetchBarrierFree } from '@/lib/barrier-free-api';
 import { type Element5 } from '@/lib/saju';
 import { getTripSaju } from '@/lib/trip-context';
 import { finalizeCourse } from '@/lib/course-quality';
-import { createStageTimer, formatTimingLine } from '@/lib/course-stage-timer';
+import { createStageTimer, formatTimingHeader, formatTimingLine } from '@/lib/course-stage-timer';
 import {
   checkAndBumpUsage, clientKeyFrom, secondsUntilKstMidnight,
   PER_CLIENT_DAILY, GLOBAL_DAILY,
@@ -425,7 +425,7 @@ export async function POST(request: NextRequest) {
       }
       timer.note('variant', 'b');
       console.info(formatTimingLine(timer.summary()));
-      return NextResponse.json({ courseB: course });
+      return NextResponse.json({ courseB: course }, { headers: { 'x-emochu-timings': formatTimingHeader(timer.summary()) } });
     }
 
     // 5-b. Supabase 저장 (실패해도 코스는 반환)
@@ -506,7 +506,9 @@ export async function POST(request: NextRequest) {
       fortuneMessage,
     };
 
-    return NextResponse.json(response);
+    // 🔑 서버 로그를 못 보는 쪽도 단계별 소요를 읽을 수 있게 같은 내용을 헤더로 보낸다.
+    //    (본문 계약은 건드리지 않는다 — 기존 클라이언트는 이 헤더를 무시한다.)
+    return NextResponse.json(response, { headers: { 'x-emochu-timings': formatTimingHeader(timer.summary()) } });
 
   } catch (err) {
     const message = err instanceof Error ? err.message : '코스 생성 중 오류가 발생했습니다.';
