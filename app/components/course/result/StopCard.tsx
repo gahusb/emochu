@@ -1,12 +1,14 @@
 'use client';
 
 import Image from 'next/image';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lightbulb, Route, Navigation, Phone, Repeat2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { CourseStop } from '@/lib/weekend-types';
 import { getRoleInfo } from '@/lib/course-role';
 import { formatTimeRange } from './formatTime';
 import BarrierFreeNotice from '@/app/components/BarrierFreeNotice';
+import { HOURS_LABELS } from '@/lib/course-hours-summary';
 
 interface Props {
   stop: CourseStop;
@@ -27,6 +29,7 @@ export default function StopCard({
   editable = false, busy = false, canMoveUp = false, canMoveDown = false, onReplace, onMove,
 }: Props) {
   const router = useRouter();
+  const [failedImage, setFailedImage] = useState<string | null>(null);
   const { colorHex, label } = getRoleInfo(stop);
   const timeRange = formatTimeRange(stop.timeStart, stop.durationMin);
 
@@ -37,7 +40,7 @@ export default function StopCard({
   const telDigits = stop.tel?.replace(/[^0-9+]/g, '') ?? '';
 
   return (
-    <div className="relative flex gap-4">
+    <div className="relative flex gap-2 sm:gap-4">
       <div className="flex flex-col items-center flex-shrink-0 w-10">
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
@@ -49,20 +52,20 @@ export default function StopCard({
         {!isLast && <div className="flex-1 w-px bg-line my-1" />}
       </div>
 
-      <div className="flex-1 mb-4">
+      <div className="flex-1 min-w-0 mb-4">
       <button
         type="button"
         onClick={() => { if (isActive) router.push(`/spot/${stop.contentId}`); else onActivate(); }}
         aria-label={`${stop.order}번째 코스: ${stop.title}, ${timeRange}, ${label}${
-          stop.openStatus === 'open' ? ', 방문일 영업 확인됨' : stop.openStatus === 'unknown' ? ', 운영시간 확인 필요' : ''
-        }${
+          stop.openStatus === 'open' ? ', 정기 휴무일과 겹치지 않음' : stop.openStatus === 'unknown' ? ', 정기휴무 미확인' : ''
+        }${stop.source === 'tourapi' || stop.hoursStatus ? `, ${HOURS_LABELS[stop.hoursStatus ?? 'unknown']}` : ''}${
           stop.accessibilityStatus === 'unverified' ? ', 접근성 정보 확인 필요' : ''
         }${isActive ? '. 다시 눌러 상세 보기' : ''}`}
         className={`w-full text-left bg-surface-elevated rounded-lg border overflow-hidden transition-all hover:border-ink-4 ${
           isActive ? 'border-brand ring-2 ring-brand/20' : 'border-line'
         }`}
       >
-        {stop.imageUrl && (
+        {stop.imageUrl && failedImage !== stop.imageUrl && (
           <div className="relative aspect-video overflow-hidden">
             <Image
               src={stop.imageUrl}
@@ -70,6 +73,7 @@ export default function StopCard({
               fill
               sizes="(max-width: 1024px) 100vw, 60vw"
               className="object-cover"
+              onError={() => setFailedImage(stop.imageUrl ?? null)}
               unoptimized={stop.imageUrl.startsWith('http://')}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
@@ -90,7 +94,7 @@ export default function StopCard({
           </span>
           {stop.openStatus === 'open' && (
             <span className="ml-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-success bg-success-soft border border-success/30 px-2 py-0.5 rounded-md">
-              영업 확인
+              정기휴무 아님
             </span>
           )}
           {stop.openStatus === 'unknown' && (
@@ -98,11 +102,13 @@ export default function StopCard({
               className="ml-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-ink-3 bg-surface-sunken border border-line px-2 py-0.5 rounded-md"
               title={stop.restdate ? `쉬는날: ${stop.restdate}` : undefined}
             >
-              운영시간 확인 필요
+              정기휴무 미확인
             </span>
           )}
-          <h3 className="text-base font-semibold text-ink-1">{stop.title}</h3>
+          <h3 className="text-base font-semibold text-ink-1 break-words">{stop.title}</h3>
+          {stop.themeMatched && <p className="text-xs font-medium text-brand">☯ 여행일 오행 테마와 어울리는 장소</p>}
           <p className="text-xs text-ink-3">{timeRange} · {stop.durationMin}분</p>
+          {(stop.source === 'tourapi' || stop.hoursStatus) && <p className="text-xs text-ink-2">{HOURS_LABELS[stop.hoursStatus ?? 'unknown']} · 실제 운영·예약은 확인해주세요.</p>}
           {stop.whyNow && (
             <p className="text-xs font-semibold text-brand mb-2">{stop.whyNow}</p>
           )}
@@ -131,13 +137,13 @@ export default function StopCard({
           사용자는 코스를 보고 나서 다시 검색창으로 나가야 한다.
           🔴 카드 전체가 <button> 이라 그 안에 링크를 넣을 수 없다(인터랙티브 중첩).
              그래서 카드 바깥, 같은 열에 둔다. */}
-      <div className="flex gap-2 mt-2">
+      <div className="flex flex-wrap gap-2 mt-2">
         <a
           href={naviUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`${stop.title} 길찾기 (새 창)`}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-line bg-surface-elevated text-xs font-semibold text-ink-2 hover:border-brand hover:text-brand transition-colors"
+          className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-lg border border-line bg-surface-elevated text-xs font-semibold text-ink-2 hover:border-brand hover:text-brand transition-colors"
         >
           <Navigation size={13} strokeWidth={2} aria-hidden="true" />
           길찾기
@@ -146,7 +152,7 @@ export default function StopCard({
           <a
             href={`tel:${telDigits}`}
             aria-label={`${stop.title} 전화 ${stop.tel}`}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-line bg-surface-elevated text-xs font-semibold text-ink-2 hover:border-brand hover:text-brand transition-colors"
+            className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-lg border border-line bg-surface-elevated text-xs font-semibold text-ink-2 hover:border-brand hover:text-brand transition-colors"
           >
             <Phone size={13} strokeWidth={2} aria-hidden="true" />
             전화
@@ -157,13 +163,13 @@ export default function StopCard({
             🔑 코스를 만든 사람에게만 보인다. 공유 링크로 들어온 사람에게 보이면
                눌러도 안 되는 버튼이 되고, 그건 없느니만 못하다. */}
         {editable && (
-          <div className="flex gap-2 ml-auto">
+          <div className="flex flex-wrap gap-2 sm:ml-auto">
             <button
               type="button"
               onClick={onReplace}
               disabled={busy}
               aria-label={`${stop.title} 다른 곳으로 바꾸기`}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-line bg-surface-elevated text-xs font-semibold text-ink-2 hover:border-brand hover:text-brand disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-lg border border-line bg-surface-elevated text-xs font-semibold text-ink-2 hover:border-brand hover:text-brand disabled:opacity-50 transition-colors"
             >
               <Repeat2 size={13} strokeWidth={2} aria-hidden="true" />
               바꾸기
@@ -173,7 +179,7 @@ export default function StopCard({
               onClick={() => onMove?.('up')}
               disabled={busy || !canMoveUp}
               aria-label={`${stop.title} 앞으로 옮기기`}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-line bg-surface-elevated text-ink-2 hover:border-brand hover:text-brand disabled:opacity-40 transition-colors"
+              className="h-11 w-11 flex items-center justify-center rounded-lg border border-line bg-surface-elevated text-ink-2 hover:border-brand hover:text-brand disabled:opacity-40 transition-colors"
             >
               <ChevronUp size={14} strokeWidth={2} aria-hidden="true" />
             </button>
@@ -182,7 +188,7 @@ export default function StopCard({
               onClick={() => onMove?.('down')}
               disabled={busy || !canMoveDown}
               aria-label={`${stop.title} 뒤로 옮기기`}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-line bg-surface-elevated text-ink-2 hover:border-brand hover:text-brand disabled:opacity-40 transition-colors"
+              className="h-11 w-11 flex items-center justify-center rounded-lg border border-line bg-surface-elevated text-ink-2 hover:border-brand hover:text-brand disabled:opacity-40 transition-colors"
             >
               <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
             </button>

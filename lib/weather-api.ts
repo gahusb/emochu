@@ -78,14 +78,15 @@ async function getVilageFcst(params: {
   const url = new URL(`${BASE_URL}/getVilageFcst`);
   url.searchParams.set('serviceKey', getServiceKey());
   url.searchParams.set('dataType', 'JSON');
-  url.searchParams.set('numOfRows', '1000');
+  // 1,000행에서 마지막 날짜가 중간에 잘릴 수 있어 범위를 넉넉히 받는다.
+  url.searchParams.set('numOfRows', '2000');
   url.searchParams.set('pageNo', '1');
   url.searchParams.set('base_date', params.baseDate);
   url.searchParams.set('base_time', params.baseTime);
   url.searchParams.set('nx', String(params.nx));
   url.searchParams.set('ny', String(params.ny));
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(7_000) });
   if (!res.ok) throw new Error(`기상청 API 호출 실패: ${res.status}`);
 
   const json = await res.json();
@@ -163,8 +164,9 @@ export async function getWeekendForecast(params: {
 
   // 기상청 단기예보: 02시, 05시, 08시, 11시, 14시, 17시, 20시, 23시 발표
   // 최신 발표 시각 기준으로 조회 (최대 +3일 예보)
-  const now = new Date();
-  const hour = now.getHours();
+  // KST 달력 값을 UTC 게터로 읽는다. Vercel(UTC)과 국내 브라우저가 같은 발표를 조회한다.
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const hour = now.getUTCHours();
 
   // 현재 시각에서 가장 최근 발표된 baseTime 결정
   const BASE_TIMES = ['2300', '2000', '1700', '1400', '1100', '0800', '0500', '0200'];
@@ -183,12 +185,12 @@ export async function getWeekendForecast(params: {
   }
 
   // 새벽 0~2시면 전일 2300 사용
-  if (hour < 2) {
-    baseDay.setDate(baseDay.getDate() - 1);
+  if (hour < 3) {
+    baseDay.setUTCDate(baseDay.getUTCDate() - 1);
     baseTime = '2300';
   }
 
-  const baseDate = `${baseDay.getFullYear()}${String(baseDay.getMonth() + 1).padStart(2, '0')}${String(baseDay.getDate()).padStart(2, '0')}`;
+  const baseDate = `${baseDay.getUTCFullYear()}${String(baseDay.getUTCMonth() + 1).padStart(2, '0')}${String(baseDay.getUTCDate()).padStart(2, '0')}`;
 
   let items: FcstItem[] = [];
 
@@ -212,8 +214,8 @@ export async function getWeekendForecast(params: {
   // 데이터 없으면 전일 2300 발표 시도
   if (items.length === 0) {
     const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = `${yesterday.getFullYear()}${String(yesterday.getMonth() + 1).padStart(2, '0')}${String(yesterday.getDate()).padStart(2, '0')}`;
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const yesterdayStr = `${yesterday.getUTCFullYear()}${String(yesterday.getUTCMonth() + 1).padStart(2, '0')}${String(yesterday.getUTCDate()).padStart(2, '0')}`;
     try {
       items = await getVilageFcst({
         nx: grid.nx,
@@ -226,27 +228,30 @@ export async function getWeekendForecast(params: {
     }
   }
 
-  if (items.length === 0) {
-    const fallback: DayWeather = {
-      date: params.saturdayDate,
-      sky: 'clear',
-      precipitation: 'none',
-      tempMin: 15,
-      tempMax: 22,
-      pop: 0,
-      summary: '날씨 정보 확인 중',
-    };
+  // 날짜가 존재하는 것만으로는 하루 예보가 아니다. 9/9 실측에서 일요일 00시
+  // 한 시간만으로 맑음·최저=최고를 만들었다. 나들이 시간대 주요 필드의 범위를 확인한다.
+  const hasDay = (date: string) => ['0900', '1200', '1800'].every(time =>
+    ['SKY', 'POP', 'PTY', 'TMP'].every(category => items.some(i =>
+      i.fcstDate === date && i.fcstTime === time && i.category === category &&
+      i.fcstValue.trim() !== '' && Number.isFinite(Number(i.fcstValue)) &&
+      (category !== 'SKY' || ['1', '3', '4'].includes(i.fcstValue)) &&
+      (category !== 'PTY' || ['0', '1', '2', '3', '4'].includes(i.fcstValue)) &&
+      (category !== 'POP' || (Number(i.fcstValue) >= 0 && Number(i.fcstValue) <= 100)))));
+  const unknown = (date: string): DayWeather => ({
+    date, sky: 'cloudy', precipitation: 'none', tempMin: 0, tempMax: 0, pop: 0,
+    summary: '해당 날짜 예보 미확인', unavailable: true,
+  });
+  const saturday = hasDay(params.saturdayDate) ? buildDayWeather(params.saturdayDate, items) : unknown(params.saturdayDate);
+  const sunday = hasDay(params.sundayDate) ? buildDayWeather(params.sundayDate, items) : unknown(params.sundayDate);
+  if (saturday.unavailable || sunday.unavailable) {
     return {
-      saturday: { ...fallback, date: params.saturdayDate },
-      sunday: { ...fallback, date: params.sundayDate },
-      recommendation: '날씨 정보를 불러오는 중입니다.',
-      // 예보가 한 건도 안 왔다 — 위 값들은 자리표시자지 예보가 아니다.
-      unavailable: true,
+      saturday, sunday,
+      recommendation: saturday.unavailable && sunday.unavailable
+        ? '주말 예보를 아직 확인할 수 없어요. 출발 전에 다시 확인해주세요.'
+        : `${saturday.unavailable ? '토요일' : '일요일'} 예보는 미확인이에요. 확인된 날짜의 예보만 반영해요.`,
+      unavailable: Boolean(saturday.unavailable && sunday.unavailable),
     };
   }
-
-  const saturday = buildDayWeather(params.saturdayDate, items);
-  const sunday = buildDayWeather(params.sundayDate, items);
 
   // 추천 메시지 생성
   let recommendation: string;

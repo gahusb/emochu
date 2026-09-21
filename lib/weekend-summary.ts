@@ -9,6 +9,7 @@
 // 테스트로 확정할 수 없다. tests/weekend-summary.test.ts 가 사실을 붙잡는다.
 
 import type { DayWeather, WeekendWeather } from './weekend-types';
+import { hasForecast } from './weather-coverage';
 import { getWeekendElements, ELEMENT_META, ELEMENT_COURSE_HINT } from './saju';
 
 export type WeatherTone = 'clear' | 'mild' | 'wet';
@@ -44,6 +45,17 @@ export function summarizeWeekendWeather(weather: WeekendWeather | null): Weekend
 
   const sat = weather.saturday;
   const sun = weather.sunday;
+
+  const satKnown = hasForecast(weather, sat), sunKnown = hasForecast(weather, sun);
+  if (!satKnown && !sunKnown) return { text: '주말 날씨를 확인하고 있어요', temp: null, tone: 'mild' };
+  if (!satKnown || !sunKnown) {
+    const known = satKnown ? sat : sun;
+    const label = satKnown ? '토요일' : '일요일';
+    const missing = satKnown ? '일요일' : '토요일';
+    const wet = isWet(known);
+    const condition = wet ? `${wetWord(known, known)} 소식` : known.sky === 'clear' ? '맑음' : '흐림';
+    return { text: `${label} ${condition} · ${missing} 예보 미확인`, temp: `${known.tempMin}~${known.tempMax}°`, tone: wet ? 'wet' : known.sky === 'clear' ? 'clear' : 'mild' };
+  }
 
   const lo = Math.min(sat.tempMin, sun.tempMin);
   const hi = Math.max(sat.tempMax, sun.tempMax);

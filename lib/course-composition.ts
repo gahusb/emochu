@@ -45,7 +45,7 @@ function hasRoleInWindow(stops: CourseStop[], role: SpotRole, [from, to]: readon
  *
  * 🔴 role 이 없는 stop 은 위반으로 세지 않는다. 기존에 저장된 코스에는 role 이 없어서,
  *    그걸 위반으로 보면 옛 코스가 전부 깨진 것으로 보고된다.
- * 🔴 overnight 은 검증하지 않는다. 숙박이 끼어 슬롯 규칙이 다르고, 1차에서는 관찰만 한다.
+ * overnight도 일차별 점심, 1일차 저녁을 따로 검사한다. 관광지로 분류된 음식 거리를 식당으로 단정하지 않는다.
  */
 export function validateComposition(
   stops: CourseStop[],
@@ -56,7 +56,16 @@ export function validateComposition(
 ): CompositionResult {
   const problems: string[] = [];
 
-  if (duration === 'overnight') return { ok: true, problems };
+  if (duration === 'overnight') {
+    if (availableRoles?.has('restaurant') ?? stops.some(s => s.role === 'restaurant')) {
+      for (const day of [1, 2]) {
+        const daily = stops.filter(s => (s.day ?? 1) === day);
+        if (!hasRoleInWindow(daily, 'restaurant', LUNCH)) problems.push(`${day}일차 점심(11:00~14:00)에 음식점이 배치되지 않았습니다.`);
+        if (day === 1 && !hasRoleInWindow(daily, 'restaurant', DINNER)) problems.push('1일차 저녁(17:00~20:00)에 음식점이 배치되지 않았습니다.');
+      }
+    }
+    return { ok: problems.length === 0, problems };
+  }
 
   const roled = stops.filter((s) => s.role !== undefined);
   if (roled.length === 0) return { ok: true, problems }; // 하위호환: role 없는 옛 코스

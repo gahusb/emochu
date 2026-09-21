@@ -44,6 +44,8 @@ export type SkyCondition = 'clear' | 'cloudy' | 'overcast';
 export type PrecipitationType = 'none' | 'rain' | 'snow' | 'mixed';
 
 export interface DayWeather {
+  /** 이 날짜의 예보가 없거나 필수 수치가 불완전하다. 숫자 필드는 표시/추천에 사용하지 않는다. */
+  unavailable?: boolean;
   date: string;           // YYYY-MM-DD
   sky: SkyCondition;
   precipitation: PrecipitationType;
@@ -58,7 +60,8 @@ export interface WeekendWeather {
   sunday: DayWeather;
   recommendation: string; // "토요일이 외출 적기예요"
   /**
-   * 🔴 실제 예보가 아니라 **자리를 채운 값**이라는 표시.
+   * 두 날짜 모두 실제 예보가 아니라 **자리를 채운 값**이라는 표시.
+   * 하루만 없으면 해당 DayWeather.unavailable을 확인한다. 기존 저장 데이터도 지원한다.
    *    폴백 DayWeather 는 sky:'clear', pop:0 이라 그냥 읽으면 "토·일 모두 맑아요"가 된다 —
    *    기상청 응답이 없을 때 화면이 맑다고 단언해 버린다.
    *    표시하는 쪽(summarizeWeekendWeather)이 이 값을 보고 입을 다문다.
@@ -239,6 +242,10 @@ export interface FacilityInfo {
 }
 
 export interface CourseStop {
+  /** 후보의 분류·키워드가 여행일 오행 매칭 규칙에 맞을 때만 true. */
+  themeMatched?: boolean;
+  /** 생성 서버가 후보 ID 및 원본 필드를 대조한 장소에만 붙인다. 영업 보장은 아니다. */
+  source?: 'tourapi';
   order: number;
   contentId: string;
   title: string;
@@ -260,7 +267,8 @@ export interface CourseStop {
   /** 전화번호 (TourAPI). 있으면 바로 걸 수 있게 노출한다. */
   tel?: string;
   contentTypeId?: string;  // Phase 2: "12"|"14"|"15"|"28"|"32"|"39" — optional (기존 저장 코스 하위호환)
-  openStatus?: 'open' | 'unknown';   // 방문일 영업 확인 여부
+  openStatus?: 'open' | 'unknown';   // 정기 휴무 요일 대조만. 운영시간·실시간 영업 확인이 아님.
+  hoursStatus?: 'within' | 'outside' | 'unknown'; // 제안 시각/체류와 원문 운영구간 대조. 예약 보장 아님.
   restdate?: string;                 // 쉬는날 원문 (툴팁·보조 표시용)
   /** 코스에서 맡는 역할. 구성 검증(카페 슬롯·식사 시간대)의 근거다. */
   role?: SpotRole;
@@ -274,6 +282,7 @@ export type CourseDifficulty = 'easy' | 'moderate' | 'active';
 
 /** 저장·표시용 사주 컨텍스트 (lib/saju.ts SajuResult가 구조적으로 할당 가능) */
 export interface CourseSaju {
+  basisDate?: string; // YYYY-MM-DD, 여행 시작일 (todayElement는 저장 호환용 이름)
   birthElement: 'wood' | 'fire' | 'earth' | 'metal' | 'water';
   todayElement: 'wood' | 'fire' | 'earth' | 'metal' | 'water';
   relation: 'same' | 'generates' | 'generated' | 'controls' | 'controlled';
@@ -281,7 +290,22 @@ export interface CourseSaju {
   message: string;
 }
 
+export interface CourseAdjustment {
+  kind: 'meal_added' | 'shorter_leg' | 'festival_timing' | 'festival_meal' | 'budget_trim' | 'time_compacted';
+  day: number;
+  contentId: string;
+  previousContentId?: string;
+  previousTitle?: string; // 서버가 원본 대조한 교체/제외 전 장소명
+}
+
 export interface CourseData {
+  generationMode?: 'ai' | 'rules';
+  verification?: {
+    visitDates: string[];
+    checkedAt: string;
+    warnings: string[];
+    adjustments?: CourseAdjustment[];
+  };
   title: string;
   summary: string;
   totalDistanceKm: number;
@@ -294,6 +318,7 @@ export interface CourseData {
 }
 
 export interface CourseResponse {
+  persistence?: 'saved' | 'temporary';
   courseId: string;
   shareUrl: string;
   /**

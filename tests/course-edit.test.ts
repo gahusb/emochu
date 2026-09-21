@@ -67,7 +67,7 @@ describe('recalcRoute — 교체·순서 변경 뒤 거리와 이동정보를 �
   it('첫 장소에는 이동정보가 없다', () => {
     const out = recalcRoute([stop(1), stop(2)]);
     expect(out.stops[0].transitInfo).toBeUndefined();
-    expect(out.stops[1].transitInfo).toMatch(/차로 \d+분/);
+    expect(out.stops[1].transitInfo).toMatch(/이동 약 \d+분.*직선.*추정/);
   });
 
   // 🔴 이전 이동정보가 남으면 「차로 15분」이라 적힌 채 실제로는 40분인 코스가 된다.

@@ -36,20 +36,39 @@ export default function StopReplaceSheet({
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeAction = useRef(onClose);
+  useEffect(() => { closeAction.current = onClose; }, [onClose]);
 
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeAction.current(); }
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]') ?? []);
+      const first = focusable[0]; const last = focusable.at(-1);
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+      previous?.focus();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     (async () => {
       try {
         const res = await fetch(`/api/course/${slug}/alternatives?order=${order}`, {
           headers: { 'x-edit-token': editToken },
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
         });
         const json = await res.json();
         if (cancelled) return;
@@ -59,7 +78,7 @@ export default function StopReplaceSheet({
         if (!cancelled) setError(err instanceof Error ? err.message : '주변 장소를 불러오지 못했어요.');
       }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [slug, order, editToken]);
 
   const handlePick = async (contentId: string) => {
@@ -79,6 +98,7 @@ export default function StopReplaceSheet({
       role="presentation"
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`${currentTitle} 대신 갈 곳 고르기`}
@@ -95,7 +115,7 @@ export default function StopReplaceSheet({
             type="button"
             onClick={onClose}
             aria-label="닫기"
-            className="h-9 w-9 flex items-center justify-center rounded-lg text-ink-3 hover:bg-surface-sunken transition-colors"
+            className="h-11 w-11 flex items-center justify-center rounded-lg text-ink-3 hover:bg-surface-sunken transition-colors"
           >
             <X size={18} />
           </button>
@@ -104,11 +124,27 @@ export default function StopReplaceSheet({
         <div className="flex-1 overflow-y-auto p-3">
           {error && <p role="alert" className="p-4 text-sm text-red-500 text-center">{error}</p>}
 
+          {/* 🔑 결과와 같은 모양의 뼈대를 먼저 둔다 — 빈 화면이 1.5초 넘게 남으면
+              기능이 멈춘 것처럼 보이고, 시연·촬영에도 그대로 찍힌다(2026-09-21 관찰). */}
           {!items && !error && (
-            <p className="p-8 flex items-center justify-center gap-2 text-sm text-ink-3">
-              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-              주변을 찾는 중…
-            </p>
+            <div aria-busy="true">
+              <p className="flex items-center justify-center gap-2 text-sm text-ink-3 pb-3" role="status">
+                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                주변을 찾는 중…
+              </p>
+              <ul className="space-y-2" aria-hidden="true">
+                {Array.from({ length: 3 }, (_, i) => (
+                  <li key={i} className="flex items-center gap-3 p-2 rounded-lg border border-line">
+                    <div className="w-16 h-16 flex-shrink-0 rounded-md skeleton" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="h-4 w-2/3 rounded-md skeleton" />
+                      <div className="h-3 w-1/2 rounded-md skeleton" />
+                      <div className="h-3 w-1/3 rounded-md skeleton" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {items?.length === 0 && (

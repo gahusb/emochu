@@ -1,118 +1,76 @@
-# 이모추! 배포 전 체크리스트
+# 이모추 배포 전 체크리스트
 
-> 이 문서를 순서대로 체크하면서 진행하세요. 각 항목을 완료하면 [x]로 표시.
+2026-09-12 공유 수정 배포 결과 반영. 체크박스는 운영 확인 전까지 미완료로 둔다. **이 문서는 배포·DB 변경을 실행하는 명령서가 아니라 점검표다.** 이전의 /weekend 경로, 테이블 삭제 권장, 익명 INSERT 허용, 무료 한도 단정, 4회 연속 생성 검사는 폐기했다.
 
----
+## 1. 현재 배포 보류 조건
 
-## 1. 환경변수 (.env.local + Vercel)
+- [x] 9/11 22:05 KST 사용자 제공 메타데이터에서 공개 SELECT 정책·anon/authenticated의 edit_token SELECT 허용 구성을 확인했다. 실제 외부 유출·악용은 미확인이다.
+- [x] 사용자 017 실행 성공 보고 후 9/11 23:20 KST 메타데이터에서 목표 권한 차단·서버 권한 유지 확인. [결과](2026-09-11-DB-권한-보완-적용안.md). 실제 앱 동작이나 배포 완료와는 별개다.
+- [ ] 권한 변경 후 기존 공유 코스·로그인 내 코스·생성자 편집 기능을 확인하고 기존 편집 토큰 처리 범위를 결정한다.
+- [x] **카카오 공유 코드 배포:** 사용자 승인으로 공유 수정·테스트 두 파일만 `075b160` 커밋·main push, Vercel 성공 및 운영 JS의 전체 주소 변환 확인. [배포 결과](2026-09-12-카카오공유-수정-배포결과.md). DB 권한 차단은 유지했다.
+- [ ] **카카오 실기기 최종 확인:** 기존 코스 화면을 새로고침해 새 공유 메시지를 만들고 iPhone에서 ‘코스 보기’를 누른다. 계속 홈으로 이동하면 실제 메시지 목적지/리다이렉트·제품 링크 도메인을 확인한다. 기존 메시지의 교정을 가정하지 않는다.
+- [x] 사용자 제공 기존 코스 표본의 페이지/API HTTP 200·코스 데이터 존재·상대 shareUrl 응답 확인. 직접 URL 조회 정상/카카오 공유 메시지 실패를 구분했다. 생성·편집·내 코스 전체의 운영 통과를 뜻하지 않는다.
+- [ ] 로컬 누적 변경의 배포 범위, Vercel 프로젝트, Production 브랜치와 되돌릴 배포를 확인한다.
+- [x] Vercel Production에 SUPABASE_SERVICE_ROLE_KEY가 설정되어 있다는 사용자 확인을 받았다. 실제 키 값은 수집하지 않았다.
+- [ ] 같은 Supabase 프로젝트의 유효한 서버 키이며 현재 운영 코드에서 사용되는지 확인한다. 로컬 admin 클라이언트의 anon 폴백은 제거했다. 운영 설정/배포 반영은 별도 확인하며 익명 권한을 넓혀 해결하지 않는다.
+- [ ] 최신 로컬 test/lint/build 결과를 확인한다. GREEN은 운영 DB 보안·외부 API 한도 통과를 의미하지 않는다.
+- [ ] Gemini 한도 오류 이후의 제한 항목·회복 상태를 계정 소유자가 확인한다. 날짜 변경만으로 재호출하지 않는다.
 
-### 로컬 `.env.local`
-- [ ] `TOUR_API_KEY` — 한국관광공사 TourAPI 4.0 서비스키 (공공데이터포털에서 발급)
-- [ ] `WEATHER_API_KEY` — 기상청 단기예보 API 서비스키 (공공데이터포털에서 발급)
-- [ ] `GEMINI_API_KEY` — Google AI Studio에서 발급 (없으면 규칙 기반 폴백 작동)
+9/12 GitHub 커밋 상태로 기존 Vercel `gahusbs-projects/emochu` 연동을 확인했고 main push 후 운영 도메인에 공유 수정 반영을 별도 확인했다. `.vercel/project.json`·vercel CLI 없이 기존 Git 연동을 사용했다. 다른 누적 변경의 배포 범위·승인은 별도로 결정한다.
 
-### Vercel 환경변수
-- [ ] Vercel 프로젝트 Settings > Environment Variables에 위 3개 추가
-- [ ] Production + Preview 환경 모두 설정 확인
+## 2. DB 보안 — 먼저 읽기 전용 확인
 
----
+[check-course-access.sql](../scripts/check-course-access.sql)의 이전 버전과 갱신본을 소유자가 실행해 메타데이터를 제공했다. 갱신본은 뷰 소유자/옵션·역할 BYPASSRLS·열 권한·사용량 함수 EXECUTE도 포함한다. **017 실행 후 9/11 23:20 KST 결과에서 대상 직접 접근 차단을 확인했다.** 코스 행·사용자 정보·편집 토큰 값은 읽지 않았다. null은 대상 없음/확인 불가다. 운영 앱 동작은 별도 확인한다.
 
-## 2. Supabase DB 마이그레이션
+- [x] anon/authenticated의 wk_courses SELECT·edit_token SELECT 권한과 USING(true) 정책의 공존 확인.
+- [x] 017 실행 후 anon/authenticated의 테이블·열 접근 차단 및 공개 SELECT 정책 제거 확인.
+- [x] wk_courses_public 뷰도 두 클라이언트 역할의 테이블·열 접근 차단 확인.
+- [ ] 보호된 서버 경로의 공유 조회·내 코스·편집·공개 토글이 정상인지 확인한다. 현재 코드의 코스 DB 작업은 createAdminClient 경로다.
+- [x] 점검한 3개 역할 중 wk_usage 직접 접근 및 wk_bump_usage RPC 실행은 service_role에 허용, anon/authenticated에 차단됨을 확인했다. 이 SQL은 모든 역할·RPC나 DB 보안 전체를 감사하는 도구가 아니다.
 
-- [ ] Supabase SQL Editor에서 `supabase/migrations/010_weekend_tables.sql` 실행
-  - wk_spots, wk_festivals, wk_courses, wk_weather_cache 4개 테이블 생성
-  - **주의**: wk_courses 컬럼이 `departure_lat`, `departure_lng`, `ai_model`로 업데이트됨
-  - 이전에 실행한 적 있다면 `DROP TABLE` 후 재실행 또는 `ALTER TABLE` 적용:
-    ```sql
-    -- 이전 버전에서 컬럼명이 다른 경우
-    ALTER TABLE public.wk_courses RENAME COLUMN latitude TO departure_lat;
-    ALTER TABLE public.wk_courses RENAME COLUMN longitude TO departure_lng;
-    ALTER TABLE public.wk_courses ADD COLUMN IF NOT EXISTS ai_model text;
-    ```
-- [ ] RLS 정책 활성화 확인 (테이블 4개 모두)
-- [ ] `wk_courses_insert` 정책이 `with check (true)`인지 확인 (비로그인도 코스 생성 가능)
+Supabase는 객체 권한과 RLS를 별도 계층으로 설명한다. Next API에서 edit_token을 응답에서 뺐더라도 DB 직접 조회 경로의 보호를 대신하지 못한다. [Supabase 공식 문서](https://supabase.com/docs/guides/api/securing-your-api)
 
----
+017 목표 권한 상태는 확인했으며 실제 서버 공유 조회 등 기능 회귀 검사는 남아 있다. 기존 편집 토큰 회전은 별도 승인과 영향 범위 확인 후 진행한다. 이미 복사된 토큰은 권한 회수만으로 무효화되지 않는다. **테이블 삭제나 익명 쓰기 권한 추가를 해결책으로 사용하지 않는다.**
 
-## 3. API 키 발급 가이드
+## 3. 스키마 이력
 
-### TourAPI (한국관광공사)
-1. https://www.data.go.kr 접속
-2. "한국관광공사_국문 관광정보 서비스_GW" 검색
-3. 활용 신청 → 즉시 승인 (일반 인증키)
-4. 마이페이지 > 인증키 확인 > **일반 인증키 (Encoding)** 복사
-5. `.env.local`에 `TOUR_API_KEY=복사한키` 추가
+- [ ] 현재 운영 스키마와 적용 이력을 먼저 확인한다. 존재하는 테이블에 과거 마이그레이션을 일괄 재실행하지 않는다.
+- [ ] 기본 테이블(현재 저장소에 010 파일 없음) → 011 B 코스 → 012 RLS → 013 수명·사용량 → 014 편집 토큰 → 015 소유권 인덱스 → 016 공개 opt-in → 017 직접 접근 차단을 운영 이력과 대조한다.
+- [ ] 013은 기존 행 변경을 포함하므로 단순 조회가 아니다. 012~016 적용만으로 안전 판정을 내리지 않는다.
+- [ ] 운영 백업·영향 범위·복구 계획·별도 승인을 확보한 후 필요한 변경만 적용한다.
+- [ ] 코스의 hoursStatus는 JSON 내 선택 필드다. 해당 표시를 위해 별도 컬럼을 추가하지 않는다.
 
-### 기상청 단기예보
-1. https://www.data.go.kr 접속
-2. "기상청_단기예보 ((구)_동네예보) 조회서비스" 검색
-3. 활용 신청 → 자동 승인
-4. **일반 인증키 (Encoding)** 복사
-5. `.env.local`에 `WEATHER_API_KEY=복사한키` 추가
+## 4. 배포 환경과 변경 범위
 
-### Google Gemini
-1. https://aistudio.google.com/apikey 접속
-2. "Create API Key" 클릭
-3. `.env.local`에 `GEMINI_API_KEY=복사한키` 추가
-4. 무료 티어로 충분 (일 500건 이내)
+- [ ] TOUR_API_KEY, WEATHER_API_KEY, GEMINI_API_KEY는 서버 환경에서 확인한다. 값을 보고서·캡처에 붙이지 않는다.
+- [ ] NEXT_PUBLIC_SUPABASE_URL/ANON_KEY와 서버 SUPABASE_SERVICE_ROLE_KEY의 프로젝트 일치를 확인한다.
+- [ ] NEXT_PUBLIC_SITE_URL과 Kakao 도메인 등록이 실제 배포 URL에 맞는지 확인한다.
+- [ ] 로그인 스위치, 일일 생성 상한, USAGE_HASH_SALT와 커뮤니티 정책을 확인한다. 검사 중 설정을 바꾸지 않는다.
+- [x] 이번 공유 배포는 SaveShareBar·공유 회귀 테스트만 검토·커밋했다. .env*, .scratch-* 및 개인 설정 .claude/settings.local.json은 포함하지 않았다.
+- [x] 이번 공유 수정의 커밋·푸시·기존 Vercel 운영 배포는 사용자 ‘진행해’ 승인 후 수행했다. 다른 누적 변경은 포함하지 않았다. [Vercel Git 배포 안내](https://vercel.com/docs/git)
+- [x] 이번 공유 배포의 커밋·배포 ID·URL과 이전 배포를 [결과 문서](2026-09-12-카카오공유-수정-배포결과.md)에 기록했다. 운영 도메인의 실제 공유 JS도 별도 확인했다.
 
----
+## 5. 외부 AI 없이 먼저 확인할 화면
 
-## 4. 로컬 테스트
+- [x] 9/13 사진 전체 보기 로컬 구현·537 tests/lint/build·4개 화면 폭 모의 검사 완료. [개발 결과](2026-09-13-축제사진-전체보기-개발결과.md).
+- [x] 사진 기능 코드·테스트 6개 파일만 `5c7e757`로 분리해 Vercel Production 반영, 격리 커밋 검사와 합성 API 기반 운영 UI 검사 완료.
+- [ ] iPhone에서 실제 대표/썸네일 전체 보기·원본·닫기·뒤로가기 확인. 운영 자동 검사 통과를 실기기 통과로 간주하지 않는다.
+- [ ] /course에서 수정 안내 ‘방문일의 휴무·운영시간 정보를 참고해요.’ 표시.
+- [ ] 반나절·하루·느긋하게·1박 2일 모두 미확인 정보와 출발 전 운영·예약 확인 안내.
+- [ ] 사주 건너뛰기와 필수 선택 조건, 기존 입력 복구가 유지됨.
+- [ ] viewport에 maximum-scale=1 없음. 실제 폰에서도 확대·축소 확인.
+- [ ] /festival 반경 버튼 44px 이상 목표 확인, 필터·상세 지도·복귀 확인.
+- [ ] 기존 공유 코스 /course/[slug]에서 운영시간 미확인 표시와 방문자의 편집 불가 확인.
 
-- [ ] `npm run dev` 실행
-- [ ] 브라우저에서 `http://localhost:3000/weekend` 접속 확인
-- [ ] 코스 생성 테스트:
-  ```bash
-  curl -X POST http://localhost:3000/api/weekend/course \
-    -H "Content-Type: application/json" \
-    -d '{
-      "lat": 37.5665,
-      "lng": 126.9780,
-      "duration": "half_day",
-      "companion": "solo",
-      "preferences": ["cafe", "culture"]
-    }'
-  ```
-- [ ] 응답에 `courseId`, `course.stops`, `kakaoNaviUrl` 포함 확인
-- [ ] Rate Limit 테스트: 위 curl 4번 연속 실행 → 4번째에 429 반환 확인
+9/11 iPhone 17의 이전 배포본 기본 수동 검사에는 특이사항이 보고되지 않았다. [근거와 한계](2026-09-11-iPhone17-수동검증-결과.md). 새 배포 후에도 핵심 흐름을 재확인한다.
 
----
+## 6. 한도 확인 후 제한된 종단간 검사
 
-## 5. Vercel 배포
+- [ ] 기존 비공개 코스로 저장·새로고침·타 기기 링크 조회를 먼저 확인한다. 공개 커뮤니티 게시 없이 진행한다.
+- [ ] 외부 AI 한도 확인과 별도 실행 승인을 얻은 뒤 새 코스 1회만 생성한다.
+- [ ] 실제 AI 생성/규칙 대체/저장 실패를 구분한다. 임시 결과를 공유 가능한 저장 코스로 표시하지 않는다.
+- [ ] 생성자 편집 토큰이 공유 URL·조회 응답·제출 캡처에 나오지 않는지 확인한다.
+- [ ] 429/503/지연 시 추가 연속 호출을 중단하고 기록한다. 운영 카운터를 초기화하거나 상한을 높여 통과시키지 않는다.
+- [ ] iPhone 17에서 생성→결과→지도→저장→공유 전체를 확인한다. 기본 입력 검사와 구분해 기록한다.
 
-- [ ] `git add` + `git commit` + `git push`
-- [ ] Vercel 빌드 성공 확인
-- [ ] Production URL에서 `/weekend` 접속 확인
-- [ ] API 엔드포인트 테스트 (`/api/weekend/course`)
-
----
-
-## 6. 배포 후 확인
-
-- [ ] Vercel Functions 로그에서 `[이모추AI]` 로그 확인
-- [ ] Supabase에 `wk_courses` 레코드 저장 확인
-- [ ] 모바일 브라우저에서 `/weekend` UI 정상 표시 확인
-- [ ] PWA manifest 로드 확인 (Chrome DevTools > Application > Manifest)
-
----
-
-## 다음 작업 목록 (배포 이후)
-
-### 우선순위 1 — 공모전 필수 (5/6 마감 전)
-- [ ] 코스 결과 페이지 (`/weekend/course/[slug]/page.tsx`) — 코스 상세 + 카카오맵 연동
-- [ ] 데모 데이터 → 실제 TourAPI 데이터 연동 (홈 화면)
-- [ ] W4 수정: 축제 검색 날짜 필터 확대 (진행 중 축제 누락 방지)
-- [ ] 제안서 양식 최종 이관 + PDF 제출
-
-### 우선순위 2 — 품질 개선
-- [ ] W1: DB 캐시 레이어 (wk_spots 활용)
-- [ ] W2: 날씨 스코어링 양일 고려
-- [ ] S2: 동선 검증 (validateRoute) 구현
-- [ ] 축제 상세 페이지 (`/weekend/festival/[id]`)
-
-### 우선순위 3 — 고도화
-- [ ] A/B 코스 생성 (2개 코스 비교)
-- [ ] 코스 재생성 ("이 장소 빼줘")
-- [ ] 사용자 히스토리 학습
-- [ ] 코스 공유 OG 이미지 자동 생성
+최신 API 표본은 [9/10 재실측](2026-09-10-한도회복-재실측-실서비스-검증.md)이다. 작은 AI 확인 요청의 성공을 코스 생성 한도 회복이나 운영 성공률로 사용하지 않는다.

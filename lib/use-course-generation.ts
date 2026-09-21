@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveEditToken } from '@/lib/edit-token';
+import { rememberCourse } from './course-cache';
 import { buildLoadingSequence, FIRST_LOADING_MESSAGE } from './loading-messages';
 import type { CourseResponse, Duration, Companion, Preference, Feeling, DestinationType, VisitDay, AccessibilityNeed, CommunityCourseCard } from './weekend-types';
 import type { SajuResult } from './saju';
@@ -34,6 +35,9 @@ export function useCourseGeneration() {
   // 하루 한도(429)에 곁들여 오는 「대신 이런 코스는 어때요?」 제안. 그 외 실패에서는 항상 null.
   const [errorSuggestions, setErrorSuggestions] = useState<CommunityCourseCard[] | null>(null);
   const [messageIndex, setMessageIndex] = useState(0);
+  // 🔴 「평균 15~25초」라고만 적어 두면 40초를 기다리는 사람에게는 그게 거짓말이다.
+  //    흘러간 시간은 클라이언트가 **정확히 아는** 유일한 값이라 그것만 보여준다.
+  const [elapsedSec, setElapsedSec] = useState(0);
   // 🔴 렌더 중에 셔플하지 않는다. 서버 렌더와 하이드레이션이 서로 다른 문장을 그린다.
   //    생성이 시작되는 순간(=클라이언트 이벤트) 한 번만 뽑는다.
   const [messages, setMessages] = useState<string[]>(() => [FIRST_LOADING_MESSAGE]);
@@ -41,12 +45,17 @@ export function useCourseGeneration() {
   useEffect(() => {
     if (!loading) {
       setMessageIndex(0);
+      setElapsedSec(0);
       return;
     }
+    const startedAt = Date.now();
+    const tick = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
     const interval = setInterval(() => {
       setMessageIndex((i) => i + 1);
     }, MESSAGE_INTERVAL_MS);
-    return () => clearInterval(interval);
+    return () => { clearInterval(tick); clearInterval(interval); };
   }, [loading]);
 
   const generate = useCallback(async (params: GenerateParams) => {
@@ -58,6 +67,7 @@ export function useCourseGeneration() {
     try {
       const res = await fetch('/api/course', {
         method: 'POST',
+        signal: AbortSignal.timeout(65_000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           lat: params.lat,
@@ -83,7 +93,7 @@ export function useCourseGeneration() {
         throw new Error(failure.error ?? '코스 생성에 실패했어요.');
       }
       const data = body as CourseResponse;
-      sessionStorage.setItem('weekendCourse', JSON.stringify(data));
+      rememberCourse(data);
       const slug = data.shareUrl.split('/').pop();
       if (!slug) {
         throw new Error('코스 공유 URL이 올바르지 않아요.');
@@ -92,6 +102,7 @@ export function useCourseGeneration() {
       if (data.editToken) saveEditToken(slug, data.editToken);
       // localStorage에 최근 코스 기록 저장 (최대 5개)
       try {
+        if (data.persistence === 'temporary') throw new Error('임시 결과는 최근 공유 링크에 추가하지 않음');
         const raw = localStorage.getItem('emochu.course_history');
         const history: Array<{ slug: string; title: string; createdAt: number }> =
           raw ? JSON.parse(raw) : [];
@@ -101,7 +112,7 @@ export function useCourseGeneration() {
       } catch { /* ignore */ }
       router.replace(`/course/${slug}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '코스 생성 중 문제가 생겼어요.');
+      setError(err instanceof Error && err.name === 'TimeoutError' ? '연결이 오래 걸려 중단했어요. 잠시 후 다시 시도해주세요.' : err instanceof Error ? err.message : '코스 생성 중 문제가 생겼어요.');
       setLoading(false);
     }
   }, [router]);
@@ -111,6 +122,7 @@ export function useCourseGeneration() {
     error,
     errorSuggestions,
     generate,
+    elapsedSec,
     // 마지막 문장에서 멈춘다 — 목록을 다 쓰면 「거의 다 됐어요」가 계속 남는다.
     loadingMessage: messages[Math.min(messageIndex, messages.length - 1)],
   };

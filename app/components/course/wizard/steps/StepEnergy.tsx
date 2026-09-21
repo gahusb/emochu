@@ -10,7 +10,8 @@
 
 import { useState } from 'react';
 import { Sparkles, RefreshCw, ArrowRight } from 'lucide-react';
-import { calcSaju, ELEMENT_META, ELEMENT_COURSE_HINT } from '@/lib/saju';
+import { calcSajuFromElements, getYearElement, ELEMENT_META, ELEMENT_COURSE_HINT } from '@/lib/saju';
+import { getTripSaju } from '@/lib/trip-context';
 import type { SajuResult } from '@/lib/saju';
 import type { WizardState, WizardAction } from '../WizardShell';
 import type { Dispatch } from 'react';
@@ -23,13 +24,17 @@ const BIRTH_YEARS = Array.from({ length: 80 }, (_, i) => currentYear - 15 - i);
 export default function StepEnergy({ state, dispatch }: Props) {
   const [birthYear, setBirthYear] = useState<number>(1990);
   // 위저드 상태에서 복원한다. 스텝을 오갈 때 결과 카드가 사라지지 않게.
-  const [result, setResult] = useState<SajuResult | null>(state.saju);
+  const [preview, setResult] = useState<SajuResult | null>(state.saju);
+  const result = preview ? { ...preview, ...getTripSaju(preview.birthElement, state.duration ?? 'half_day', state.visitDay ?? 'sat') } : null;
 
   const applied = state.saju !== null;
   const birthMeta = result ? ELEMENT_META[result.birthElement] : null;
   const todayMeta = result ? ELEMENT_META[result.todayElement] : null;
 
-  const handleCalc = () => setResult(calcSaju(birthYear));
+  const handleCalc = () => {
+    const trip = getTripSaju(getYearElement(birthYear), state.duration ?? 'half_day', state.visitDay ?? 'sat');
+    setResult({ ...calcSajuFromElements(trip.birthElement, trip.todayElement), ...trip });
+  };
 
   const handleApply = () => {
     if (!result) return;
@@ -93,10 +98,10 @@ export default function StepEnergy({ state, dispatch }: Props) {
               <ArrowRight size={16} className="text-ink-4" aria-hidden="true" />
               <div className={`text-center px-3 py-1.5 rounded-lg border text-sm font-bold ${todayMeta.color}`}>
                 <span className="text-lg">{todayMeta.emoji}</span>
-                <p className="text-xs mt-0.5">오늘 {todayMeta.name}</p>
+                <p className="text-xs mt-0.5">여행일 {todayMeta.name}</p>
               </div>
               <div className="ml-auto text-right">
-                <p className="text-xs text-ink-4">오늘의 기운</p>
+                <p className="text-xs text-ink-4">{result.basisDate} 기준</p>
                 <p className="text-sm font-bold text-ink-1">{result.headline}</p>
               </div>
             </div>
@@ -140,7 +145,7 @@ export default function StepEnergy({ state, dispatch }: Props) {
             </div>
 
             <p className="text-[11px] text-ink-4 mt-3 break-keep">
-              일주(日柱) 기준이라 <strong className="text-ink-3">내일 다시 보면 답이 달라져요.</strong>
+              정밀 사주가 아닌 재미용 오행 여행 테마예요. 다음 단계에서 방문 요일을 바꾸면 그날 기준으로 다시 반영해요. 1박 2일은 출발일 기준이에요.
             </p>
           </div>
         </div>

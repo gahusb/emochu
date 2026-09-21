@@ -121,7 +121,7 @@ export async function findAlternatives(
 
       const latitude = Number(item.mapy);
       const longitude = Number(item.mapx);
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < 33 || latitude > 43 || longitude < 124 || longitude > 132) continue;
 
       const spot: ScoredSpot = {
         contentId,
@@ -191,6 +191,8 @@ export async function applyReplacement(
 
   return {
     ...stop,
+    source: 'tourapi',
+    themeMatched: undefined,
     contentId: picked.contentId,
     contentTypeId: String(picked.contentTypeId),
     title: picked.title,
@@ -209,6 +211,7 @@ export async function applyReplacement(
     // 방문일 영업 여부를 다시 판정하지 않았으므로 「확인 필요」로 되돌린다.
     // 이전 장소의 'open' 을 물려주면 확인되지 않은 것을 확인됐다고 말하는 셈이다.
     openStatus: stop.openStatus ? 'unknown' : undefined,
+    hoursStatus: 'unknown',
     accessibilityStatus: stop.accessibilityStatus ? 'unverified' : undefined,
   };
 }
@@ -222,7 +225,7 @@ export function recalcRoute(stops: CourseStop[]): { stops: CourseStop[]; totalDi
     const dist = haversineKm(out[i - 1].latitude, out[i - 1].longitude, out[i].latitude, out[i].longitude);
     total += dist;
     const mins = Math.round(dist * 1.5 * 2);
-    if (mins > 0) out[i].transitInfo = `차로 ${mins}분 (${dist.toFixed(1)}km)`;
+    out[i].transitInfo = `이동 약 ${Math.max(10, mins)}분 · 직선 ${dist.toFixed(1)}km (추정)`;
   }
 
   return { stops: out, totalDistanceKm: Math.round(total * 10) / 10 };
@@ -250,6 +253,7 @@ export function moveStop(
   // 시간·순번은 자리의 속성이라 그대로 두고, 장소만 맞바꾼다.
   const swap = (x: CourseStop, y: CourseStop): CourseStop => ({
     ...x, timeStart: y.timeStart, durationMin: y.durationMin, order: y.order, day: y.day,
+    hoursStatus: 'unknown', // 시각·체류가 달라져 이전 운영구간 일치를 유지하지 않는다.
   });
 
   const out = [...stops];

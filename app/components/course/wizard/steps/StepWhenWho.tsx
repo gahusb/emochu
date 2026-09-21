@@ -7,6 +7,7 @@
 
 import { Clock, Sun, Coffee, Moon, User, Users2, Baby, PartyPopper } from 'lucide-react';
 import { DURATION_LABELS, COMPANION_LABELS } from '@/lib/weekend-types';
+import { VISIT_INFO_COPY } from '@/lib/wizard-copy';
 import type { Duration, VisitDay, Companion } from '@/lib/weekend-types';
 import type { WizardState, WizardAction } from '../WizardShell';
 import type { Dispatch, ComponentType } from 'react';
@@ -76,7 +77,7 @@ export default function StepWhenWho({ state, dispatch }: Props) {
                       type="button"
                       onClick={() => dispatch({ type: 'SET_VISIT_DAY', value: type })}
                       aria-pressed={selected}
-                      className={`px-5 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                      className={`min-h-11 px-5 py-2 rounded-full border text-sm font-semibold transition-colors ${
                         selected
                           ? 'bg-brand text-white border-brand'
                           : 'bg-surface-elevated text-ink-2 border-line hover:border-ink-4'
@@ -88,12 +89,14 @@ export default function StepWhenWho({ state, dispatch }: Props) {
                 })}
               </div>
             </div>
-            <p className="text-xs text-ink-3 mt-2">그날 문 여는 곳으로만 짜드려요.</p>
           </div>
         )}
 
         {isOvernight && (
           <p className="text-xs text-ink-3 mt-3">1박 2일은 토요일·일요일 모두 방문해요.</p>
+        )}
+        {state.duration && (
+          <p className="text-xs text-ink-3 mt-2 leading-relaxed break-keep">{VISIT_INFO_COPY.notice}</p>
         )}
       </div>
 

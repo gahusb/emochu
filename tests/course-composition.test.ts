@@ -92,7 +92,7 @@ describe('validateComposition', () => {
     expect(validateComposition(stops, 'half_day').ok).toBe(true);
   });
 
-  it('overnight 은 검증하지 않는다 (숙박이 끼어 규칙이 다르다)', () => {
+  it('overnight도 음식점 후보 정보가 없으면 억지로 식당을 요구하지 않는다', () => {
     const stops = [stop({ order: 1, role: 'attraction', timeStart: '10:00' })];
     expect(validateComposition(stops, 'overnight').ok).toBe(true);
   });

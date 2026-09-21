@@ -127,7 +127,7 @@ export default function HomeHeroLanding({ weather }: Props) {
 
         {/* 일반 여행 앱과 뭐가 다른지 한 줄. 카드 세 장으로 벌려 놓을 이야기가 아니다 */}
         <p className="mt-6 text-xs lg:text-sm text-white/55 break-keep">
-          기분 · 동반자 · 오늘의 사주 기운까지 반영해 AI가 동선을 설계해요
+          기분 · 동반자 · 여행일의 오행 테마를 참고해 AI가 동선을 설계해요
         </p>
       </div>
     </section>

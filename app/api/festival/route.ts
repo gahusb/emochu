@@ -1,105 +1,27 @@
-// ============================================================
-// GET /api/weekend/festival — 축제 전체 목록 (위치 기반)
-// ============================================================
-
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  searchFestival,
-  formatDateYMD,
-  getNextWeekend,
-} from '@/lib/tour-api';
-import { haversineKm, generateFestivalSummary } from '@/lib/weekend-ai';
-import type { FestivalCard } from '@/lib/weekend-types';
+import { loadWeekendFestivals, nearbyFestivals, festivalCards } from '@/lib/festival-data';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const lat = Number(searchParams.get('lat') || 37.5665);
-  const lng = Number(searchParams.get('lng') || 126.9780);
-  const radius = Number(searchParams.get('radius') || 50); // km
-
-  const { saturday, sunday } = getNextWeekend();
-
-  // 2달 전부터 검색 (진행 중 축제 포착)
-  const searchStart = new Date(saturday);
-  searchStart.setDate(searchStart.getDate() - 60);
-
-  const sunStr = formatDateYMD(sunday);
-  const satStr = formatDateYMD(saturday);
-
-  let items: Awaited<ReturnType<typeof searchFestival>>;
+  const p = new URL(request.url).searchParams;
+  const lat = Number(p.get('lat') ?? 37.5665), lng = Number(p.get('lng') ?? 126.978);
+  const radius = Number(p.get('radius') ?? 50);
+  if (![lat, lng, radius].every(Number.isFinite) || lat < 33 || lat > 43 || lng < 124 || lng > 132 || radius < 1 || radius > 200) {
+    return NextResponse.json({ error: '위치와 검색 반경을 확인해주세요.' }, { status: 400 });
+  }
   try {
-    items = await searchFestival({
-      eventStartDate: formatDateYMD(searchStart),
-      eventEndDate: formatDateYMD(sunday),
-      numOfRows: 100,
+    const { items, partial, weekendDates } = await loadWeekendFestivals();
+    const nearby = nearbyFestivals(items, lat, lng, radius, Object.values(weekendDates));
+    // 목록에 표시하지도 않던 제목만 기반의 AI 요약 10회를 없앤다.
+    const festivals = festivalCards(nearby, lat, lng, weekendDates.saturday, weekendDates.sunday);
+    return NextResponse.json({ festivals, weekendDates, dataStatus: partial ? 'partial' : 'available' }, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' },
     });
-  } catch (err) {
-    console.warn('[이모추API] 축제 TourAPI 조회 실패 (빈 목록 반환):', err);
-    return NextResponse.json(
-      { festivals: [], weekendDates: { saturday: satStr, sunday: sunStr } },
-      { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } },
-    );
+  } catch {
+    // 조회 실패를 '근처 축제 0개'라는 성공 응답으로 숨기지 않는다.
+    return NextResponse.json({ festivals: [], dataStatus: 'unavailable', error: '축제 정보를 불러오지 못했어요. 잠시 후 다시 확인해주세요.' }, {
+      status: 503, headers: { 'Cache-Control': 'no-store' },
+    });
   }
-
-  const festivals: FestivalCard[] = items
-    .filter(item => {
-      if (!item.mapy || !item.mapx) return false;
-      const dist = haversineKm(lat, lng, Number(item.mapy), Number(item.mapx));
-      return dist <= radius;
-    })
-    .map(item => {
-      let urgencyTag: string | undefined;
-      if (item.eventenddate <= sunStr) {
-        urgencyTag = '올 주말 마지막!';
-      } else if (item.eventstartdate >= satStr) {
-        urgencyTag = '이번 주 시작!';
-      }
-
-      const dist = haversineKm(lat, lng, Number(item.mapy), Number(item.mapx));
-
-      return {
-        contentId: item.contentid,
-        title: item.title,
-        addr1: item.addr1,
-        firstImage: item.firstimage || undefined,
-        eventStart: item.eventstartdate,
-        eventEnd: item.eventenddate,
-        urgencyTag,
-        distanceKm: Math.round(dist * 10) / 10,
-      };
-    })
-    .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
-
-  // D-day calculation (days until event ends)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  for (const f of festivals) {
-    if (f.eventEnd) {
-      const y = Number(f.eventEnd.slice(0, 4));
-      const m = Number(f.eventEnd.slice(4, 6)) - 1;
-      const d = Number(f.eventEnd.slice(6, 8));
-      const endDate = new Date(y, m, d);
-      f.dDay = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    }
-  }
-
-  // AI summary for top 10 festivals (to save tokens)
-  await Promise.allSettled(
-    festivals.slice(0, 10).map(async (f) => {
-      if (!f.aiSummary) {
-        try {
-          f.aiSummary = await generateFestivalSummary(f.title, undefined);
-        } catch { /* ignore */ }
-      }
-    })
-  );
-
-  return NextResponse.json(
-    { festivals, weekendDates: { saturday: satStr, sunday: sunStr } },
-    // TourAPI 실시간 호출 규정 준수: searchFestival은 고정 파라미터라 캐시 히트율이
-    // 높은 위험 구간 → CDN 캐시 30분→60초 축소 (lib/tour-api revalidate 60초와 정합)
-    { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } },
-  );
 }

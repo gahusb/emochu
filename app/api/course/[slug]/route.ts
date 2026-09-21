@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { buildKakaoNaviUrl } from '@/lib/weekend-ai';
 import type { CourseResponse, CourseData, CourseStop } from '@/lib/weekend-types';
 import { authorizeEdit, findAlternatives, applyReplacement, recalcRoute, moveStop } from '@/lib/course-edit';
+import { parseRestDate } from '@/lib/opening-hours';
 
 export async function GET(
   _request: NextRequest,
@@ -82,6 +83,7 @@ export async function PATCH(
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid body');
   } catch {
     return NextResponse.json({ error: '요청 형식이 올바르지 않습니다.' }, { status: 400 });
   }
@@ -126,6 +128,10 @@ export async function PATCH(
     }
 
     const replaced = await applyReplacement(target, picked);
+    const date = data.verification?.visitDates[(target.day ?? 1) - 1];
+    if (date && parseRestDate(replaced.restdate)?.includes(new Date(`${date}T00:00:00Z`).getUTCDay())) {
+      return NextResponse.json({ error: '고른 장소는 방문일이 정기 휴무예요. 다른 곳을 골라주세요.' }, { status: 422 });
+    }
     nextStops = stops.map((s) => (s.order === order ? replaced : s));
 
   } else {
@@ -133,10 +139,17 @@ export async function PATCH(
   }
 
   const { stops: finalStops, totalDistanceKm } = recalcRoute(nextStops);
-  const updated: CourseData = { ...data, stops: finalStops, totalDistanceKm };
+  const updated: CourseData = {
+    ...data, stops: finalStops, totalDistanceKm,
+    storyArc: undefined, estimatedCostWon: undefined,
+    ...(data.verification ? { verification: {
+      ...data.verification,
+      warnings: [...new Set([...data.verification.warnings, '직접 편집한 일정이에요. 변경된 장소의 운영정보와 체류·이동시간을 다시 확인해주세요.'])],
+    } } : {}),
+  };
 
   try {
-    await createAdminClient()
+    const { error } = await createAdminClient()
       .from('wk_courses')
       .update({
         course_data: updated,
@@ -145,6 +158,7 @@ export async function PATCH(
         expires_at: null,
       })
       .eq('id', course.id);
+    if (error) throw error;
   } catch (dbErr) {
     console.error('[이모추API] 코스 편집 저장 실패:', dbErr);
     return NextResponse.json({ error: '수정을 저장하지 못했어요.' }, { status: 500 });

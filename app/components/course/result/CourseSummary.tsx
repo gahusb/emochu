@@ -24,7 +24,7 @@ export default function CourseSummary({ course }: Props) {
 
   const costLabel = course.estimatedCostWon !== undefined
     ? course.estimatedCostWon === 0
-      ? '무료'
+      ? '약 0원 (확인 필요)'
       : course.estimatedCostWon < 10000
         ? `약 ${(course.estimatedCostWon / 1000).toFixed(0)}천원`
         : `약 ${(course.estimatedCostWon / 10000).toFixed(1).replace(/\.0$/, '')}만원`
@@ -48,7 +48,7 @@ export default function CourseSummary({ course }: Props) {
           {course.totalDistanceKm > 0 && (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-3">
               <Route size={13} strokeWidth={1.75} aria-hidden="true" />
-              총 {course.totalDistanceKm.toFixed(1)}km
+              장소 간 직선 {course.totalDistanceKm.toFixed(1)}km
             </span>
           )}
 

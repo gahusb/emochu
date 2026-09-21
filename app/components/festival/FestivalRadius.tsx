@@ -13,7 +13,7 @@ export default function FestivalRadius({ value, onChange }: Props) {
             type="button"
             onClick={() => onChange(r)}
             aria-pressed={selected}
-            className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
+            className={`flex-shrink-0 min-h-11 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
               selected
                 ? 'bg-brand-soft border-brand text-brand'
                 : 'bg-surface-elevated border-line text-ink-3 hover:border-ink-4'

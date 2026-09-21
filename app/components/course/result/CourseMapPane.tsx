@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any -- Kakao 지도 SDK는 공식 타입이 없어 map/overlay/polyline 참조에 any 불가피 */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CourseStop } from '@/lib/weekend-types';
 import { getRoleInfo, BRAND_HEX } from '@/lib/course-role';
 
@@ -20,18 +20,28 @@ export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Pro
   const polylineRef = useRef<any>(null);
   const markersRef = useRef<Array<{ element: HTMLElement; position: any }>>([]);
   const readyRef = useRef(false);
+  const [phase, setPhase] = useState<'loading' | 'ready' | 'failed'>('loading');
 
   // SDK wait + initial render (C2: cancelled flag + clearTimeout cleanup)
   useEffect(() => {
     if (!stops.length) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    const deadline = setTimeout(() => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      setPhase('failed');
+    }, 8_000);
 
     const checkKakao = () => {
       if (cancelled) return;
       if (window.kakao?.maps) {
         window.kakao.maps.load(() => {
-          if (!cancelled) { readyRef.current = true; renderMap(); }
+          if (!cancelled) {
+            clearTimeout(deadline);
+            try { renderMap(); readyRef.current = true; setPhase('ready'); }
+            catch { setPhase('failed'); }
+          }
         });
       } else {
         timer = setTimeout(checkKakao, 300);
@@ -41,6 +51,7 @@ export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Pro
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      clearTimeout(deadline);
     };
     // 의도적으로 stops에만 반응: renderMap을 deps에 넣으면 매 렌더 재초기화되어 지도/마커 상태가 리셋됨
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,6 +166,21 @@ export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Pro
     });
   }, [activeIndex]);
 
+  // 숨겨진 데스크톱 패널이 리사이즈 후 나타나도 지도 타일·중심이 깨지지 않는다.
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const observer = new ResizeObserver(() => {
+      const map = mapInstanceRef.current;
+      if (!map || !window.kakao?.maps) return;
+      map.relayout();
+      const bounds = new window.kakao.maps.LatLngBounds();
+      stops.forEach(s => bounds.extend(new window.kakao.maps.LatLng(s.latitude, s.longitude)));
+      map.setBounds(bounds, 60);
+    });
+    observer.observe(mapRef.current);
+    return () => observer.disconnect();
+  }, [stops]);
+
   if (!stops.length) return null;
 
   return (
@@ -164,6 +190,10 @@ export default function CourseMapPane({ stops, activeIndex, onMarkerClick }: Pro
         className="w-full h-full min-h-[320px]"
         aria-label="코스 지도"
       />
+      {phase !== 'ready' && <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-sunken p-6 text-center text-sm text-ink-2">
+        <p>{phase === 'loading' ? '지도를 불러오는 중이에요…' : '지도를 불러오지 못했어요.'}</p>
+        {phase === 'failed' && <><p className="text-xs text-ink-3">일정은 그대로 볼 수 있어요. 외부 지도에서 위치를 확인해보세요.</p><a className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 font-semibold text-brand" href={`https://map.kakao.com/link/to/${encodeURIComponent(stops[0].title)},${stops[0].latitude},${stops[0].longitude}`} target="_blank" rel="noopener noreferrer">첫 장소 길찾기</a></>}
+      </div>}
     </div>
   );
 }

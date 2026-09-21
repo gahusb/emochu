@@ -5,7 +5,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   locationBasedList,
-  searchFestival,
   detailCommon,
   detailIntro,
   parseFacilities,
@@ -13,7 +12,8 @@ import {
   getNextWeekend,
 } from '@/lib/tour-api';
 import { getWeekendForecast } from '@/lib/weather-api';
-import { haversineKm, generateFestivalSummary, generateSpotWhyNow, matchesElement } from '@/lib/weekend-ai';
+import { haversineKm, generateSpotWhyNow, matchesElement } from '@/lib/weekend-ai';
+import { loadWeekendFestivals, nearbyFestivals, festivalCards } from '@/lib/festival-data';
 import { getWeekendElements } from '@/lib/saju';
 import type {
   HomeData,
@@ -78,81 +78,10 @@ export async function GET(request: NextRequest) {
 
 // ─── 축제 수집 ───
 
-async function collectFestivalsForHome(
-  lat: number,
-  lng: number,
-  saturday: Date,
-  sunday: Date,
-): Promise<FestivalCard[]> {
-  // 한 달 전부터 검색 (진행 중 축제 포착)
-  const searchStart = new Date(saturday);
-  searchStart.setDate(searchStart.getDate() - 30);
-
-  const items = await searchFestival({
-    eventStartDate: formatDateYMD(searchStart),
-    eventEndDate: formatDateYMD(sunday),
-    numOfRows: 50,
-  });
-
-  const satStr = formatDateYMD(saturday);
-  const sunStr = formatDateYMD(sunday);
-  const today = new Date();
-
-  const nearbyItems = items
-    .filter(item => {
-      const dist = haversineKm(lat, lng, Number(item.mapy), Number(item.mapx));
-      return dist <= 30;
-    })
-    .slice(0, 6);
-
-  const festivalCards: FestivalCard[] = nearbyItems.map(item => {
-    // 긴급성 태그 계산
-    let urgencyTag: string | undefined;
-    if (item.eventenddate <= sunStr) {
-      urgencyTag = '올 주말 마지막!';
-    } else if (item.eventstartdate >= satStr) {
-      urgencyTag = '이번 주 시작!';
-    }
-
-    // D-day 계산 (축제 종료일까지)
-    let dDay: number | undefined;
-    if (item.eventenddate) {
-      const endDate = new Date(
-        Number(item.eventenddate.slice(0, 4)),
-        Number(item.eventenddate.slice(4, 6)) - 1,
-        Number(item.eventenddate.slice(6, 8))
-      );
-      dDay = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    }
-
-    return {
-      contentId: item.contentid,
-      title: item.title,
-      addr1: item.addr1,
-      firstImage: item.firstimage || undefined,
-      eventStart: item.eventstartdate,
-      eventEnd: item.eventenddate,
-      urgencyTag,
-      dDay,
-    };
-  });
-
-  // AI 요약 병렬 추가 (실패해도 계속 진행)
-  await Promise.allSettled(
-    festivalCards.map(async (card, idx) => {
-      try {
-        const raw = nearbyItems[idx];
-        const common = await detailCommon({ contentId: raw.contentid });
-        const overview = common?.overview;
-        const summary = await generateFestivalSummary(card.title, overview);
-        if (summary) card.aiSummary = summary;
-      } catch {
-        // AI 요약 실패는 무시
-      }
-    })
-  );
-
-  return festivalCards;
+async function collectFestivalsForHome(lat: number, lng: number, saturday: Date, sunday: Date): Promise<FestivalCard[]> {
+  const { items } = await loadWeekendFestivals();
+  const sat = formatDateYMD(saturday), sun = formatDateYMD(sunday);
+  return festivalCards(nearbyFestivals(items, lat, lng, 30, [sat, sun]).slice(0, 6), lat, lng, sat, sun);
 }
 
 // ─── 추천 관광지 수집 (랜덤 셔플) ───

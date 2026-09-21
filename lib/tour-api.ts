@@ -2,6 +2,9 @@
 // TourAPI 4.0 클라이언트 — 한국관광공사 OpenAPI
 // ============================================================
 
+import { getWeekendElements } from './saju';
+import { createTourDetailGuard, retryAfterMs, TourDetailRateLimitError } from './tour-detail-guard';
+
 const BASE_URL = 'https://apis.data.go.kr/B551011/KorService2';
 
 function getServiceKey(): string {
@@ -13,9 +16,11 @@ function getServiceKey(): string {
 async function callTourApi<T>(
   endpoint: string,
   params: Record<string, string | number | undefined>,
+  credential = getServiceKey(),
+  signal?: AbortSignal,
 ): Promise<T[]> {
   const url = new URL(`${BASE_URL}/${endpoint}`);
-  url.searchParams.set('serviceKey', getServiceKey());
+  url.searchParams.set('serviceKey', credential);
   url.searchParams.set('MobileOS', 'ETC');
   url.searchParams.set('MobileApp', '이모추');
   url.searchParams.set('_type', 'json');
@@ -26,16 +31,22 @@ async function callTourApi<T>(
     }
   }
 
-  // 한국관광공사 OpenAPI 실시간 호출 규정 준수: 1시간 캐싱 → 60초 절충
-  // (개발·심사 기간 실호출 이력 확보 목적. no-store 대신 rate limit·성능 고려한 60초)
-  const res = await fetch(url.toString(), { next: { revalidate: 60 } });
+  // 단기 재사용으로 중복 요청을 줄인다. 호출 이력 수를 늘리기 위한 캐시 정책이 아니다.
+  const timeout = AbortSignal.timeout(7_000);
+  const res = await fetch(url.toString(), { next: { revalidate: 60 }, signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  if (res.status === 429) throw new TourDetailRateLimitError(retryAfterMs(res.headers.get('retry-after')));
   if (!res.ok) {
     throw new Error(`TourAPI ${endpoint} 호출 실패: ${res.status}`);
   }
 
   const json = await res.json();
+  const resultCode = json?.response?.header?.resultCode;
+  if (resultCode != null && !['0000', '00'].includes(String(resultCode))) {
+    // 기관 오류 메시지에 URL·키가 섞여도 로그로 전파하지 않는다.
+    throw new Error(`TourAPI ${endpoint} 응답 오류`);
+  }
   const body = json?.response?.body;
-  if (!body) return [];
+  if (!body) throw new Error(`TourAPI ${endpoint} 응답 형식 오류`);
 
   const items = body.items?.item;
   if (!items) return [];
@@ -183,15 +194,23 @@ export interface DetailIntroItem {
   [key: string]: string;   // 콘텐츠 타입별 필드가 다름
 }
 
+let detailKey = '';
+let introGuard = createTourDetailGuard<DetailIntroItem | null>();
+
 export async function detailIntro(params: {
   contentId: string;
   contentTypeId: number;
 }): Promise<DetailIntroItem | null> {
-  const items = await callTourApi<DetailIntroItem>('detailIntro2', {
-    contentId: params.contentId,
-    contentTypeId: params.contentTypeId,
+  const credential = getServiceKey();
+  // 인증키 변경 시 이전 계정의 응답·제한 상태를 물려주지 않는다. 키는 로그에 쓰지 않는다.
+  if (detailKey !== credential) { detailKey = credential; introGuard = createTourDetailGuard<DetailIntroItem | null>(); }
+  return introGuard.run(JSON.stringify([params.contentId, params.contentTypeId]), async signal => {
+    const items = await callTourApi<DetailIntroItem>('detailIntro2', {
+      contentId: params.contentId,
+      contentTypeId: params.contentTypeId,
+    }, credential, signal);
+    return items[0] ?? null;
   });
-  return items[0] ?? null;
 }
 
 // ─── detailImage: 이미지 목록 ───
@@ -378,44 +397,29 @@ export function interleaveResults<T>(
 
 /** YYYYMMDD 포맷 */
 export function formatDateYMD(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
   return `${y}${m}${d}`;
 }
 
 /** 이번 주말 (다가오는 토·일) 날짜 계산 */
-export function getNextWeekend(): { saturday: Date; sunday: Date } {
-  const now = new Date();
-  const day = now.getDay(); // 0=일 ... 6=토
-  const daysUntilSat = (6 - day + 7) % 7 || 7; // 토요일이면 다음주
-
-  // 금요일 이전이면 이번 주말, 토/일이면 오늘~내일
-  const sat = new Date(now);
-  if (day === 6) {
-    // 토요일 → 오늘이 토요일
-    sat.setDate(now.getDate());
-  } else if (day === 0) {
-    // 일요일 → 어제가 토요일
-    sat.setDate(now.getDate() - 1);
-  } else {
-    sat.setDate(now.getDate() + daysUntilSat);
-  }
-
-  const sun = new Date(sat);
-  sun.setDate(sat.getDate() + 1);
-
-  return { saturday: sat, sunday: sun };
+export function getNextWeekend(now = new Date()): { saturday: Date; sunday: Date } {
+  const weekend = getWeekendElements(now);
+  return { saturday: weekend.saturdayDate, sunday: weekend.sundayDate };
 }
 
 // ─── 취향별 세부 카테고리 ───
 
+// 🔴 2026-09-21: 라벨과 코드가 어긋나 있었다 — 박물관·미술관은 A0206(문화시설) 소분류이고,
+// 「공연장」은 A0206 전체가 아니라 A02060600 하나다. 라벨이 고르는 범위와 같아지도록 좁혔다.
+// 같은 착오가 홈 카드 배지에서 실제로 드러났다(lib/spot-category.ts 주석 참조).
 export const PREFERENCE_SUB_CATEGORIES: Record<string, { label: string; cat2?: string; cat3?: string }[]> = {
   nature: [
     { label: '산/산책로', cat2: 'A0101' },
     { label: '해변/바다', cat2: 'A0101', cat3: 'A01011200' },
     { label: '공원/정원', cat2: 'A0102' },
-    { label: '호수/계곡', cat2: 'A0101', cat3: 'A01011100' },
+    { label: '호수/계곡', cat2: 'A0101' },
   ],
   food: [
     { label: '한식', cat2: 'A0502', cat3: 'A05020100' },
@@ -424,16 +428,16 @@ export const PREFERENCE_SUB_CATEGORIES: Record<string, { label: string; cat2?: s
     { label: '분식/야시장', cat2: 'A0502', cat3: 'A05020700' },
   ],
   culture: [
-    { label: '박물관', cat2: 'A0201' },
-    { label: '미술관', cat2: 'A0205' },
-    { label: '공연장', cat2: 'A0206' },
+    { label: '박물관', cat2: 'A0206', cat3: 'A02060100' },
+    { label: '미술관', cat2: 'A0206', cat3: 'A02060500' },
+    { label: '공연장', cat2: 'A0206', cat3: 'A02060600' },
     { label: '역사유적', cat2: 'A0201' },
   ],
   activity: [
     { label: '수상레포츠', cat2: 'A0302' },
     { label: '등산/트레킹', cat2: 'A0301' },
-    { label: '테마파크', cat2: 'A0202' },
-    { label: '체험활동', cat2: 'A0303' },
+    { label: '테마파크', cat2: 'A0202', cat3: 'A02020600' },
+    { label: '체험활동', cat2: 'A0203' },
   ],
 };
 

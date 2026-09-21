@@ -3,10 +3,17 @@
 import { useEffect, useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { useLocation } from './LocationContext';
+import { usePathname } from 'next/navigation';
 
 const SEEN_KEY = 'emochu.loc_prompt_seen';
+// 🔴 2026-09-21: 첫 진입 배너가 화면 하단을 가린다(심사·시연·촬영에 그대로 걸린다).
+//    지우지는 않는다 — 위치 허용은 추천 품질에 직접 걸리는 선택이다.
+//    대신 **스스로 비켜난다.** 안 누르고 지나간 사람에게는 다음 방문에 다시 묻는다
+//    (자동으로 접힐 때 SEEN_KEY 를 쓰지 않는 이유다).
+const AUTO_HIDE_MS = 12_000;
 
 export default function LocationPermissionToast() {
+  const pathname = usePathname();
   const { requestGPS } = useLocation();
   const [show, setShow] = useState(false);
 
@@ -37,6 +44,13 @@ export default function LocationPermissionToast() {
     return () => clearTimeout(timer);
   }, []);
 
+  // 자동으로 접히는 경로. 「봤다」고 기록하지 않는다.
+  useEffect(() => {
+    if (!show) return;
+    const timer = setTimeout(() => setShow(false), AUTO_HIDE_MS);
+    return () => clearTimeout(timer);
+  }, [show]);
+
   const dismiss = () => {
     try {
       localStorage.setItem(SEEN_KEY, '1');
@@ -51,7 +65,8 @@ export default function LocationPermissionToast() {
     dismiss();
   };
 
-  if (!show) return null;
+  // 입력·결과 페이지의 CTA를 덮지 않는다. 위치 변경은 헤더에서 언제든 가능하다.
+  if (!show || pathname !== '/') return null;
 
   return (
     <div
@@ -66,18 +81,18 @@ export default function LocationPermissionToast() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-ink-1">내 주변 주말 코스를 추천받아 보세요</p>
           <p className="text-xs text-ink-3 mt-0.5">위치를 허용하면 더 정확한 코스를 만들어드려요</p>
-          <div className="flex gap-2 mt-3">
+          <div className="flex flex-wrap gap-2 mt-3">
             <button
               type="button"
               onClick={allow}
-              className="h-9 px-4 rounded-lg bg-brand text-white text-sm font-bold hover:bg-brand-hover transition-colors"
+              className="min-h-11 px-4 rounded-lg bg-brand text-white text-sm font-bold hover:bg-brand-hover transition-colors"
             >
               위치 허용
             </button>
             <button
               type="button"
               onClick={dismiss}
-              className="h-9 px-3 rounded-lg border border-line text-ink-3 text-sm hover:bg-surface-sunken transition-colors"
+              className="min-h-11 px-3 rounded-lg border border-line text-ink-3 text-sm hover:bg-surface-sunken transition-colors"
             >
               서울로 볼게요
             </button>

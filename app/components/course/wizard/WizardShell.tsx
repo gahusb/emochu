@@ -8,6 +8,7 @@ import type {
   DestinationType, CityOption, VisitDay,
 } from '@/lib/weekend-types';
 import type { SajuResult } from '@/lib/saju';
+import { getTripSaju } from '@/lib/trip-context';
 import { useCourseGeneration } from '@/lib/use-course-generation';
 import { FEELING_OPTIONS, DURATION_LABELS, COMPANION_LABELS } from '@/lib/weekend-types';
 import Container from '@/app/components/ui/Container';
@@ -21,6 +22,7 @@ import StepWhenWho from './steps/StepWhenWho';
 import StepTaste from './steps/StepTaste';
 import type { AccessibilityNeed } from '@/lib/weekend-types';
 import { canProceedAtStep, WIZARD_TOTAL_STEPS, type DestinationPick } from '@/lib/wizard-steps';
+import { VISIT_INFO_COPY } from '@/lib/wizard-copy';
 
 export interface WizardState {
   step: number;
@@ -100,10 +102,10 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
     case 'SET_SAJU': return { ...state, saju: action.value };
     case 'SET_DURATION': {
       // 1박2일은 토·일 모두 방문하므로 요일 선택을 무의미하게 만든다 → 토요일로 고정
-      if (action.value === 'overnight') return { ...state, duration: action.value, visitDay: 'sat' };
-      return { ...state, duration: action.value };
+      const day = action.value === 'overnight' ? 'sat' : state.visitDay ?? 'sat';
+      return { ...state, duration: action.value, visitDay: day, saju: state.saju ? { ...state.saju, ...getTripSaju(state.saju.birthElement, action.value ?? 'half_day', day) } : null };
     }
-    case 'SET_VISIT_DAY': return { ...state, visitDay: action.value };
+    case 'SET_VISIT_DAY': return { ...state, visitDay: action.value, saju: state.saju ? { ...state.saju, ...getTripSaju(state.saju.birthElement, state.duration ?? 'half_day', action.value ?? 'sat') } : null };
     case 'TOGGLE_ACCESSIBILITY': {
       const has = state.accessibility.includes(action.value);
       return {
@@ -150,7 +152,7 @@ const STEP_META = [
   {
     title: '언제·누구랑',
     question: '언제, 누구랑 가요?',
-    sub: '방문하는 날에 맞춰 문 여는 곳만 골라드려요.',
+    sub: VISIT_INFO_COPY.summary,
   },
   {
     title: '취향',
@@ -163,7 +165,7 @@ const STEP_COMPONENTS = [StepWhereMood, StepEnergy, StepWhenWho, StepTaste];
 
 export default function WizardShell() {
   const [state, dispatch] = useReducer(reducer, INITIAL);
-  const { loading, error, errorSuggestions, generate, loadingMessage } = useCourseGeneration();
+  const { loading, error, errorSuggestions, generate, loadingMessage, elapsedSec } = useCourseGeneration();
   const [showResumeBanner, setShowResumeBanner] = useState(false);
   const [courseHistory, setCourseHistory] = useState<Array<{ slug: string; title: string; createdAt: number }>>([]);
   const isMounted = useRef(false);
@@ -287,7 +289,7 @@ export default function WizardShell() {
   };
 
   if (loading) {
-    return <CourseLoading message={loadingMessage} />;
+    return <CourseLoading message={loadingMessage} elapsedSec={elapsedSec} />;
   }
 
   const feelingLabel = state.feeling ? FEELING_OPTIONS.find(o => o.type === state.feeling)?.label ?? null : null;

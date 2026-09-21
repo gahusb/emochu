@@ -20,7 +20,7 @@ interface Props {
 export default function FestivalFilterBar({ status, sort, onStatusChange, onSortChange }: Props) {
   return (
     <div className="sticky top-14 lg:top-16 z-20 bg-surface-base/95 backdrop-blur border-b border-line">
-      <div className="max-w-7xl mx-auto px-5 lg:px-8 flex items-center justify-between gap-4 py-3">
+      <div className="max-w-7xl mx-auto px-5 lg:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3">
         <div role="tablist" aria-label="축제 상태 필터" className="flex items-center gap-4 overflow-x-auto">
           {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((key) => {
             const active = status === key;
@@ -31,7 +31,7 @@ export default function FestivalFilterBar({ status, sort, onStatusChange, onSort
                 role="tab"
                 aria-selected={active}
                 onClick={() => onStatusChange(key)}
-                className={`relative py-2 text-sm font-semibold whitespace-nowrap transition-colors ${
+                className={`relative min-h-11 py-2 text-sm font-semibold whitespace-nowrap transition-colors ${
                   active ? 'text-ink-1' : 'text-ink-3 hover:text-ink-1'
                 }`}
               >
@@ -41,12 +41,12 @@ export default function FestivalFilterBar({ status, sort, onStatusChange, onSort
             );
           })}
         </div>
-        <label className="relative flex-shrink-0">
+        <label className="relative flex-shrink-0 w-fit">
           <span className="sr-only">정렬</span>
           <select
             value={sort}
             onChange={(e) => onSortChange(e.target.value as SortKey)}
-            className="appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold rounded-md bg-surface-elevated border border-line text-ink-2 hover:border-ink-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="appearance-none min-h-11 pl-3 pr-8 py-1.5 text-xs font-semibold rounded-md bg-surface-elevated border border-line text-ink-2 hover:border-ink-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
               <option key={k} value={k}>{SORT_LABELS[k]}</option>

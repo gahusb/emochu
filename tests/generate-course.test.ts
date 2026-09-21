@@ -48,6 +48,40 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('generateCourse (Gemini 모킹 통합)', () => {
+  it('미등록 ID를 반환한 모델은 결과로 채택하지 않는다', async () => {
+    generateContent.mockResolvedValue({ response: { text: () => JSON.stringify({
+      title: '환각 코스', summary: '원본에 없는 장소', stops: [{ contentId: 'made-up', title: '가짜 장소', timeStart: '10:00', durationMin: 60, latitude: 37.5, longitude: 127 }],
+    }) } });
+    const result = await generateCourse(baseInput());
+    expect(result.generationMode).toBe('rules');
+    expect(result.stops.every(s => ['1', '2'].includes(s.contentId))).toBe(true);
+  });
+
+  it.each(['25:00', '9:00', '10:80'])('잘못된 HH:mm %s 응답은 채택하지 않는다', async timeStart => {
+    generateContent.mockResolvedValue({ response: { text: () => JSON.stringify({
+      title: '시간 오류', summary: '잘못된 시간표', stops: [{ contentId: '1', title: '장소1', timeStart, durationMin: 60, latitude: 37.5, longitude: 127 }],
+    }) } });
+    expect((await generateCourse(baseInput())).generationMode).toBe('rules');
+  });
+
+  it('취소된 요청은 모델을 호출하지 않는다', async () => {
+    const controller = new AbortController(); controller.abort();
+    const result = await generateCourse({ ...baseInput(), signal: controller.signal });
+    expect(generateContent).not.toHaveBeenCalled();
+    expect(result.generationMode).toBe('rules');
+  });
+
+  it('구성 개선 재시도가 실패해도 첫 유효 코스를 버리지 않는다', async () => {
+    vi.stubEnv('COURSE_COMPOSITION_RETRY', 'true');
+    generateContent.mockResolvedValueOnce({ response: { text: () => JSON.stringify({
+      title: '첫 유효 코스', summary: '식사 슬롯은 부족한 일정', stops: [{ contentId: '1', title: '장소1', timeStart: '10:00', durationMin: 60, latitude: 37.5, longitude: 127 }],
+    }) } }).mockRejectedValue(new Error('PERMISSION_DENIED'));
+    const result = await generateCourse(baseInput());
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(result.title).toBe('첫 유효 코스');
+    expect(result.generationMode).toBe('ai');
+  });
+
   it('API 키 없음 → 즉시 폴백 코스', async () => {
     vi.stubEnv('GEMINI_API_KEY', '');
     const c = await generateCourse(baseInput());

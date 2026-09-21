@@ -74,7 +74,7 @@ export default function FestivalCard({ festival: f, today, satStr, sunStr, index
         <p className="text-xs text-ink-3 break-keep">
           {region} · {dateStr}
         </p>
-        {distanceStr && <p className="text-[11px] text-ink-4">{distanceStr}</p>}
+        {distanceStr && <p className="text-xs text-ink-3">직선 {distanceStr} (추정)</p>}
       </div>
     </Link>
   );

@@ -7,13 +7,13 @@ import FestivalFilterBar from './FestivalFilterBar';
 import FestivalRadius from './FestivalRadius';
 import FestivalRegionFilter from './FestivalRegionFilter';
 import FestivalGrid from './FestivalGrid';
+import Button from '@/app/components/ui/Button';
 
 type StatusFilter = 'all' | 'ongoing' | 'thisWeekend' | 'upcoming';
 type SortKey = 'distance' | 'endingSoon' | 'newest';
 
 function getTodayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10).replaceAll('-', '');
 }
 
 function extractRegion(addr: string): string {
@@ -27,6 +27,9 @@ export default function FestivalPageShell() {
   const [weekendLabel, setWeekendLabel] = useState('');
   const [weekendDates, setWeekendDates] = useState<{ saturday: string; sunday: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [partial, setPartial] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [radius, setRadius] = useState(50);
   const [locationName, setLocationName] = useState('위치 설정');
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
@@ -59,24 +62,28 @@ export default function FestivalPageShell() {
   useEffect(() => {
     if (!userLoc) return;
     setLoading(true);
+    setError(false); setPartial(false); setFestivals([]);
     const controller = new AbortController();
     fetch(`/api/festival?lat=${userLoc.lat}&lng=${userLoc.lng}&radius=${radius}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => { if (!res.ok) throw new Error('FESTIVAL_UNAVAILABLE'); return res.json(); })
       .then((data) => {
-        if (!data) return;
-        setFestivals(data.festivals || []);
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(data?.festivals) || data.dataStatus === 'unavailable') throw new Error('FESTIVAL_UNAVAILABLE');
+        setFestivals(data.festivals);
+        setPartial(data.dataStatus === 'partial');
+        setRegionFilter('all');
         if (data.weekendDates) {
           setWeekendDates(data.weekendDates);
           const { saturday: sat, sunday: sun } = data.weekendDates;
           setWeekendLabel(`${sat.slice(4, 6)}/${sat.slice(6, 8)}~${sun.slice(6, 8)}`);
         }
       })
-      .catch((err) => {
-        if (err.name !== 'AbortError') { /* 무시 */ }
+      .catch(() => {
+        if (!controller.signal.aborted) { setError(true); setFestivals([]); }
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [userLoc, radius]);
+  }, [userLoc, radius, retry]);
 
   const availableRegions = useMemo(() => {
     const regions = new Set(festivals.map((f) => extractRegion(f.addr1)));
@@ -109,6 +116,7 @@ export default function FestivalPageShell() {
         locationName={locationName}
         radius={radius}
         count={filtered.length}
+        status={loading ? 'loading' : error ? 'unavailable' : partial ? 'partial' : 'available'}
       />
       <FestivalFilterBar
         status={statusFilter}
@@ -120,14 +128,22 @@ export default function FestivalPageShell() {
         <FestivalRadius value={radius} onChange={setRadius} />
         <FestivalRegionFilter regions={availableRegions} value={regionFilter} onChange={setRegionFilter} />
       </div>
-      <FestivalGrid
+      <p className="max-w-7xl mx-auto px-5 lg:px-8 pt-4 text-xs leading-relaxed text-ink-3">개최기간이 이번 주말과 겹치는 행사예요. 매일 열리는 것은 아니니 운영일·공연 회차·예약을 확인해주세요. 거리는 직선 추정치예요.</p>
+      {partial && <p role="status" className="max-w-7xl mx-auto px-5 lg:px-8 pt-3 text-sm text-ink-2">일부 조회 범위만 확인했어요. 표시되지 않은 행사가 있을 수 있어요.</p>}
+      {error ? (
+        <div role="alert" className="max-w-7xl mx-auto px-5 lg:px-8 py-12 text-center">
+          <h2 className="font-bold text-ink-1">축제 정보를 불러오지 못했어요</h2>
+          <p className="mt-2 mb-5 text-sm text-ink-3">축제가 없다는 뜻은 아니에요. 잠시 후 다시 확인해주세요.</p>
+          <Button variant="secondary" onClick={() => setRetry(value => value + 1)}>축제 다시 불러오기</Button>
+        </div>
+      ) : <FestivalGrid
         festivals={filtered}
         loading={loading}
         today={today}
         satStr={satStr}
         sunStr={sunStr}
         onExpandRadius={() => setRadius(200)}
-      />
+      />}
     </>
   );
 }

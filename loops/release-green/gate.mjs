@@ -19,7 +19,8 @@ const OUT_DIR = resolve(HERE, 'outputs');
 // tests/barrier-free-live.test.ts 의 3개는 실호출이라 TOUR_API_KEY 가 있어야만
 // 돈다. gate 는 그 키 없이 도는 게 정상이므로 기준선에서 제외한다 —
 // 포함시키면 게이트가 매번 WARN 을 내 경고 피로만 생긴다.
-const BASELINE = 157;
+// 2026-09-21: 제출 후 개선(배지 분류·단계 계측·대기 안내·동반자별 이동 기준)으로 24개 추가 → 561.
+const BASELINE = 561;
 
 const pad = (n) => String(n).padStart(2, '0');
 const now = new Date();
@@ -30,14 +31,12 @@ const clock = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 // 리포트가 남아야 "무엇이 언제 깨졌다"를 사람이 되짚을 수 있다.
 const fileStamp = `${stamp}-${pad(now.getHours())}${pad(now.getMinutes())}`;
 
-// 커맨드를 문자열 하나로 둔다(인자 배열 + shell:true 조합이 아니다).
-// Windows 에서 npm 은 npm.cmd 라 셸이 필요한데, shell:true 에 인자 배열을 함께 넘기면
-// 인자가 이스케이프되지 않는다(Node DEP0190). 여기 값은 전부 하드코딩 상수라 인젝션
-// 위험은 없지만, 경고를 내는 형태 자체를 남겨두면 나중에 변수를 끼워넣는 사람이 생긴다.
+// 현재 Node로 프로젝트의 CLI를 직접 실행한다. 전역 npm 경로가 손상된 Windows에서도
+// 같은 lockfile의 도구를 쓰며, 셸 인자 이스케이프와 npm.cmd 의존을 없앤다.
 const CHECKS = [
-  { id: 'test',  label: '단위 테스트', cmd: 'npm test' },
-  { id: 'lint',  label: 'ESLint',      cmd: 'npm run lint' },
-  { id: 'build', label: 'Next 빌드',   cmd: 'npm run build' },
+  { id: 'test',  label: '단위 테스트', args: ['node_modules/vitest/vitest.mjs', 'run'] },
+  { id: 'lint',  label: 'ESLint',      args: ['node_modules/eslint/bin/eslint.js', '.'] },
+  { id: 'build', label: 'Next 빌드',   args: ['node_modules/next/dist/bin/next', 'build'] },
 ];
 
 // 비밀값이 로그에 섞여 나올 수 있으므로 흔한 패턴을 지운다.
@@ -73,17 +72,17 @@ function describeSpawnError(res) {
 const rows = [];
 for (const c of CHECKS) {
   const t0 = Date.now();
-  const res = spawnSync(c.cmd, {
+  const res = spawnSync(process.execPath, c.args, {
     cwd: REPO,
     encoding: 'utf8',
-    shell: true,
+    shell: false,
     timeout: SPAWN_TIMEOUT_MS,
     maxBuffer: SPAWN_MAX_BUFFER,
   });
   const ms = Date.now() - t0;
   const spawnError = describeSpawnError(res);
   const out = scrub(`${res.stdout ?? ''}\n${res.stderr ?? ''}`).trim();
-  const tail = spawnError ?? out.split('\n').slice(-6).join('\n');
+  const tail = spawnError ?? out.split('\n').slice(-20).join('\n');
   // spawnError 가 있으면(=res.status 가 null) pass 는 당연히 false 다 — 이 값은
   // 아래 렌더링에서 "exit null" 대신 spawnError 문구를 보여주는 데 쓰인다.
   // out(전체 출력)도 들고 간다 — 리포트에는 tail 만 싣지만, 테스트 개수 추출은
@@ -97,7 +96,7 @@ process.stdout.write('\n');
 // 테스트 개수 추출 (회귀 감시용) — 출력 전체를 대상으로 한다.
 // 여러 번 매칭되면(예: 재실행·워크스페이스 다중 프로젝트) 마지막 것이 최종 요약이다.
 const testRow = rows.find((r) => r.id === 'test');
-const matches = [...(testRow?.out ?? '').matchAll(/Tests\s+(\d+)\s+passed/g)];
+const matches = [...(testRow?.out ?? '').matchAll(/Tests[^\n]*?(\d+)\s+passed/g)];
 const testCount = matches.length ? Number(matches[matches.length - 1][1]) : null;
 
 const failed = rows.filter((r) => !r.pass);

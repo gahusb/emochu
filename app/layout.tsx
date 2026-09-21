@@ -48,7 +48,6 @@ export const viewport: Viewport = {
   themeColor: '#FAF7F2',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: 'cover',
 };
 
@@ -60,7 +59,7 @@ export default function RootLayout({
   modal: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
+    <html lang="ko" data-scroll-behavior="smooth">
       <body className="antialiased">
         <LocationProvider>
           <div className="min-h-[100dvh] bg-surface-base text-ink-2 flex flex-col">

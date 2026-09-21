@@ -60,3 +60,9 @@ design/*.html
 
 # 육안 확인용 임시 Playwright 스크린샷 도구 (세션 전용, 커밋 대상 아님)
 .scratch-playwright/
+
+# 실데이터 품질 실측 원본 — 공개 제출 문서는 요약/검토 후 별도 작성
+.scratch-live-course/
+
+# 격리 PostgreSQL 권한 회귀 검사용 런타임·npm 캐시 (운영 DB 미사용)
+.scratch-sql/

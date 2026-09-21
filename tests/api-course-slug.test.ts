@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Supabase admin 클라이언트 모킹 (체이너블)
-const { single, createAdminClient } = vi.hoisted(() => {
+const { single, select, createAdminClient } = vi.hoisted(() => {
   const single = vi.fn();
+  const select = vi.fn(() => ({ eq: () => ({ single }) }));
   const createAdminClient = vi.fn(() => ({
     from: () => ({
-      select: () => ({ eq: () => ({ single }) }),
+      select,
       update: () => ({ eq: () => ({ then: (cb: any) => { cb(); return Promise.resolve(); } }) }),
     }),
   }));
-  return { single, createAdminClient };
+  return { single, select, createAdminClient };
 });
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient }));
 
@@ -17,9 +18,30 @@ import { GET } from '@/app/api/course/[slug]/route';
 
 const ctx = (slug: string) => ({ params: Promise.resolve({ slug }) });
 
-beforeEach(() => single.mockReset());
+beforeEach(() => {
+  single.mockReset();
+  select.mockClear();
+});
 
 describe('GET /api/course/[slug]', () => {
+  it('공유 조회는 허용 컬럼만 요청하고 추가 민감 컬럼이 있어도 응답하지 않는다', async () => {
+    single.mockResolvedValue({
+      data: {
+        id: 'id1', share_slug: 'abcd1234', view_count: 0, course_b_data: null,
+        course_data: { title: '코스', summary: '', totalDistanceKm: 0, tip: '', stops: [] },
+        edit_token: 'fixture-private-edit-capability', user_id: 'fixture-private-owner',
+        departure_lat: 37.123, departure_lng: 127.123, request_params: { private: true },
+      },
+      error: null,
+    });
+    const res = await GET({} as any, ctx('abcd1234'));
+    expect(res.status).toBe(200);
+    expect(select).toHaveBeenCalledExactlyOnceWith('id, share_slug, course_data, course_b_data, view_count, is_public');
+    const body = await res.json();
+    expect(Object.keys(body).sort()).toEqual(['course', 'courseId', 'isPublic', 'kakaoNaviUrl', 'shareUrl']);
+    expect(JSON.stringify(body)).not.toContain('fixture-private');
+  });
+
   it('짧은 slug → 400', async () => {
     const res = await GET({} as any, ctx('abc'));
     expect(res.status).toBe(400);
