@@ -6,10 +6,19 @@
 
 - Status: **Active** (수동 진단, 스케줄 미등록)
 - Main objective: 관광 API 응답·데이터 범위·변경 위험 관측. 호출 수를 늘리기 위한 인위적 실행은 하지 않는다.
-- Current focus: 제한된 실행 환경의 실패와 실제 API 실패를 구별
-- Last updated: 2026-09-09
+- Current focus: 제한된 실행 환경의 실패와 실제 API 실패를 구별 → **9/21 정상 환경에서 11/11 PASS 로 회복 확인**
+- Last updated: 2026-09-21
 
 ## Last Run
+
+- Date: **2026-09-21**
+- Summary: **PASS 11 / WARN 0 / FAIL 0** — 폐기 예정 `areaCode2`·`categoryCode2` 포함 전부 HTTP 200 / resultCode 0000
+- Output: `outputs/api-health-2026-09-21.md`
+- 응답 82~217ms. totalCount: 축제 188 · 위치기반 731 · 지역기반 384 · 키워드 12 · 숙박 233 — **9/1 대비 급변 없음**.
+- 🔑 9/9 의 FAIL 11 은 **실행 환경의 EACCES** 였고 API 장애가 아니었다. 오늘 정상 환경에서 11/11 PASS 로 그 해석이 확인됐다.
+- 같은 날 별도로 **운영 사이트 검증**을 돌려 TourAPI 경유 경로(홈 3개 지역 · 축제 4종 반경 · 검색 3건 · 장소 상세/이미지)를 실호출했다 — 심사용 호출 이력은 이 루프 밖에서도 쌓였다. 상세는 `docs/2026-09-21-제출후-개선-작업결과.md` 의 「운영 검증 2차」.
+
+### 이전 실행
 
 - Date: **2026-09-09**
 - Summary: **PASS 0 / WARN 0 / FAIL 11** — 11개 모두 HTTP 응답 전 fetch 실패
