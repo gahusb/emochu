@@ -96,3 +96,24 @@ describe('POST 생성 경계 — 외부 연결 없는 회귀 테스트', () => {
     expect(await response.text()).not.toContain('hidden-secret');
   });
 });
+
+// 🔴 2026-09-22 실측이 만든 검사다. 헤더의 ai: 는 「라우트가 타임아웃 경주에 걸렸는가」일 뿐이라,
+//    엔진이 안에서 폴백하면 ai:gemini 인 채로 규칙 코스가 나간다. 그걸 「폴백 0회」로 잘못 읽었다.
+//    mode: 가 빠지면 같은 오독이 되풀이된다.
+describe('x-emochu-timings 헤더 — 무엇이 실제로 나갔는지', () => {
+  it('엔진이 안에서 폴백하면 ai:gemini 라도 mode:rules 로 드러난다', async () => {
+    mocks.generate.mockImplementation(async () => ({
+      title: '규칙 코스', summary: '엔진 내부 폴백', totalDistanceKm: 0, tip: '', generationMode: 'rules',
+      stops: [{ order: 1, contentId: '12', title: '장소', timeStart: '10:00', durationMin: 60, latitude: 37.5, longitude: 127, description: '', tip: '', isFestival: false }],
+    }));
+    const header = (await POST(request(body()))).headers.get('x-emochu-timings') ?? '';
+    expect(header).toContain('mode:rules');
+    expect(header).toContain('ai:gemini');   // 라우트 입장에서는 경주에 안 걸렸다
+    expect(header).toContain('total=');
+  });
+
+  it('AI 코스면 mode:ai 로 나간다', async () => {
+    const header = (await POST(request(body()))).headers.get('x-emochu-timings') ?? '';
+    expect(header).toContain('mode:ai');
+  });
+});

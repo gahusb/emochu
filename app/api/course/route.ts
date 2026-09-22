@@ -427,6 +427,7 @@ export async function POST(request: NextRequest) {
         console.warn('[이모추API] B 코스 저장 실패 (코스는 반환):', dbErr);
       }
       timer.note('variant', 'b');
+      timer.note('mode', course.generationMode ?? 'unknown');
       console.info(formatTimingLine(timer.summary()));
       return NextResponse.json({ courseB: course }, { headers: { 'x-emochu-timings': formatTimingHeader(timer.summary()) } });
     }
@@ -495,6 +496,10 @@ export async function POST(request: NextRequest) {
     timer.mark('persist', Date.now() - persistStartedAt);
     timer.note('stops', course.stops.length);
     timer.note('persistence', persistence);
+    // 🔴 `ai:` 는 **이 라우트가 타임아웃 경주에 걸렸는가**만 말한다. 엔진이 모델 실패·검증 실패로
+    //    안에서 폴백하면 `ai:gemini` 인 채로 규칙 코스가 나간다 — 2026-09-22 실측에서 그걸
+    //    「폴백 0회」로 잘못 읽었다. 실제로 무엇이 나갔는지는 이 값이 유일한 답이다.
+    timer.note('mode', course.generationMode ?? 'unknown');
     // 🔑 한 요청이 로그 한 줄이다. 표본을 모아야 "어디가 느린가"에 답할 수 있다.
     console.info(formatTimingLine(timer.summary()));
 
